@@ -24,8 +24,8 @@ func main() {
 	fmt.Println("URLs:", urls_list)
 
 	// parse cookies
-	fantia_cookie, _ := utils.GetCookie(*fantia_session, "fantia")
-	pixiv_fanbox_cookie, _ := utils.GetCookie(*pixiv_fanbox_session, "fanbox")
+	fantia_cookie := utils.GetCookie(*fantia_session, "fantia")
+	pixiv_fanbox_cookie := utils.GetCookie(*pixiv_fanbox_session, "fanbox")
 
 	// verify cookies
 	fantia_cookie_valid, err := utils.VerifyCookie(fantia_cookie, "fantia")

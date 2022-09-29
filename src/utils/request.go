@@ -82,20 +82,25 @@ func DownloadURL(fileURL string, filepath string, cookies []http.Cookie) error {
 	// create the file
 	out, err := os.Create(filepath)
 	if (err != nil) {
+		errorMessage := fmt.Sprintf("failed to create %s to %s due to %v", fileURL, filepath, err)
+		LogError(err, errorMessage, false)
 		return err
 	}
 	defer out.Close()
 
 	// write the body to file
+	// https://stackoverflow.com/a/11693049/16377492
 	_, err = io.Copy(out, resp.Body)
 	if (err != nil) {
+		errorMessage := fmt.Sprintf("failed to download file at %s due to %v", filepath, err)
+		LogError(err, errorMessage, false)
 		os.Remove(filepath)
 		return err
 	}
 	return nil
 }
 
-func DownloadURLsParallel(urls []map[string]string, cookies []http.Cookie) error {
+func DownloadURLsParallel(urls []map[string]string, cookies []http.Cookie) {
 	// downloads files from the urls in parallel
 	// https://stackoverflow.com/a/25324090/16377492
 	var wg sync.WaitGroup
@@ -110,11 +115,10 @@ func DownloadURLsParallel(urls []map[string]string, cookies []http.Cookie) error
 		sem <- struct{}{}
 		go func(url string, filepath string) {
 			defer wg.Done()
-			_ = DownloadURL(url, filepath, cookies)
+			DownloadURL(url, filepath, cookies)
 			<-sem
 		}(url["url"], url["filepath"])
 	}
 	close(sem) // close the channel to tell the goroutines that there are no more urls to download
 	wg.Wait() // wait for all downloads to finish
-	return nil
 }

@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-func GetCookie(sessionID string, website string) (http.Cookie, error) {
+func GetCookie(sessionID string, website string) http.Cookie {
 	var domainName, cookieName string
 	var sameSite http.SameSite
 	if (website == "fantia") {
@@ -18,11 +18,11 @@ func GetCookie(sessionID string, website string) (http.Cookie, error) {
 		cookieName = "FANBOXSESSID"
 		sameSite = http.SameSiteNoneMode
 	} else {
-		return http.Cookie{}, errors.New("invalid website")
+		panic("invalid website")
 	}
 
 	if (sessionID == "") {
-		return http.Cookie{}, nil
+		return http.Cookie{}
 	}
 
 	cookie := http.Cookie{
@@ -35,7 +35,7 @@ func GetCookie(sessionID string, website string) (http.Cookie, error) {
 		Secure: true,
 		HttpOnly: true,
 	}
-	return cookie, nil
+	return cookie
 }
 
 func VerifyCookie(cookie http.Cookie, website string) (bool, error) {
