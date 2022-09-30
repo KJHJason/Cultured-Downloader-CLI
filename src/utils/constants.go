@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"os"
 	"runtime"
+	"path/filepath"
 )
 
 func GetUserAgent() string {
@@ -18,8 +20,28 @@ func GetUserAgent() string {
 	return userAgentOS + " AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36"
 }
 
+func GetAppPath() string {
+	appPath, err := os.UserHomeDir()
+	if (err != nil) {
+		errorMsg := "failed to get user home directory: " + err.Error()
+		panic(errorMsg)
+	}
+	var appDir = map[string]string {
+		"windows": "AppData/Roaming/Cultured-Downloader",
+		"linux": ".config/Cultured-Downloader",
+		"darwin": "Library/Preferences/Cultured-Downloader",
+	}
+	appDirOS := appDir[runtime.GOOS]
+	if (appDirOS == "") {
+		panic("unsupported OS")
+	}
+	return filepath.Join(appPath, appDirOS)
+}
+
 var (
 	USER_AGENT = GetUserAgent()
+	APP_PATH = GetAppPath()
+	DOWNLOAD_PATH = GetDefaultDownloadPath()
 )
 
 const (

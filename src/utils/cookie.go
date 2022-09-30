@@ -2,7 +2,6 @@ package utils
 
 import (
 	"time"
-	"errors"
 	"net/http"
 )
 
@@ -46,7 +45,7 @@ func VerifyCookie(cookie http.Cookie, website string) (bool, error) {
 	} else if (website == "fanbox") {
 		websiteURL = "https://www.fanbox.cc/"
 	} else {
-		return false, errors.New("invalid website")
+		panic("invalid website")
 	}
 
 	if (cookie.Value == "") {
