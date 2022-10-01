@@ -1,4 +1,4 @@
-module cultured_downloader
+module github.com/KJHJason/Cultured-Downloader-CLI
 
 go 1.19
 

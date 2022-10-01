@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"net/http"
 	"github.com/fatih/color"
-	"cultured_downloader/utils"
+	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
 
 func main() {
