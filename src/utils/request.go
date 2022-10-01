@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"sync"
 	"time"
-	"strings"
 	"net/url"
 	"net/http"
 	"path/filepath"
+	"github.com/panjf2000/ants/v2"
 )
 
 func CallRequest(url string, timeout int, cookies []http.Cookie, 
@@ -68,11 +68,7 @@ func DownloadURL(fileURL string, filePath string, cookies []http.Cookie) error {
 
 	// check if the filename contains a query string
 	filename, _ = url.PathUnescape(resp.Request.URL.String())
-	if (strings.Contains(filename, "?")) {
-		filename = filename[:strings.Index(filename, "?")]
-	}
-
-	filePath = filepath.Join(filePath, filename[strings.LastIndex(filename, "/"):])
+	filePath = filepath.Join(filePath, GetLastPartOfURL(filename))
 	if empty, _ := CheckIfFileIsEmpty(filePath); !empty {
 		return nil
 	}
@@ -95,24 +91,24 @@ func DownloadURL(fileURL string, filePath string, cookies []http.Cookie) error {
 }
 
 func DownloadURLsParallel(urls []map[string]string, cookies []http.Cookie) {
-	// downloads files from the urls in parallel
-	// https://stackoverflow.com/a/25324090/16377492
-	var wg sync.WaitGroup
-
 	maxConcurrency := MAX_CONCURRENT_DOWNLOADS
 	if len(urls) < MAX_CONCURRENT_DOWNLOADS {
 		maxConcurrency = len(urls)
 	}
-	sem := make(chan struct{}, maxConcurrency)
+	pool, _ := ants.NewPool(maxConcurrency)
+	defer pool.Release()
+
+	var wg sync.WaitGroup
 	for _, url := range urls {
 		wg.Add(1)
-		sem <- struct{}{}
-		go func(url string, filepath string) {
+		fileURL := url["url"]
+		filePath := url["path"]
+		pool.Submit(func() {
 			defer wg.Done()
-			DownloadURL(url, filepath, cookies)
-			<-sem
-		}(url["url"], url["filepath"])
+			DownloadURL(fileURL, filePath, cookies)
+		})
 	}
-	close(sem) // close the channel to tell the goroutines that there are no more urls to download
-	wg.Wait() // wait for all downloads to finish
+
+	// wait for all the tasks to finish
+	wg.Wait()
 }
