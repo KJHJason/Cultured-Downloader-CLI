@@ -2,6 +2,7 @@ package utils
 
 import (
 	"os"
+	"regexp"
 	"runtime"
 	"path/filepath"
 )
@@ -14,7 +15,7 @@ func GetUserAgent() string {
 			"Mozilla/5.0 (Macintosh; Intel Mac OS X 12_6)",
 	}
 	userAgentOS := userAgent[runtime.GOOS]
-	if (userAgentOS == "") {
+	if userAgentOS == "" {
 		userAgentOS = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
 	}
 	return userAgentOS + " AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36"
@@ -22,7 +23,7 @@ func GetUserAgent() string {
 
 func GetAppPath() string {
 	appPath, err := os.UserHomeDir()
-	if (err != nil) {
+	if err != nil {
 		errorMsg := "failed to get user home directory: " + err.Error()
 		panic(errorMsg)
 	}
@@ -32,16 +33,20 @@ func GetAppPath() string {
 		"darwin": "Library/Preferences/Cultured-Downloader",
 	}
 	appDirOS := appDir[runtime.GOOS]
-	if (appDirOS == "") {
+	if appDirOS == "" {
 		panic("unsupported OS")
 	}
 	return filepath.Join(appPath, appDirOS)
 }
 
 var (
+	RETRY_DELAY = 1.2
 	USER_AGENT = GetUserAgent()
 	APP_PATH = GetAppPath()
+	PASSWORD_TEXTS = []string {"パス", "Pass", "pass", "密码"}
+	EXTERNAL_DOWNLOAD_PLATFORMS = []string {"mega", "gigafile"}
 	DOWNLOAD_PATH = GetDefaultDownloadPath()
+	ILLEGAL_PATH_CHARS = regexp.MustCompile(`[<>:"/\\|?*]`)
 )
 
 const (

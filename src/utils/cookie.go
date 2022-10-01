@@ -8,11 +8,11 @@ import (
 func GetCookie(sessionID string, website string) http.Cookie {
 	var domainName, cookieName string
 	var sameSite http.SameSite
-	if (website == "fantia") {
+	if website == "fantia" {
 		domainName = "fantia.jp"
 		cookieName = "_session_id"
 		sameSite = http.SameSiteLaxMode
-	} else if (website == "fanbox") {
+	} else if website == "fanbox" {
 		domainName = ".fanbox.cc"
 		cookieName = "FANBOXSESSID"
 		sameSite = http.SameSiteNoneMode
@@ -20,7 +20,7 @@ func GetCookie(sessionID string, website string) http.Cookie {
 		panic("invalid website")
 	}
 
-	if (sessionID == "") {
+	if sessionID == "" {
 		return http.Cookie{}
 	}
 
@@ -40,27 +40,29 @@ func GetCookie(sessionID string, website string) http.Cookie {
 func VerifyCookie(cookie http.Cookie, website string) (bool, error) {
 	// sends a request to the website to verify the cookie
 	var websiteURL string
-	if (website == "fantia") {
+	if website == "fantia" {
 		websiteURL = "https://fantia.jp/"
-	} else if (website == "fanbox") {
+	} else if website == "fanbox" {
 		websiteURL = "https://www.fanbox.cc/"
 	} else {
 		panic("invalid website")
 	}
 
-	if (cookie.Value == "") {
+	if cookie.Value == "" {
 		return false, nil
 	}
 
-	resp, err := CallRequest(websiteURL, 5, []http.Cookie{cookie}, "GET", map[string]string{})
-	if (err != nil) {
+	cookies := []http.Cookie{cookie}
+	resp, err := CallRequest(websiteURL, 5, cookies, "HEAD", nil, nil)
+	if err != nil {
 		return false, err
 	}
 
 	// check if the cookie is valid
-	cookies := resp.Cookies()
-	for _, c := range cookies {
-		if (c.Name == cookie.Name && c.Value == cookie.Value) {
+	resp.Body.Close()
+	cookiesRes := resp.Cookies()
+	for _, c := range cookiesRes {
+		if c.Name == cookie.Name && c.Value == cookie.Value {
 			return true, nil
 		}
 	}
