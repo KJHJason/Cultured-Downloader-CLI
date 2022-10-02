@@ -34,9 +34,7 @@ func GetFantiaPosts(creatorId string, cookies []http.Cookie) []string {
 		// get the post ids similar to using the xpath of //a[@class='link-block']
 		hasPosts := false
 		doc.Find("a.link-block").Each(func(i int, s *goquery.Selection) {
-			fmt.Println(s.Attr("href"))
-			href, exists := s.Attr("href")
-			if exists {
+			if href, exists := s.Attr("href"); exists {
 				postIds = append(postIds, href)
 				hasPosts = true
 			} else {
