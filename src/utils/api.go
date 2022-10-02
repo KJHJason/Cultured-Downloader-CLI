@@ -34,6 +34,7 @@ func GetPostDetails(postIdsOrUrls []string, website string, cookies []http.Cooki
 		maxConcurrency = len(postIdsOrUrls)
 	}
 	pool, _ := ants.NewPool(maxConcurrency)
+	defer pool.Release()
 	resChan := make(chan *http.Response, len(postIdsOrUrls))
 	for _,  postIdOrUrl := range postIdsOrUrls {
 		wg.Add(1)
@@ -98,6 +99,7 @@ func GetCreatorsPosts(creatorIds []string, website string, cookies []http.Cookie
 			maxConcurrency = len(creatorIds)
 		}
 		pool, _ := ants.NewPool(maxConcurrency)
+		defer pool.Release()
 		resChan := make(chan []string, len(creatorIds))
 		for _, creatorId := range creatorIds {
 			wg.Add(1)

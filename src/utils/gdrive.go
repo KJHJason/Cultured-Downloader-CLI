@@ -247,6 +247,7 @@ func (gdrive GDrive) DownloadMultipleFiles(files []map[string]string) {
 
 		var wg sync.WaitGroup
 		pool, _ := ants.NewPool(maxConcurrency)
+		defer pool.Release()
 		for _, file := range allowedForDownload {
 			wg.Add(1)
 			_ = pool.Submit(func() {

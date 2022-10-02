@@ -207,6 +207,7 @@ func GetFanboxPosts(creatorId string, cookies []http.Cookie) []map[string]string
 		maxConcurrency = len(paginatedUrls)
 	}
 	pool, _ := ants.NewPool(maxConcurrency)
+	defer pool.Release()
 	resChan := make(chan *http.Response, len(paginatedUrls))
 	for _,  url := range paginatedUrls {
 		wg.Add(1)
