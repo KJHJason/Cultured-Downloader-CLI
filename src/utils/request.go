@@ -1,8 +1,8 @@
 package utils
 
 import (
-	"io"
 	"os"
+	"io"
 	"fmt"
 	"sync"
 	"time"
@@ -12,8 +12,7 @@ import (
 	"github.com/panjf2000/ants/v2"
 )
 
-func CallRequest(url string, timeout int, cookies []http.Cookie, 
-	method string, additionalHeaders map[string]string, params map[string]string) (*http.Response, error) {
+func CallRequest(url string, timeout int, cookies []http.Cookie, method string, additionalHeaders map[string]string, params map[string]string, checkStatus bool) (*http.Response, error) {
 	// sends a request to the website
 	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
@@ -22,7 +21,7 @@ func CallRequest(url string, timeout int, cookies []http.Cookie,
 
 	// add cookies to the request
 	for _, cookie := range cookies {
-		req.Header.Add("Cookie", cookie.String())
+		req.AddCookie(&cookie)
 	}
 
 	// add headers to the request
@@ -47,11 +46,14 @@ func CallRequest(url string, timeout int, cookies []http.Cookie,
 	client.Timeout = time.Duration(timeout) * time.Second
 	for i := 1; i <= RETRY_COUNTER; i++ {
 		resp, err := client.Do(req)
-		if err == nil && resp.StatusCode == 200 {
-			return resp, nil
-		} else {
-			time.Sleep(time.Duration(RETRY_DELAY) * time.Second)
+		if err == nil {
+			if !checkStatus {
+				return resp, nil
+			} else if resp.StatusCode == 200 {
+				return resp, nil
+			}
 		}
+		time.Sleep(time.Duration(RETRY_DELAY) * time.Second)
 	}
 	errorMessage := fmt.Sprintf("failed to send a request to %s after %d retries", url, RETRY_COUNTER)
 	LogError(err, errorMessage, false)
@@ -60,7 +62,7 @@ func CallRequest(url string, timeout int, cookies []http.Cookie,
 
 func DownloadURL(fileURL string, filePath string, cookies []http.Cookie) error {
 	var filename string
-	resp, err := CallRequest(fileURL, 30, cookies, "GET", nil, nil)
+	resp, err := CallRequest(fileURL, 30, cookies, "GET", nil, nil, true)
 	if err != nil {
 		return err
 	}
@@ -74,15 +76,15 @@ func DownloadURL(fileURL string, filePath string, cookies []http.Cookie) error {
 	}
 
 	// create the file
-	out, err := os.Create(filePath)
+	file, err := os.Create(filePath)
 	if err != nil {
 		panic(err)
 	}
-	defer out.Close()
+	defer file.Close()
 
 	// write the body to file
 	// https://stackoverflow.com/a/11693049/16377492
-	_, err = io.Copy(out, resp.Body)
+	_, err = io.Copy(file, resp.Body)
 	if err != nil {
 		os.Remove(filePath)
 		panic(err)
@@ -103,10 +105,13 @@ func DownloadURLsParallel(urls []map[string]string, cookies []http.Cookie) {
 		wg.Add(1)
 		fileURL := url["url"]
 		filePath := url["path"]
-		pool.Submit(func() {
+		err := pool.Submit(func() {
 			defer wg.Done()
 			DownloadURL(fileURL, filePath, cookies)
 		})
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	// wait for all the tasks to finish

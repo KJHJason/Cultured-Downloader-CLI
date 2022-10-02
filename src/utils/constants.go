@@ -8,7 +8,7 @@ import (
 )
 
 func GetUserAgent() string {
-	var userAgent = map[string]string {
+	userAgent := map[string]string {
 		"linux":
 			"Mozilla/5.0 (X11; Linux x86_64)",
 		"darwin":
@@ -27,7 +27,7 @@ func GetAppPath() string {
 		errorMsg := "failed to get user home directory: " + err.Error()
 		panic(errorMsg)
 	}
-	var appDir = map[string]string {
+	appDir := map[string]string {
 		"windows": "AppData/Roaming/Cultured-Downloader",
 		"linux": ".config/Cultured-Downloader",
 		"darwin": "Library/Preferences/Cultured-Downloader",
@@ -44,9 +44,14 @@ var (
 	USER_AGENT = GetUserAgent()
 	APP_PATH = GetAppPath()
 	PASSWORD_TEXTS = []string {"パス", "Pass", "pass", "密码"}
-	EXTERNAL_DOWNLOAD_PLATFORMS = []string {"mega", "gigafile"}
+	EXTERNAL_DOWNLOAD_PLATFORMS = []string {"mega", "gigafile", "dropbox", "mediafire"}
 	DOWNLOAD_PATH = GetDefaultDownloadPath()
-	ILLEGAL_PATH_CHARS = regexp.MustCompile(`[<>:"/\\|?*]`)
+	ILLEGAL_PATH_CHARS_REGEX = regexp.MustCompile(`[<>:"/\\|?*]`)
+	GDRIVE_URL_REGEX = regexp.MustCompile(
+		`https://drive\.google\.com/(?P<type>file/d|drive/(u/\d+/)?folders)/(?P<id>[\w-]+)`,
+	)
+	GDRIVE_REGEX_ID_INDEX = GDRIVE_URL_REGEX.SubexpIndex("id")
+	GDRIVE_REGEX_TYPE_INDEX = GDRIVE_URL_REGEX.SubexpIndex("type")
 )
 
 const (

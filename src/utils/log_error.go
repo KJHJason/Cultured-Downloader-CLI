@@ -5,10 +5,15 @@ import (
 	"fmt"
 	"log"
 	"time"
+	"sync"
 )
 
 func LogError(err error, errorMsg string, exit bool) {
-	if err == nil {
+	var mu sync.Mutex
+	mu.Lock()
+	defer mu.Unlock()
+
+	if err == nil && errorMsg == "" {
 		return
 	}
 
@@ -23,9 +28,15 @@ func LogError(err error, errorMsg string, exit bool) {
 
 	// From https://www.golangprograms.com/get-current-date-and-time-in-various-format-in-golang.html
 	now := time.Now().Format("2006-01-02 15:04:05")
-	fmt.Fprintf(f, "%v: %v\n", now, err)
-	if errorMsg != "" {
-		fmt.Fprintf(f, "Additional info: %v\n\n", errorMsg)
+	if err != nil && errorMsg != "" {
+		fmt.Fprintf(f, "%v: %v\n", now, err)
+		if errorMsg != "" {
+			fmt.Fprintf(f, "Additional info: %v\n\n", errorMsg)
+		}
+	} else if err != nil {
+		fmt.Fprintf(f, "%v: %v\n\n", now, err)
+	} else {
+		fmt.Fprintf(f, "%v: %v\n\n", now, errorMsg)
 	}
 
 	if exit {

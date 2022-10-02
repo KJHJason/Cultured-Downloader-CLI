@@ -38,7 +38,7 @@ func main() {
 		color.Green("Download path set to: %s", *downloadPath)
 		return
 	}
-	if (utils.GetDefaultDownloadPath() == "") {
+	if (utils.DOWNLOAD_PATH == "") {
 		color.Red(
 			"Default download setting not found or is invalid, " +
 			"please set up a default download path before continuing by pasing the -download_path flag.",
@@ -60,10 +60,11 @@ func main() {
 		color.Red("Fantia cookie is invalid.")
 		os.Exit(1)
 	}
-	if *gdrive_api_key != "" && !utils.GDriveKeyIsValid(*gdrive_api_key) {
-		color.Red("Google Drive API key is invalid.")
-		os.Exit(1)
-	} 
+
+	var gdrive *utils.GDrive
+	if *gdrive_api_key != "" {
+		gdrive = utils.GetNewGDrive(*gdrive_api_key, utils.MAX_CONCURRENT_DOWNLOADS)
+	}
 
 	pixiv_fanbox_cookie_valid, err := utils.VerifyCookie(pixiv_fanbox_cookie, "fanbox")
 	if (err != nil) {
@@ -120,12 +121,16 @@ func main() {
 
 	fmt.Println(urlsToDownload)
 	fmt.Println(gdriveUrlsToDownload)
-	//download
+	if *gdrive_api_key != "" {
+		gdrive.DownloadGdriveUrls(gdriveUrlsToDownload)
+	}
+	// download
 	// var urls_arr []map[string]string
 	// url := map[string]string {
 	// 	"url": "https://fantia.jp/posts/1132038/download/1810523",
 	// 	"filepath": "E:\\Codes\\Github Projects\\Cultured-Downloader-CLI\\src",
 	// }
+	// urls_arr = append(urls_arr, url)
 	// url = map[string]string {
 	// 	"url": "https://fantia.jp/posts/1321871/download/2143558",
 	// 	"filepath": "E:\\Codes\\Github Projects\\Cultured-Downloader-CLI\\src",
@@ -162,6 +167,6 @@ func main() {
 	// }
 	// urls_arr = append(urls_arr, url)
 
-	// // make a list of maps
+	// make a list of maps
 	// utils.DownloadURLsParallel(urls_arr, []http.Cookie{fantia_cookie, pixiv_fanbox_cookie})
 }

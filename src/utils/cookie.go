@@ -41,9 +41,9 @@ func VerifyCookie(cookie http.Cookie, website string) (bool, error) {
 	// sends a request to the website to verify the cookie
 	var websiteURL string
 	if website == "fantia" {
-		websiteURL = "https://fantia.jp/"
+		websiteURL = "https://fantia.jp/mypage/users/plans"
 	} else if website == "fanbox" {
-		websiteURL = "https://www.fanbox.cc/"
+		websiteURL = "https://www.fanbox.cc/creators/supporting"
 	} else {
 		panic("invalid website")
 	}
@@ -53,18 +53,12 @@ func VerifyCookie(cookie http.Cookie, website string) (bool, error) {
 	}
 
 	cookies := []http.Cookie{cookie}
-	resp, err := CallRequest(websiteURL, 5, cookies, "HEAD", nil, nil)
+	resp, err := CallRequest(websiteURL, 5, cookies, "HEAD", nil, nil, true)
 	if err != nil {
 		return false, err
 	}
+	resp.Body.Close()
 
 	// check if the cookie is valid
-	resp.Body.Close()
-	cookiesRes := resp.Cookies()
-	for _, c := range cookiesRes {
-		if c.Name == cookie.Name && c.Value == cookie.Value {
-			return true, nil
-		}
-	}
-	return false, nil
+	return resp.Request.URL.String() == websiteURL, nil
 }
