@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-
 	"github.com/panjf2000/ants/v2"
 )
 
