@@ -202,8 +202,8 @@ func GetFanboxPosts(creatorId string, cookies []http.Cookie) []map[string]string
 	}
 
 	var wg sync.WaitGroup
-	maxConcurrency := MAX_CONCURRENT_DOWNLOADS
-	if len(paginatedUrls) < MAX_CONCURRENT_DOWNLOADS {
+	maxConcurrency := MAX_API_CALLS
+	if len(paginatedUrls) < MAX_API_CALLS {
 		maxConcurrency = len(paginatedUrls)
 	}
 	pool, _ := ants.NewPool(maxConcurrency)

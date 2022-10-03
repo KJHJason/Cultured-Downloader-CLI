@@ -29,8 +29,8 @@ func GetAPICreatorPages(website, creatorId string) string {
 
 func GetPostDetails(postIdsOrUrls []string, website string, cookies []http.Cookie) ([]map[string]string, []map[string]string) {
 	var wg sync.WaitGroup
-	maxConcurrency := MAX_CONCURRENT_DOWNLOADS
-	if len(postIdsOrUrls) < MAX_CONCURRENT_DOWNLOADS {
+	maxConcurrency := MAX_API_CALLS
+	if len(postIdsOrUrls) < MAX_API_CALLS {
 		maxConcurrency = len(postIdsOrUrls)
 	}
 	pool, _ := ants.NewPool(maxConcurrency)
@@ -94,8 +94,8 @@ func GetCreatorsPosts(creatorIds []string, website string, cookies []http.Cookie
 
 	if website == "fantia" {
 		var wg sync.WaitGroup
-		maxConcurrency := MAX_CONCURRENT_DOWNLOADS
-		if len(creatorIds) < MAX_CONCURRENT_DOWNLOADS {
+		maxConcurrency := MAX_API_CALLS
+		if len(creatorIds) < MAX_API_CALLS {
 			maxConcurrency = len(creatorIds)
 		}
 		pool, _ := ants.NewPool(maxConcurrency)

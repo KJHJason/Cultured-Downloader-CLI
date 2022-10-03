@@ -46,6 +46,7 @@ var (
 	PASSWORD_TEXTS = []string {"パス", "Pass", "pass", "密码"}
 	EXTERNAL_DOWNLOAD_PLATFORMS = []string {"mega", "gigafile", "dropbox", "mediafire"}
 	DOWNLOAD_PATH = GetDefaultDownloadPath()
+	UGOIRA_ACCEPTED_EXT = []string {".gif", ".mp4", ".webm"}
 	ILLEGAL_PATH_CHARS_REGEX = regexp.MustCompile(`[<>:"/\\|?*]`)
 	GDRIVE_URL_REGEX = regexp.MustCompile(
 		`https://drive\.google\.com/(?P<type>file/d|drive/(u/\d+/)?folders)/(?P<id>[\w-]+)`,
@@ -57,4 +58,5 @@ var (
 const (
 	RETRY_COUNTER = 5
 	MAX_CONCURRENT_DOWNLOADS = 5
+	MAX_API_CALLS = 10
 )

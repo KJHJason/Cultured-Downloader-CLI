@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"flag"
 	"regexp"
+	"os/exec"
 	"net/http"
 	"github.com/fatih/color"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
@@ -26,6 +27,7 @@ func main() {
 		"Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_key_guide.md",
 	)
 	downloadPath := flag.String("download_path", "", "Configure the path to download the files to.")
+	ffmpegPath := flag.String("ffmpeg_path", "ffmpeg", "Configure the path to ffmpeg executables.")
 	help := flag.Bool("help", false, "Show help.")
 	flag.Parse()
 
@@ -33,6 +35,15 @@ func main() {
 		flag.PrintDefaults()
 		return
 	}
+
+	// check if ffmpeg is installed
+	cmd := exec.Command(*ffmpegPath, "-version")
+	err := cmd.Run()
+	if err != nil {
+		color.Red("ffmpeg is not installed. Please install ffmpeg and use the ffmpeg_path flag or add it to your PATH.")
+		os.Exit(1)
+	}
+
 	if (*downloadPath != "") {
 		utils.SetDefaultDownloadPath(*downloadPath)
 		color.Green("Download path set to: %s", *downloadPath)

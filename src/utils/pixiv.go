@@ -4,12 +4,13 @@ import (
 	"os"
 	"fmt"
 	"sort"
-	//"sync"
+	"sync"
+	"strconv"
 	"os/exec"
 	"strings"
 	"net/http"
 	"path/filepath"
-	//"github.com/panjf2000/ants/v2"
+	"github.com/panjf2000/ants/v2"
 )
 
 const (
@@ -126,7 +127,19 @@ func GetArtworkDetails(artworkId, downloadPath string, cookies []http.Cookie) (s
 }
 
 func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpegPath string) {
-	// sort the ugoira frames by their filename which are %6d.imageExt just in case
+	outputExtIsAllowed := false
+	outputExt := filepath.Ext(outputPath)
+	for _, ext := range UGOIRA_ACCEPTED_EXT {
+		if outputExt == ext {
+			outputExtIsAllowed = true
+			break
+		}
+	}
+	if !outputExtIsAllowed {
+		panic(fmt.Sprintf("Output extension %v is not allowed for ugoira conversion", outputExt))
+	}
+
+	// sort the ugoira frames by their filename which are %6d.imageExt
 	sortedFilenames := make([]string, 0, len(ugoiraInfo.Frames))
 	for fileName := range ugoiraInfo.Frames {
 		sortedFilenames = append(sortedFilenames, fileName)
@@ -173,7 +186,6 @@ func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpe
 		"-safe", "0",   			// allow absolute paths in the concat file
 		"-i", concatDelayFilePath,	// input file
 	}
-	outputExt := filepath.Ext(outputPath)
 	if outputExt != ".gif" {
 		// if converting the ugoira to a webm or .mp4 file 
 		// then set the output video codec to vp9 or h264 respectively
@@ -272,4 +284,117 @@ func DownloadUgoira(downloadInfo []Ugoira, deleteZip bool, cookies []http.Cookie
 			os.Remove(zipFilePath)
 		}
 	}
+}
+
+func GetIllustratorPosts(illustratorId, artworkType string, cookies []http.Cookie) []string {
+	url := fmt.Sprintf("https://www.pixiv.net/ajax/user/%s/profile/all", illustratorId)
+	res, err := CallRequest("GET", url, 5, cookies, GetPixivRequestHeaders(), nil, false)
+	if err != nil {
+		LogError(err, "Failed to get illustrator's posts with an ID of " + illustratorId, false)
+		return nil
+	}
+	if res.StatusCode != 200 {
+		res.Body.Close()
+		errorMsg := fmt.Sprintf(
+			"Failed to get illustrator's posts with an ID of %s due to a %s response",
+			illustratorId, res.Status,
+		)
+		LogError(nil, errorMsg, false)
+		return nil
+	}
+	jsonBody := LoadJsonFromResponse(res).(map[string]interface{})["body"]
+
+	var artworkIds []string
+	if artworkType == "all" || artworkType == "illust_and_ugoira" {
+		illusts := jsonBody.(map[string]interface{})["illusts"]
+		if illusts != nil {
+			for illustId := range illusts.(map[string]interface{}) {
+				artworkIds = append(artworkIds, illustId)
+			}
+		}
+	}
+
+	if artworkType == "all" || artworkType == "manga" {
+		manga := jsonBody.(map[string]interface{})["manga"]
+		if manga != nil {
+			for mangaId := range manga.(map[string]interface{}) {
+				artworkIds = append(artworkIds, mangaId)
+			}
+		}
+	}
+	return artworkIds
+}
+
+func ProcessTagJsonResults(jsonInterfaces []interface{}) ([]string, []string) {
+	ugoiraMap := []string{}
+	illustAndMangaMap := []string{}
+	for _, jsonInterface := range jsonInterfaces {
+		illustsBody := jsonInterface.(map[string]interface{})["body"]
+		illustsData := illustsBody.(map[string]interface{})["illustManga"].(map[string]interface{})["data"]
+		if illustsData == nil {
+			continue
+		}
+
+		for _, illust := range illustsData.([]interface{}) {
+			illustMap := illust.(map[string]interface{})
+			illustType := int64(illustMap["illustType"].(float64))
+			if illustType == ugoira {
+				ugoiraMap = append(ugoiraMap, illustMap["id"].(string))
+			} else {
+				illustAndMangaMap = append(illustAndMangaMap, illustMap["id"].(string))
+			}
+		}
+	}
+	return ugoiraMap, illustAndMangaMap
+}
+
+func TagSearch(tagName, sortOrder, searchMode, mode, artworkType string, minPage, maxPage int, cookies []http.Cookie) []interface{} {
+	url := "https://www.pixiv.net/ajax/search/artworks/" + tagName
+	params := map[string]string{
+		"word": tagName,	  // search term
+		"s_mode": searchMode, // search mode: s_tag, s_tag_full, s_tc
+		"order": sortOrder,   // sort order: date, popular, popular_male, popular_female 
+							  // 			(add "_d" suffix for descending order, e.g. date_d)
+		"mode": mode,		  //  r18, safe, or all for both
+		"type": artworkType,  // illust_and_ugoira, manga, all
+	}
+
+	if minPage > maxPage {
+		minPage, maxPage = maxPage, minPage
+	}
+
+	var wg sync.WaitGroup
+	maxConcurrency := MAX_API_CALLS
+	pageDiff := maxPage - minPage + 1
+	if pageDiff < MAX_API_CALLS {
+		maxConcurrency = pageDiff
+	}
+
+	resChan := make(chan *http.Response, pageDiff)
+	pool, _ := ants.NewPool(maxConcurrency)
+	defer pool.Release()
+	for page := minPage; page <= maxPage; page++ {
+		wg.Add(1)
+		params["p"] = strconv.Itoa(page) // page number
+		err := pool.Submit(func() {
+			defer wg.Done()
+			resp, err := CallRequest("GET", url, 5, cookies, GetPixivRequestHeaders(), params, true)
+			if err != nil {
+				LogError(err, "Pixiv: Failed to get search results for " + tagName, false)
+				return
+			}
+			resChan <- resp
+		})
+		if err != nil {
+			panic(err)
+		}
+	}
+	wg.Wait()
+	close(resChan)
+
+	var artworks []interface{}
+	for res := range resChan {
+		artworks = append(artworks, LoadJsonFromResponse(res))
+	}
+	return artworks
 }
