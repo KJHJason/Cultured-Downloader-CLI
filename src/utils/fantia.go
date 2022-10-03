@@ -17,7 +17,7 @@ func GetFantiaPosts(creatorId string, cookies []http.Cookie) []string {
 			"q[s]": "newer",
 			"q[tag]": "",
 		}
-		res, err := CallRequest(url, 30, cookies, "GET", nil, params, false)
+		res, err := CallRequest("GET", url, 30, cookies, nil, params, false)
 		if err != nil || res.StatusCode != 200 {
 			res.Body.Close()
 			LogError(err, fmt.Sprintf("failed to get creator's pages for %s", url), false)
@@ -64,7 +64,7 @@ func ProcessFantiaPost(res *http.Response, downloadPath string) []map[string]str
 	postId := fmt.Sprintf("%d",int64(postJson["id"].(float64)))
 	postTitle := postJson["title"].(string)
 	creatorName := postJson["fanclub"].(map[string]interface{})["user"].(map[string]interface{})["name"].(string)
-	postFolderPath := CreatePostFolder(downloadPath, creatorName, postId, postTitle)
+	postFolderPath := CreatePostFolder(filepath.Join(downloadPath, "Fantia"), creatorName, postId, postTitle)
 
 	var urlsMap []map[string]string
 	thumbnail := postJson["thumb"].(map[string]interface{})

@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 	"sync"
+	"github.com/fatih/color"
 )
 
 func LogError(err error, errorMsg string, exit bool) {
@@ -17,7 +18,11 @@ func LogError(err error, errorMsg string, exit bool) {
 		return
 	}
 
-	log.Println(err)
+	// log the error
+	if err != nil {
+		log.Println(color.RedString(err.Error()))
+	}
+
 	// write to log file
 	f, fileErr := os.OpenFile("cultured_downloader.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if fileErr != nil {

@@ -36,7 +36,7 @@ func CheckIfFileIsEmpty(filepath string) (bool, error) {
 	return true, nil
 }
 
-func LogMessageToPath(message string, filePath string) {
+func LogMessageToPath(message, filePath string) {
 	var err error
 	var logFile *os.File
 	if !PathExists(filePath) {
@@ -58,15 +58,6 @@ func LogMessageToPath(message string, filePath string) {
 	}
 } 
 
-func CreateDirectory(filepath string) error {
-	// creates a directory
-	err := os.MkdirAll(filepath, 0755)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func RemoveIllegalCharsInPath(dirtyPath string) string {
 	partiallyCleanedPath := strings.ReplaceAll(
 		strings.TrimSpace(dirtyPath),
@@ -79,7 +70,7 @@ func RemoveIllegalCharsInPath(dirtyPath string) string {
 	)
 }
 
-func CreatePostFolder(downloadPath string, creatorName string, postId string, postTitle string) string {
+func CreatePostFolder(downloadPath, creatorName, postId, postTitle string) string {
 	creatorName = RemoveIllegalCharsInPath(creatorName)
 	postTitle = RemoveIllegalCharsInPath(postTitle)
 
@@ -88,7 +79,7 @@ func CreatePostFolder(downloadPath string, creatorName string, postId string, po
 		creatorName,
 		fmt.Sprintf("[%s] %s", postId, postTitle),
 	)
-	CreateDirectory(postFolderPath)
+	os.MkdirAll(postFolderPath, 0755)
 	return postFolderPath
 }
 
@@ -138,7 +129,7 @@ func SetDefaultDownloadPath(newDownloadPath string) {
 		os.Exit(1)
 	}
 
-	CreateDirectory(APP_PATH)
+	os.MkdirAll(APP_PATH, 0755)
 	configFilePath := filepath.Join(APP_PATH, "config.json")
 	if !PathExists(configFilePath) {
 		os.Create(configFilePath)

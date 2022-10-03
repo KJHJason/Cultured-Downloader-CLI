@@ -2,10 +2,10 @@ package utils
 
 import (
 	"fmt"
+	"sync"
+	"strings"
 	"net/http"
 	"path/filepath"
-	"strings"
-	"sync"
 	"github.com/panjf2000/ants/v2"
 )
 
@@ -24,7 +24,7 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 	postId := postJson["id"].(string)
 	postTitle := postJson["title"].(string)
 	creatorId := postJson["creatorId"].(string)
-	postFolderPath := CreatePostFolder(downloadPath, creatorId, postId, postTitle)
+	postFolderPath := CreatePostFolder(filepath.Join(downloadPath, "Pixiv-Fanbox"), creatorId, postId, postTitle)
 
 	var urlsMap []map[string]string
 	thumbnail := postJson["coverImageUrl"]
@@ -72,7 +72,7 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 				}
 	
 				DetectOtherExtDLLink(text, postFolderPath)
-				if DetectGDriveLinks(text, false, postFolderPath) {
+				if DetectGDriveLinks(text, postFolderPath, false) {
 					gdriveLinks = append(gdriveLinks, map[string]string{
 						"url": text,
 						"filepath": postFolderPath,
@@ -109,7 +109,7 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 				text := articleBlock.(map[string]interface{})["text"]
 				if text != nil {
 					textStr := text.(string)
-					if DetectGDriveLinks(textStr, false, postFolderPath) {
+					if DetectGDriveLinks(textStr, postFolderPath, false) {
 						gdriveLinks = append(gdriveLinks, map[string]string{
 							"url": textStr,
 							"filepath": postFolderPath,
@@ -141,7 +141,7 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 					for _, link := range articleLinks.([]interface{}) {
 						linkUrl := link.(map[string]interface{})["url"].(string)
 						DetectOtherExtDLLink(linkUrl, postFolderPath)
-						if DetectGDriveLinks(linkUrl, true, postFolderPath) {
+						if DetectGDriveLinks(linkUrl, postFolderPath, true) {
 							gdriveLinks = append(gdriveLinks, map[string]string{
 								"url": linkUrl,
 								"filepath": postFolderPath,
@@ -184,7 +184,7 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 func GetFanboxPosts(creatorId string, cookies []http.Cookie) []map[string]string {
 	params := map[string]string{"creatorId": creatorId}
 	headers := map[string]string{"Origin": "https://www.fanbox.cc", "Referer": "https://www.fanbox.cc/"}
-	res, err := CallRequest(GetAPICreatorPages("fanbox", creatorId), 30, cookies, "GET", headers, params, false)
+	res, err := CallRequest("GET", GetAPICreatorPages("fanbox", creatorId), 30, cookies, headers, params, false)
 	if err != nil || res.StatusCode != 200 {
 		LogError(err, fmt.Sprintf("failed to get creator's pages for %s", creatorId), false)
 		return []map[string]string {}
@@ -213,7 +213,7 @@ func GetFanboxPosts(creatorId string, cookies []http.Cookie) []map[string]string
 		wg.Add(1)
 		err = pool.Submit(func() {
 			defer wg.Done()
-			res, err := CallRequest(url, 30, cookies, "GET", headers, params, false)
+			res, err := CallRequest("GET", url, 30, cookies, headers, params, false)
 			if err != nil || res.StatusCode != 200 {
 				LogError(err, fmt.Sprintf("failed to get post for %s", url), false)
 			} else {

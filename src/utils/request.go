@@ -12,7 +12,7 @@ import (
 	"github.com/panjf2000/ants/v2"
 )
 
-func CallRequest(url string, timeout int, cookies []http.Cookie, method string, additionalHeaders map[string]string, params map[string]string, checkStatus bool) (*http.Response, error) {
+func CallRequest(method, url string, timeout int, cookies []http.Cookie, additionalHeaders, params map[string]string, checkStatus bool) (*http.Response, error) {
 	// sends a request to the website
 	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
@@ -60,9 +60,9 @@ func CallRequest(url string, timeout int, cookies []http.Cookie, method string, 
 	return nil, err
 }
 
-func DownloadURL(fileURL string, filePath string, cookies []http.Cookie) error {
+func DownloadURL(fileURL, filePath string, cookies []http.Cookie, headers, params map[string]string) error {
 	var filename string
-	resp, err := CallRequest(fileURL, 30, cookies, "GET", nil, nil, true)
+	resp, err := CallRequest("GET", fileURL, 30, cookies, headers, params, true)
 	if err != nil {
 		return err
 	}
@@ -71,6 +71,8 @@ func DownloadURL(fileURL string, filePath string, cookies []http.Cookie) error {
 	// check if the filename contains a query string
 	filename, _ = url.PathUnescape(resp.Request.URL.String())
 	filePath = filepath.Join(filePath, GetLastPartOfURL(filename))
+
+	// check if the file already exists
 	if empty, _ := CheckIfFileIsEmpty(filePath); !empty {
 		return nil
 	}
@@ -92,7 +94,7 @@ func DownloadURL(fileURL string, filePath string, cookies []http.Cookie) error {
 	return nil
 }
 
-func DownloadURLsParallel(urls []map[string]string, cookies []http.Cookie) {
+func DownloadURLsParallel(urls []map[string]string, cookies []http.Cookie, headers, params map[string]string) {
 	maxConcurrency := MAX_CONCURRENT_DOWNLOADS
 	if len(urls) < MAX_CONCURRENT_DOWNLOADS {
 		maxConcurrency = len(urls)
@@ -103,12 +105,11 @@ func DownloadURLsParallel(urls []map[string]string, cookies []http.Cookie) {
 	var wg sync.WaitGroup
 	for _, url := range urls {
 		wg.Add(1)
-		fileURL := url["url"]
-		filePath := url["path"]
-		err := pool.Submit(func() {
+		dlFunc := func() {
 			defer wg.Done()
-			DownloadURL(fileURL, filePath, cookies)
-		})
+			DownloadURL(url["url"], url["filepath"], cookies, headers, params)
+		}
+		err := pool.Submit(dlFunc)
 		if err != nil {
 			panic(err)
 		}

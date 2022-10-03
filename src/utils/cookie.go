@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-func GetCookie(sessionID string, website string) http.Cookie {
+func GetCookie(sessionID, website string) http.Cookie {
 	var domainName, cookieName string
 	var sameSite http.SameSite
 	if website == "fantia" {
@@ -53,7 +53,7 @@ func VerifyCookie(cookie http.Cookie, website string) (bool, error) {
 	}
 
 	cookies := []http.Cookie{cookie}
-	resp, err := CallRequest(websiteURL, 5, cookies, "HEAD", nil, nil, true)
+	resp, err := CallRequest("HEAD", websiteURL, 5, cookies, nil, nil, true)
 	if err != nil {
 		return false, err
 	}

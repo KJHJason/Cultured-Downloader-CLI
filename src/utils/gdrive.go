@@ -43,7 +43,7 @@ func (gdrive GDrive) GDriveKeyIsValid() bool {
 	}
 
 	params := map[string]string{"key": gdrive.apiKey}
-	res, err := CallRequest(gdrive.apiUrl, gdrive.timeout, nil, "GET", nil, params, false)
+	res, err := CallRequest("GET", gdrive.apiUrl, gdrive.timeout, nil, nil, params, false)
 	if (err != nil) {
 		panic(err)
 	}
@@ -97,7 +97,7 @@ func (gdrive GDrive) GetFolderContents(folderId string) []map[string]string {
 		} else {
 			delete(params, "pageToken")
 		}
-		res, err := CallRequest(gdrive.apiUrl, gdrive.timeout, nil, "GET", nil, params, false)
+		res, err := CallRequest("GET", gdrive.apiUrl, gdrive.timeout, nil, nil, params, false)
 		if (err != nil) {
 			panic(err)
 		}
@@ -149,7 +149,7 @@ func (gdrive GDrive) GetFileDetails(fileId string) map[string]string {
 		"fields": "id,name,mimeType,md5Checksum",
 	}
 	url := fmt.Sprintf("%s/%s", gdrive.apiUrl, fileId)
-	res, err := CallRequest(url, gdrive.timeout, nil, "GET", nil, params, false)
+	res, err := CallRequest("GET", url, gdrive.timeout, nil, nil, params, false)
 	if (err != nil) {
 		panic(err)
 	}
@@ -193,7 +193,7 @@ func (gdrive GDrive) DownloadFile(fileInfo map[string]string, folderPath string)
 		"alt": "media", // to tell Google that we are downloading the file
 	}
 	url := fmt.Sprintf("%s/%s", gdrive.apiUrl, fileInfo["id"])
-	res, err := CallRequest(url, gdrive.timeout, nil, "GET", nil, params, false)
+	res, err := CallRequest("GET", url, gdrive.timeout, nil, nil, params, false)
 	if (err != nil) {
 		return err
 	}

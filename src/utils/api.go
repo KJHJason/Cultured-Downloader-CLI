@@ -7,7 +7,7 @@ import (
 	"github.com/panjf2000/ants/v2"
 )
 
-func GetAPIPostLink(website string, postId string) string {
+func GetAPIPostLink(website, postId string) string {
 	if website == "fantia" {
 		return "https://fantia.jp/api/v1/posts/" + postId
 	} else if website == "fanbox" {
@@ -17,7 +17,7 @@ func GetAPIPostLink(website string, postId string) string {
 	}
 }
 
-func GetAPICreatorPages(website string, creatorId string) string {
+func GetAPICreatorPages(website, creatorId string) string {
 	if website == "fantia" {
 		return "https://fantia.jp/fanclubs/" + creatorId + "/posts"
 	} else if website == "fanbox" {
@@ -57,7 +57,7 @@ func GetPostDetails(postIdsOrUrls []string, website string, cookies []http.Cooki
 				panic("invalid website")
 			}
 
-			res, err := CallRequest(url, 30, cookies, "GET", header, params, false)
+			res, err := CallRequest("GET", url, 30, cookies, header, params, false)
 			if err != nil || res.StatusCode != 200 {
 				LogError(err, fmt.Sprintf("failed to get post details for %s", url), false)
 			} else {
