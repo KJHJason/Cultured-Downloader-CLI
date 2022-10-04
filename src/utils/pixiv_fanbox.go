@@ -219,6 +219,9 @@ func GetFanboxPosts(creatorId string, cookies []http.Cookie) []string {
 	headers := GetPixivFanboxHeaders()
 	res, err := CallRequest("GET", GetAPICreatorPages(PixivFanbox, creatorId), 30, cookies, headers, params, false)
 	if err != nil || res.StatusCode != 200 {
+		if err == nil {
+			res.Body.Close()
+		}
 		LogError(err, fmt.Sprintf("failed to get creator's pages for %s", creatorId), false)
 		return nil
 	}
@@ -255,6 +258,9 @@ func GetFanboxPosts(creatorId string, cookies []http.Cookie) []string {
 			defer wg.Done()
 			res, err := CallRequest("GET", "https://api.fanbox.cc/post.listCreator", 30, cookies, headers, params, false)
 			if err != nil || res.StatusCode != 200 {
+				if err == nil {
+					res.Body.Close()
+				}
 				url := "https://api.fanbox.cc/post.listCreator" + ParamsToString(params)
 				LogError(err, fmt.Sprintf("failed to get post for %s", url), false)
 			} else {

@@ -19,7 +19,9 @@ func GetFantiaPosts(creatorId string, cookies []http.Cookie) []string {
 		}
 		res, err := CallRequest("GET", url, 30, cookies, nil, params, false)
 		if err != nil || res.StatusCode != 200 {
-			res.Body.Close()
+			if err == nil {
+				res.Body.Close()
+			}
 			LogError(err, fmt.Sprintf("failed to get creator's pages for %s", url), false)
 			return []string{}
 		}
