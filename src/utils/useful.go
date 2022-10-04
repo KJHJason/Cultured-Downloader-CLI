@@ -7,6 +7,7 @@ import (
 	"time"
 	"errors"
 	"strings"
+	"net/url"
 	"net/http"
 	"math/rand"
 	"archive/zip"
@@ -125,7 +126,7 @@ func GetLastPartOfURL(url string) string {
 func ParamsToString(params map[string]string) string {
 	paramsStr := ""
 	for key, value := range params {
-		paramsStr += fmt.Sprintf("%s=%s&", key, value)
+		paramsStr += fmt.Sprintf("%s=%s&", key, url.QueryEscape(value))
 	}
 	return paramsStr[:len(paramsStr)-1] // remove the last &
 }
