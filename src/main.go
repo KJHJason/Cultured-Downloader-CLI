@@ -1,39 +1,345 @@
 package main
 
 import (
-	"os"
-	"fmt"
 	"flag"
-	"regexp"
-	"os/exec"
+	"fmt"
 	"net/http"
-	"github.com/fatih/color"
+	"os"
+	"os/exec"
+	"regexp"
+	"strconv"
+	"strings"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/fatih/color"
 )
 
+func FantiaDownloadProcess(fantiaPostIds, fanclubIds []string, cookies []http.Cookie) {
+	var urlsToDownload []map[string]string
+	if len(fantiaPostIds) > 0 {
+		urlsArr, _ := utils.GetPostDetails(fantiaPostIds, utils.Fantia, cookies)
+		urlsToDownload = append(urlsToDownload, urlsArr...)
+	}
+	if len(fanclubIds) > 0 {
+		fantiaPostIds := utils.GetCreatorsPosts(fanclubIds, utils.Fantia, cookies)
+		urlsArr, _ := utils.GetPostDetails(fantiaPostIds, utils.Fantia, cookies)
+		urlsToDownload = append(urlsToDownload, urlsArr...)
+	}
+
+	if len(urlsToDownload) > 0 {
+		utils.DownloadURLsParallel(urlsToDownload, utils.MAX_CONCURRENT_DOWNLOADS, cookies, nil, nil)
+	}
+}
+
+func PixivFanboxDownloadProcess(pixivFanboxPostIds, creatorIds []string, cookies []http.Cookie, gdriveApiKey string, gdrive *utils.GDrive) {
+	var urlsToDownload, gdriveUrlsToDownload []map[string]string
+	if len(pixivFanboxPostIds) > 0 {
+		urlsArr, gdriveArr := utils.GetPostDetails(pixivFanboxPostIds, utils.PixivFanbox, cookies)
+		urlsToDownload = append(urlsToDownload, urlsArr...)
+		gdriveUrlsToDownload = append(gdriveUrlsToDownload, gdriveArr...)
+	}
+	if len(creatorIds) > 0 {
+		fanboxIds := utils.GetCreatorsPosts(creatorIds, utils.PixivFanbox, cookies)
+		urlsArr, gdriveArr := utils.GetPostDetails(fanboxIds, utils.PixivFanbox, cookies)
+		urlsToDownload = append(urlsToDownload, urlsArr...)
+		gdriveUrlsToDownload = append(gdriveUrlsToDownload, gdriveArr...)
+	}
+
+	if len(urlsToDownload) > 0 {
+		utils.DownloadURLsParallel(urlsToDownload, utils.PIXIV_MAX_CONCURRENT_DOWNLOADS, cookies, utils.GetPixivFanboxHeaders(), nil)
+	}
+	if gdriveApiKey != "" {
+		gdrive.DownloadGdriveUrls(gdriveUrlsToDownload)
+	}
+}
+
+func PixivDownloadProcess(
+	artworkIds, illustratorIds, tagNames, pageNums []string, 
+	sortOrder, searchMode, ratingMode, artworkType, ugoiraOutputFormat, ffmpegPath string, 
+	deleteUgoiraZip bool, cookies []http.Cookie,
+) {
+	var ugoiraToDownload []utils.Ugoira
+	var artworksToDownload []map[string]string
+	if len(artworkIds) > 0 {
+		artworksArr, ugoiraArr := utils.GetMultipleArtworkDetails(
+			artworkIds, utils.DOWNLOAD_PATH, cookies,
+		)
+		artworksToDownload = append(artworksToDownload, artworksArr...)
+		ugoiraToDownload = append(ugoiraToDownload, ugoiraArr...)
+	}
+	if len(illustratorIds) > 0 {
+		artworksArr, ugoiraArr := utils.GetMultipleIllustratorPosts(
+			illustratorIds, utils.DOWNLOAD_PATH, artworkType, cookies,
+		)
+		artworksToDownload = append(artworksToDownload, artworksArr...)
+		ugoiraToDownload = append(ugoiraToDownload, ugoiraArr...)
+	}
+	if len(tagNames) > 0 {
+		// loop through each tag and page number
+		for idx, tagName := range tagNames {
+			var minPage, maxPage int
+			if strings.Contains(pageNums[idx], "-") {
+				tagPageNums := strings.SplitN(pageNums[idx], "-", 2)
+				minPage, _ = strconv.Atoi(tagPageNums[0])
+				maxPage, _ = strconv.Atoi(tagPageNums[1])
+			} else {
+				minPage, _ = strconv.Atoi(pageNums[idx])
+				maxPage = minPage
+			}
+			artworksArr, ugoiraArr := utils.TagSearch(
+				tagName, utils.DOWNLOAD_PATH, sortOrder, searchMode, ratingMode, artworkType, minPage, maxPage, cookies,
+			)
+			artworksToDownload = append(artworksToDownload, artworksArr...)
+			ugoiraToDownload = append(ugoiraToDownload, ugoiraArr...)
+		}
+	}
+
+	if len(artworksToDownload) > 0 {
+		utils.DownloadURLsParallel(artworksToDownload, utils.PIXIV_MAX_CONCURRENT_DOWNLOADS, cookies, utils.GetPixivRequestHeaders(), nil)
+	}
+	if len(ugoiraToDownload) > 0 {
+		utils.DownloadUgoira(ugoiraToDownload, ugoiraOutputFormat, ffmpegPath, deleteUgoiraZip, cookies)
+	}
+}
+
 func main() {
-	fantia_session := flag.String("fantia_session", "", "Fantia session id to use.")
-	fanclub := flag.String("fanclub", "", "Fanclub ids to download from.")
-	fantia_post := flag.String("fantia_post", "", "Fantia post id to download.")
-
-	pixiv_fanbox_session := flag.String("pixiv_fanbox_session", "", "Pixiv Fanbox session id to use.")
-	creator := flag.String("creator", "", "Creator ids to download from.")
-	pixiv_fanbox_post := flag.String("pixiv_fanbox_post", "", "Pixiv Fanbox post URL(s) to download.")
-
-	gdrive_api_key := flag.String(
-		"gdrive_api_key", 
-		"", 
-		"Google Drive API key to use for downloading gdrive files. " +
-		"Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_key_guide.md",
+	mutlipleIdsMsg := "For multiple IDs, separate them with a space.\nExample: \"12345 67891\""
+	// Fantia args
+	fantiaSession := flag.String(
+		"fantia_session",
+		"",
+		"Your _session_id cookie value to use for the requests to Fantia.",
 	)
-	downloadPath := flag.String("download_path", "", "Configure the path to download the files to.")
-	ffmpegPath := flag.String("ffmpeg_path", "ffmpeg", "Configure the path to ffmpeg executables.")
-	help := flag.Bool("help", false, "Show help.")
+	fanclub := flag.String(
+		"fanclub_id",
+		"",
+		utils.CombineStrings(
+			[]string{
+				"Fantia Fanclub ID(s) to download from.",
+				mutlipleIdsMsg,
+			}, "\n",
+		),
+	)
+	fantiaPost := flag.String(
+		"fantia_post",
+		"",
+		utils.CombineStrings(
+			[]string{
+				"Fantia post ID(s) to download.",
+				mutlipleIdsMsg,
+			}, "\n",
+		),
+	)
+
+	// Pixiv Fanbox args
+	pixivFanboxSession := flag.String(
+		"fanbox_session",
+		"",
+		"Your FANBOXSESSID cookie value to use for the requests to Pixiv Fanbox.",
+	)
+	creator := flag.String(
+		"creator_id",
+		"",
+		utils.CombineStrings(
+			[]string{
+				"Pixiv Fanbox Creator ID(s) to download from.",
+				mutlipleIdsMsg,
+			}, "\n",
+		),
+	)
+	pixivFanboxPost := flag.String(
+		"fanbox_post",
+		"",
+		utils.CombineStrings(
+			[]string{
+				"Pixiv Fanbox post ID(s) to download.",
+				mutlipleIdsMsg,
+			}, "\n",
+		),
+	)
+
+	// Pixiv args
+	pixivSession := flag.String(
+		"pixiv_session",
+		"",
+		"Your PHPSESSID cookie value to use for the requests to Pixiv.",
+	)
+	deleteUgoiraZip := flag.Bool(
+		"delete_ugoira_zip",
+		false,
+		"Whether to delete the downloaded ugoira zip file after conversion.",
+	)
+	ugoiraOutputFormat := flag.String(
+		"ugoira_output_format",
+		".gif",
+		utils.CombineStrings(
+			[]string{
+				"Output format for the ugoira conversion using FFMPEG.",
+				fmt.Sprintf(
+					"Accepted Extensions: %s",
+					strings.TrimSpace(strings.Join(utils.UGOIRA_ACCEPTED_EXT, ", ")),
+				),
+				"Note:",
+				"- .webm will take MORE time to convert and will have a LARGER file size but will have a BETTER quality.",
+				"- .mp4 will take LESS time to convert with ACCEPTABLE quality and SMALLER file size.",
+				"- .gif will take LESS time to convert with ACCEPTABLE quality but with a LARGER file size.\n",
+			}, "\n",
+		),
+	)
+	artworkId := flag.String(
+		"artwork_id",
+		"",
+		utils.CombineStrings(
+			[]string{
+				"Artwork ID(s) to download.",
+				mutlipleIdsMsg,
+			}, "\n",
+		),
+	)
+	illustratorId := flag.String(
+		"illustrator_id",
+		"",
+		utils.CombineStrings(
+			[]string{
+				"Illustrator ID(s) to download.",
+				mutlipleIdsMsg,
+			}, "\n",
+		),
+	)
+	tagName := flag.String(
+		"tag_name",
+		"",
+		utils.CombineStrings(
+			[]string{
+				"Tag names to search for and download related artworks.",
+				"For multiple tags, separate them with a comma.",
+				"Example: \"tag name 1, tagName2\"",
+			}, "\n",
+		),
+	)
+	pageNum := flag.String(
+		"page_num",
+		"",
+		utils.CombineStrings(
+			[]string{
+				"Min and max page numbers to search for corresponding to the order of the supplied tag names.",
+				"Format: \"pageNum\" or \"min-max\"",
+				"Example: \"1\" or \"1-10\"",
+			}, "\n",
+		),
+	)
+	sortOrder := flag.String(
+		"sort_order",
+		"date_d",
+		utils.CombineStrings(
+			[]string{
+				"Download Order Options: date, popular, popular_male, popular_female",
+				"Additionally, you can add the \"_d\" suffix for a descending order.",
+				"Example: \"popular_d\"",
+				"Note that you can only specify ONE tag name per run!\n",
+			}, "\n",
+		),
+	)
+	searchMode := flag.String(
+		"search_mode",
+		"s_tag_full",
+		utils.CombineStrings(
+			[]string{
+				"Search Mode Options:",
+				"- s_tag: Match any post with SIMILAR tag name",
+				"- s_tag_full: Match any post with the SAME tag name",
+				"- s_tc: Match any post related by its title or caption",
+				"Note that you can only specify ONE search mode per run!\n",
+			}, "\n",
+		),
+	)
+	ratingMode := flag.String(
+		"rating_mode",
+		"all",
+		utils.CombineStrings(
+			[]string{
+				"Rating Mode Options:",
+				"- r18: Restrict downloads to R-18 artworks",
+				"- safe: Restrict downloads to all ages artworks",
+				"- all: Include both R-18 and all ages artworks",
+				"Note that you can only specify ONE rating mode per run!\n",
+			}, "\n",
+		),
+	)
+	artworkType := flag.String(
+		"artwork_type",
+		"illust_and_ugoira",
+		utils.CombineStrings(
+			[]string{
+				"Artwork Type Options:",
+				"- illust_and_ugoira: Restrict downloads to illustrations and ugoira only",
+				"- manga: Restrict downloads to manga only",
+				"- all: Include both illustrations, ugoira, and manga artworks",
+				"Note that you can only specify ONE artwork type per run!",
+			}, "\n",
+		),
+	)
+
+	// Other args
+	gdriveApiKey := flag.String(
+		"gdrive_api_key",
+		"",
+		utils.CombineStrings(
+			[]string{
+				"Google Drive API key to use for downloading gdrive files.",
+				"Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_key_guide.md",
+			}, "\n",
+		),
+	)
+	downloadPath := flag.String(
+		"download_path", 
+		"", 
+		"Configure the path to download the files to and save it for future runs.",
+	)
+	ffmpegPath := flag.String(
+		"ffmpeg_path", 
+		"ffmpeg", 
+		utils.CombineStrings(
+			[]string{
+				"Configure the path to ffmpeg executable.",
+				"Download Link: https://ffmpeg.org/download.html\n",
+			}, "\n",
+		),
+	)
+	help := flag.Bool(
+		"help", 
+		false, 
+		"Show the list of arguments with its description.",
+	)
 	flag.Parse()
 
-	if (*help) {
+	if *help || len(os.Args) == 1 {
 		flag.PrintDefaults()
 		return
+	}
+
+	// check ugoira output format
+	ugoiraExtIsValid := false
+	for _, format := range utils.UGOIRA_ACCEPTED_EXT {
+		if *ugoiraOutputFormat == format {
+			ugoiraExtIsValid = true
+			break
+		}
+	}
+	if !ugoiraExtIsValid {
+		color.Red("Invalid ugoira output format: %s", *ugoiraOutputFormat)
+		color.Red(
+			fmt.Sprintf(
+				"Valid ugoira output formats: %s",
+				strings.TrimSpace(strings.Join(utils.UGOIRA_ACCEPTED_EXT, ", ")),
+			),
+		)
+		os.Exit(1)
+	}
+
+	// Get the GDrive object
+	var gdrive *utils.GDrive
+	if *gdriveApiKey != "" {
+		gdrive = utils.GetNewGDrive(*gdriveApiKey, utils.MAX_CONCURRENT_DOWNLOADS)
 	}
 
 	// check if ffmpeg is installed
@@ -44,140 +350,55 @@ func main() {
 		os.Exit(1)
 	}
 
-	if (*downloadPath != "") {
+	if *downloadPath != "" {
 		utils.SetDefaultDownloadPath(*downloadPath)
 		color.Green("Download path set to: %s", *downloadPath)
 		return
 	}
-	if (utils.DOWNLOAD_PATH == "") {
+	if utils.DOWNLOAD_PATH == "" {
 		color.Red(
 			"Default download setting not found or is invalid, " +
-			"please set up a default download path before continuing by pasing the -download_path flag.",
+				"please set up a default download path before continuing by pasing the -download_path flag.",
 		)
 		os.Exit(1)
 	}
 
-	// parse cookies
-	fantia_cookie := utils.GetCookie(*fantia_session, "fantia")
-	pixiv_fanbox_cookie := utils.GetCookie(*pixiv_fanbox_session, "fanbox")
-	cookies := []http.Cookie{fantia_cookie, pixiv_fanbox_cookie}
-
-	// verify cookies and gdrive api key
-	fantia_cookie_valid, err := utils.VerifyCookie(fantia_cookie, "fantia")
-	if (err != nil) {
-		utils.LogError(err, "", true)
-	}
-	if (*fantia_session != "" && !fantia_cookie_valid) {
-		color.Red("Fantia cookie is invalid.")
-		os.Exit(1)
-	}
-
-	var gdrive *utils.GDrive
-	if *gdrive_api_key != "" {
-		gdrive = utils.GetNewGDrive(*gdrive_api_key, utils.MAX_CONCURRENT_DOWNLOADS)
-	}
-
-	pixiv_fanbox_cookie_valid, err := utils.VerifyCookie(pixiv_fanbox_cookie, "fanbox")
-	if (err != nil) {
-		utils.LogError(err, "", true)
-	}
-	if (*pixiv_fanbox_session != "" && !pixiv_fanbox_cookie_valid) {
-		color.Red("Pixiv Fanbox cookie is invalid.")
-		os.Exit(1)
-	}
+	// parse and verify the cookies
+	fantiaCookie := utils.VerifyAndGetCookie(utils.Fantia, utils.FantiaTitle, *fantiaSession)
+	pixivFanboxCookie := utils.VerifyAndGetCookie(utils.PixivFanbox, utils.PixivFanboxTitle, *pixivFanboxSession)
+	pixivCookie := utils.VerifyAndGetCookie(utils.Pixiv, utils.Pixiv, *pixivSession)
+	cookies := []http.Cookie{fantiaCookie, pixivFanboxCookie, pixivCookie}
 
 	// parse the ID(s) to download from
 	fanclubIds := utils.SplitArgs(*fanclub)
-	fantiaPostIds := utils.SplitArgs(*fantia_post)
+	fantiaPostIds := utils.SplitArgs(*fantiaPost)
 	creatorIds := utils.SplitArgs(*creator)
-	pixivFanboxPostUrls := utils.SplitArgs(*pixiv_fanbox_post)
+	pixivFanboxPostIds := utils.SplitArgs(*pixivFanboxPost)
+	artworkIds := utils.SplitArgs(*artworkId)
+	illustratorIds := utils.SplitArgs(*illustratorId)
+	tagNames := utils.SplitArgsWithSep(*tagName, ",")
+	pageNums := utils.SplitArgs(*pageNum)
 
-	var urlsToDownload []map[string]string
-	var gdriveUrlsToDownload []map[string]string
-	if len(pixivFanboxPostUrls) > 0 {
-		fanboxPostUrlRegex := regexp.MustCompile(
-			`^https://(www\.fanbox\.cc/@[\w.-]+|[\w.-]+\.fanbox\.cc)/posts/\d+$`,
-		) 
-		for _, url := range pixivFanboxPostUrls {
-			if !fanboxPostUrlRegex.MatchString(url) {
-				color.Red("Invalid Pixiv Fanbox post URL: %s", url)
-				os.Exit(1)
-			}
+	if len(tagNames) != len(pageNums) {
+		color.Red("Number of tag names and page numbers must be equal.")
+		os.Exit(1)
+	}
+	// check page nums if they are in the correct format
+	pageNumsRegex := regexp.MustCompile(`^[1-9]\d*(-[1-9]\d*)?$`)
+	for _, pageNum := range pageNums {
+		if !pageNumsRegex.MatchString(pageNum) {
+			color.Red("Invalid page number format: %s", pageNum)
+			color.Red("Please follow the format, \"1-10\", as an example.")
+			color.Red("Note that \"0\" are not accepted! E.g. \"0-9\" is invalid.")
+			os.Exit(1)
 		}
-		urlsArr, gdriveArr := utils.GetPostDetails(pixivFanboxPostUrls, "fanbox", cookies)
-		urlsToDownload = append(urlsToDownload, urlsArr...)
-		gdriveUrlsToDownload = append(gdriveUrlsToDownload, gdriveArr...)
-	}
-	if len(creatorIds) > 0 {
-		fanboxPostMap, _ := utils.GetCreatorsPosts(creatorIds, "fanbox", cookies)
-		fanboxUrls := []string{}
-		for _, post := range fanboxPostMap {
-			url := fmt.Sprintf("https://www.fanbox.cc/@%s/posts/%s", post["creatorId"], post["postId"])
-			fanboxUrls = append(fanboxUrls, url)
-		}
-		
-		urlsArr, gdriveArr := utils.GetPostDetails(fanboxUrls, "fanbox", cookies)
-		urlsToDownload = append(urlsToDownload, urlsArr...)
-		gdriveUrlsToDownload = append(gdriveUrlsToDownload, gdriveArr...)
-	}
-	if len(fantiaPostIds) > 0 {
-		urlsArr, _ := utils.GetPostDetails(fantiaPostIds, "fantia", cookies)
-		urlsToDownload = append(urlsToDownload, urlsArr...)
-	}
-	if len(fanclubIds) > 0 {
-		_, fantiaPostIds := utils.GetCreatorsPosts(fanclubIds, "fantia", cookies)
-		urlsArr, _ := utils.GetPostDetails(fantiaPostIds, "fantia", cookies)
-		urlsToDownload = append(urlsToDownload, urlsArr...)
 	}
 
-	fmt.Println(urlsToDownload)
-	fmt.Println(gdriveUrlsToDownload)
-	if *gdrive_api_key != "" {
-		gdrive.DownloadGdriveUrls(gdriveUrlsToDownload)
-	}
-	// download
-	// var urls_arr []map[string]string
-	// url := map[string]string {
-	// 	"url": "https://fantia.jp/posts/1132038/download/1810523",
-	// 	"filepath": "E:\\Codes\\Github Projects\\Cultured-Downloader-CLI\\src",
-	// }
-	// urls_arr = append(urls_arr, url)
-	// url = map[string]string {
-	// 	"url": "https://fantia.jp/posts/1321871/download/2143558",
-	// 	"filepath": "E:\\Codes\\Github Projects\\Cultured-Downloader-CLI\\src",
-	// }
-	// urls_arr = append(urls_arr, url)
-	// url = map[string]string {
-	// 	"url": "https://fantia.jp/posts/1321871/download/2143557",
-	// 	"filepath": "E:\\Codes\\Github Projects\\Cultured-Downloader-CLI\\src",
-	// }
-	// urls_arr = append(urls_arr, url)
-	// url = map[string]string {
-	// 	"url": "https://fantia.jp/posts/1321871/download/2143559",
-	// 	"filepath": "E:\\Codes\\Github Projects\\Cultured-Downloader-CLI\\src",
-	// }
-	// urls_arr = append(urls_arr, url)
-	// url = map[string]string {
-	// 	"url": "https://fantia.jp/posts/1321871/download/2143560",
-	// 	"filepath": "E:\\Codes\\Github Projects\\Cultured-Downloader-CLI\\src",
-	// }
-	// urls_arr = append(urls_arr, url)
-	// url = map[string]string {
-	// 	"url": "https://fantia.jp/posts/1321871/download/2143561",
-	// 	"filepath": "E:\\Codes\\Github Projects\\Cultured-Downloader-CLI\\src",
-	// }
-	// urls_arr = append(urls_arr, url)
-	// url = map[string]string {
-	// 	"url": "https://fantia.jp/posts/1321871/download/2143562",
-	// 	"filepath": "E:\\Codes\\Github Projects\\Cultured-Downloader-CLI\\src",
-	// }
-	// urls_arr = append(urls_arr, url)
-	// url = map[string]string {
-	// 	"url": "https://c.fantia.jp/uploads/post/file/1481729/93929c30-f486-4d01-851c-a0d90ac44222.png",
-	// 	"filepath": "E:\\Codes\\Github Projects\\Cultured-Downloader-CLI\\src",
-	// }
-	// urls_arr = append(urls_arr, url)
-
-	// make a list of maps
-	// utils.DownloadURLsParallel(urls_arr, []http.Cookie{fantia_cookie, pixiv_fanbox_cookie})
+	FantiaDownloadProcess(fantiaPostIds, fanclubIds, cookies)
+	PixivFanboxDownloadProcess(pixivFanboxPostIds, creatorIds, cookies, *gdriveApiKey, gdrive)
+	PixivDownloadProcess(
+		artworkIds, illustratorIds, tagNames, pageNums, 
+		*sortOrder, *searchMode, *ratingMode, *artworkType, 
+		*ugoiraOutputFormat, *ffmpegPath, *deleteUgoiraZip, cookies,
+	)
 }

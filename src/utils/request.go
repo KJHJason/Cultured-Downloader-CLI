@@ -1,15 +1,15 @@
 package utils
 
 import (
-	"os"
-	"io"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
-	"net/url"
-	"net/http"
-	"path/filepath"
-	"github.com/panjf2000/ants/v2"
 )
 
 func CallRequest(method, url string, timeout int, cookies []http.Cookie, additionalHeaders, params map[string]string, checkStatus bool) (*http.Response, error) {
@@ -21,7 +21,9 @@ func CallRequest(method, url string, timeout int, cookies []http.Cookie, additio
 
 	// add cookies to the request
 	for _, cookie := range cookies {
-		req.AddCookie(&cookie)
+		if strings.Contains(url, cookie.Domain) {
+			req.AddCookie(&cookie)
+		}
 	}
 
 	// add headers to the request
@@ -53,7 +55,7 @@ func CallRequest(method, url string, timeout int, cookies []http.Cookie, additio
 				return resp, nil
 			}
 		}
-		time.Sleep(time.Duration(RETRY_DELAY) * time.Second)
+		time.Sleep(GetRandomDelay())
 	}
 	errorMessage := fmt.Sprintf("failed to send a request to %s after %d retries", url, RETRY_COUNTER)
 	LogError(err, errorMessage, false)
@@ -61,16 +63,28 @@ func CallRequest(method, url string, timeout int, cookies []http.Cookie, additio
 }
 
 func DownloadURL(fileURL, filePath string, cookies []http.Cookie, headers, params map[string]string) error {
-	var filename string
-	resp, err := CallRequest("GET", fileURL, 30, cookies, headers, params, true)
+	downloadTimeout := 25 * 60  // 25 minutes in seconds as downloads 
+								// can take quite a while for large files (especially for Pixiv)
+								// However, the average max file size on these platforms is around 300MB.
+								// Note: Fantia do have a max file size per post of 3GB if one paid extra for it.
+	fmt.Printf("Downloading %s to %s\n", fileURL, filePath)
+	resp, err := CallRequest("GET", fileURL, downloadTimeout, cookies, headers, params, true)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 
-	// check if the filename contains a query string
-	filename, _ = url.PathUnescape(resp.Request.URL.String())
-	filePath = filepath.Join(filePath, GetLastPartOfURL(filename))
+	// check if filepath already have a filename attached
+	if filepath.Ext(filePath) == "" {
+		os.MkdirAll(filePath, 0755)
+		filename, err := url.PathUnescape(resp.Request.URL.String())
+		if err != nil {
+			panic(err)
+		}
+		filePath = filepath.Join(filePath, GetLastPartOfURL(filename))
+	} else {
+		os.MkdirAll(filepath.Dir(filePath), 0755)
+	}
 
 	// check if the file already exists
 	if empty, _ := CheckIfFileIsEmpty(filePath); !empty {
@@ -82,39 +96,38 @@ func DownloadURL(fileURL, filePath string, cookies []http.Cookie, headers, param
 	if err != nil {
 		panic(err)
 	}
-	defer file.Close()
 
 	// write the body to file
 	// https://stackoverflow.com/a/11693049/16377492
 	_, err = io.Copy(file, resp.Body)
+	fmt.Printf("Downloaded %s to %s\n", fileURL, filePath)
 	if err != nil {
+		file.Close()
 		os.Remove(filePath)
-		panic(err)
+		errorMsg := fmt.Sprintf("failed to download %s due to %v", fileURL, err)
+		LogError(err, errorMsg, false)
+		return nil
 	}
+	file.Close()
 	return nil
 }
 
-func DownloadURLsParallel(urls []map[string]string, cookies []http.Cookie, headers, params map[string]string) {
-	maxConcurrency := MAX_CONCURRENT_DOWNLOADS
-	if len(urls) < MAX_CONCURRENT_DOWNLOADS {
+func DownloadURLsParallel(urls []map[string]string, maxConcurrency int, cookies []http.Cookie, headers, params map[string]string) {
+	if len(urls) < maxConcurrency {
 		maxConcurrency = len(urls)
 	}
-	pool, _ := ants.NewPool(maxConcurrency)
-	defer pool.Release()
 
 	var wg sync.WaitGroup
+	queue := make(chan struct{}, maxConcurrency)
 	for _, url := range urls {
 		wg.Add(1)
-		dlFunc := func() {
+		queue <- struct{}{}
+		go func(fileUrl, filePath string) {
 			defer wg.Done()
-			DownloadURL(url["url"], url["filepath"], cookies, headers, params)
-		}
-		err := pool.Submit(dlFunc)
-		if err != nil {
-			panic(err)
-		}
+			DownloadURL(fileUrl, filePath, cookies, headers, params)
+			<-queue
+		}(url["url"], url["filepath"])
 	}
-
-	// wait for all the tasks to finish
+	close(queue)
 	wg.Wait()
 }

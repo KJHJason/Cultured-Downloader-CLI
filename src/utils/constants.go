@@ -40,7 +40,6 @@ func GetAppPath() string {
 }
 
 var (
-	RETRY_DELAY = 1.2
 	USER_AGENT = GetUserAgent()
 	APP_PATH = GetAppPath()
 	PASSWORD_TEXTS = []string {"パス", "Pass", "pass", "密码"}
@@ -56,7 +55,10 @@ var (
 )
 
 const (
+	MAX_RETRY_DELAY = 2.45
+	MIN_RETRY_DELAY = 0.95
 	RETRY_COUNTER = 5
 	MAX_CONCURRENT_DOWNLOADS = 5
+	PIXIV_MAX_CONCURRENT_DOWNLOADS = 2
 	MAX_API_CALLS = 10
 )

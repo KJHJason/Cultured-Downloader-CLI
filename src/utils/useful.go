@@ -4,29 +4,46 @@ import (
 	"io"
 	"os"
 	"fmt"
+	"time"
 	"errors"
 	"strings"
 	"net/http"
+	"math/rand"
 	"archive/zip"
 	"path/filepath"
 	"encoding/json"
 )
 
-func SplitArgs(args string) []string {
+func GetRandomDelay() time.Duration {
+	rand.Seed(time.Now().UnixNano())
+	randomDelay := MIN_RETRY_DELAY + rand.Float64() * (MAX_RETRY_DELAY - MIN_RETRY_DELAY)
+	return time.Duration(randomDelay * 1000) * time.Millisecond 
+}
+
+func SplitArgsWithSep(args, sep string) []string {
 	if args == "" {
 		return []string{}
 	}
 
-	splittedArgs := strings.Split(args, ",")
+	splittedArgs := strings.Split(args, sep)
 	seen := make(map[string]bool)
 	arr := []string{}
 	for _, el := range splittedArgs {
+		el = strings.TrimSpace(el)
 		if _, value := seen[el]; !value {
 			seen[el] = true
 			arr = append(arr, el)
 		}
 	}
 	return arr
+}
+
+func SplitArgs(args string) []string {
+	return SplitArgsWithSep(args, " ")
+}
+
+func CombineStrings(strs []string, sep string) string {
+	return strings.Join(strs, sep)
 }
 
 // based on https://stackoverflow.com/a/24792688/2737403
@@ -103,6 +120,14 @@ func GetLastPartOfURL(url string) string {
 	removedParams := strings.SplitN(url, "?", 2)
 	splittedUrl := strings.Split(removedParams[0], "/")
 	return splittedUrl[len(splittedUrl)-1]
+}
+
+func ParamsToString(params map[string]string) string {
+	paramsStr := ""
+	for key, value := range params {
+		paramsStr += fmt.Sprintf("%s=%s&", key, value)
+	}
+	return paramsStr[:len(paramsStr)-1] // remove the last &
 }
 
 func ReadResBody(res *http.Response) []byte {

@@ -12,13 +12,13 @@ import (
 	"path/filepath"
 	"encoding/json"
 	"github.com/fatih/color"
-	"github.com/panjf2000/ants/v2"
 )
 
 type GDrive struct {
 	apiKey string // Google Drive API key to use
 	apiUrl string // https://www.googleapis.com/drive/v3/files
 	timeout int // timeout in seconds for GDrive API v3
+	downloadTimeout int // timeout in seconds for GDrive file downloads
 	maxDownloadWorkers int // max concurrent workers for downloading files
 }
 
@@ -27,6 +27,7 @@ func GetNewGDrive(apiKey string, maxDownloadWorkers int) *GDrive {
 		apiKey: apiKey,
 		apiUrl: "https://www.googleapis.com/drive/v3/files",
 		timeout: 15,
+		downloadTimeout: 900, // 15 minutes
 		maxDownloadWorkers: maxDownloadWorkers,
 	}
 	if !gdrive.GDriveKeyIsValid() {
@@ -66,24 +67,43 @@ type GDriveFolder struct {
 	NextPageToken string `json:"nextPageToken"`
 }
 
-func LogFailedGdriveAPICalls(res *http.Response) {
-	resBody, err := io.ReadAll(res.Body)
-	var resBodyStr string
-	if (err != nil) {
-		resBodyStr = "Unable to read response body"
-	} else {
-		resBodyStr = string(resBody)
-	}
+func LogFailedGdriveAPICalls(res *http.Response, downloadPath string) {
+	requestUrl := res.Request.URL.String()
 	errorMsg := fmt.Sprintf(
 		"Error while fetching from GDrive...\n" +
-		"Status Code: %s\n" + "JSON Response: %s",
+		"GDrive URL (May not be accurate): https://drive.google.com/file/d/%s/view?usp=sharing\n" +
+		"Status Code: %s\nURL: %s",
+		GetLastPartOfURL(requestUrl),
 		res.Status,
-		resBodyStr,
+		requestUrl,
 	)
-	LogError(nil, errorMsg, false)
+	if downloadPath != "" {
+		LogError(nil, errorMsg, false)
+		return
+	}
+
+	// create new text file
+	var logFilePath string
+	logFilename := "gdrive_download.log"
+	if filepath.Ext(downloadPath) == "" {
+		logFilePath = filepath.Join(filepath.Dir(downloadPath), logFilename)
+	} else {
+		logFilePath = filepath.Join(downloadPath, logFilename)
+	}
+	file, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	// write to file
+	_, err = file.WriteString(errorMsg)
+	if err != nil {
+		panic(err)
+	}
 }
 
-func (gdrive GDrive) GetFolderContents(folderId string) []map[string]string {
+func (gdrive GDrive) GetFolderContents(folderId, logPath string) []map[string]string {
 	params := map[string]string{
 		"key": gdrive.apiKey,
 		"q": fmt.Sprintf("'%s' in parents", folderId),
@@ -103,8 +123,8 @@ func (gdrive GDrive) GetFolderContents(folderId string) []map[string]string {
 		}
 		defer res.Body.Close()
 		if res.StatusCode != 200 {
-			LogFailedGdriveAPICalls(res)
-			return []map[string]string{}
+			LogFailedGdriveAPICalls(res, logPath)
+			return nil
 		}
 
 		gdriveRes := ReadResBody(res)
@@ -130,12 +150,12 @@ func (gdrive GDrive) GetFolderContents(folderId string) []map[string]string {
 	return files
 }
 
-func (gdrive GDrive) GetNestedFolderContents(folderId string) []map[string]string {
+func (gdrive GDrive) GetNestedFolderContents(folderId, logPath string) []map[string]string {
 	files := []map[string]string{}
-	folderContents := gdrive.GetFolderContents(folderId)
+	folderContents := gdrive.GetFolderContents(folderId, logPath)
 	for _, file := range folderContents {
 		if file["mimeType"] == "application/vnd.google-apps.folder" {
-			files = append(files, gdrive.GetNestedFolderContents(file["id"])...)
+			files = append(files, gdrive.GetNestedFolderContents(file["id"], logPath)...)
 		} else {
 			files = append(files, file)
 		}
@@ -143,7 +163,7 @@ func (gdrive GDrive) GetNestedFolderContents(folderId string) []map[string]strin
 	return files
 }
 
-func (gdrive GDrive) GetFileDetails(fileId string) map[string]string {
+func (gdrive GDrive) GetFileDetails(fileId, logPath string) map[string]string {
 	params := map[string]string{
 		"key": gdrive.apiKey,
 		"fields": "id,name,mimeType,md5Checksum",
@@ -155,8 +175,8 @@ func (gdrive GDrive) GetFileDetails(fileId string) map[string]string {
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		LogFailedGdriveAPICalls(res)
-		return map[string]string{}
+		LogFailedGdriveAPICalls(res, logPath)
+		return nil
 	}
 
 	gdriveFile := GDriveFile{}
@@ -171,8 +191,7 @@ func (gdrive GDrive) GetFileDetails(fileId string) map[string]string {
 	}
 }
 
-func (gdrive GDrive) DownloadFile(fileInfo map[string]string, folderPath string) error {
-	filePath := filepath.Join(folderPath, fileInfo["name"])
+func (gdrive GDrive) DownloadFile(fileInfo map[string]string, filePath string) error {
 	if PathExists(filePath) {
 		// check the md5 checksum
 		file, err := os.Open(filePath)
@@ -193,13 +212,13 @@ func (gdrive GDrive) DownloadFile(fileInfo map[string]string, folderPath string)
 		"alt": "media", // to tell Google that we are downloading the file
 	}
 	url := fmt.Sprintf("%s/%s", gdrive.apiUrl, fileInfo["id"])
-	res, err := CallRequest("GET", url, gdrive.timeout, nil, nil, params, false)
+	res, err := CallRequest("GET", url, gdrive.downloadTimeout, nil, nil, params, false)
 	if (err != nil) {
 		return err
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		LogFailedGdriveAPICalls(res)
+		LogFailedGdriveAPICalls(res, filePath)
 		return nil
 	}
 
@@ -218,8 +237,7 @@ func (gdrive GDrive) DownloadFile(fileInfo map[string]string, folderPath string)
 }
 
 func (gdrive GDrive) DownloadMultipleFiles(files []map[string]string) {
-	var allowedForDownload []map[string]string
-	var notAllowedForDownload []map[string]string
+	var allowedForDownload, notAllowedForDownload []map[string]string
 	for _, file := range files {
 		if strings.Contains(file["mimeType"], "application/vnd.google-apps") {
 			notAllowedForDownload = append(notAllowedForDownload, file)
@@ -246,22 +264,25 @@ func (gdrive GDrive) DownloadMultipleFiles(files []map[string]string) {
 		}
 
 		var wg sync.WaitGroup
-		pool, _ := ants.NewPool(maxConcurrency)
-		defer pool.Release()
+		queue := make(chan struct{}, maxConcurrency)
 		for _, file := range allowedForDownload {
 			wg.Add(1)
-			_ = pool.Submit(func() {
+			queue <- struct{}{}
+			go func(file map[string]string) {
 				defer wg.Done()
+				os.MkdirAll(file["filepath"], 0755)
 				filePath := filepath.Join(file["filepath"], file["name"])
 				if err := gdrive.DownloadFile(file, filePath); err != nil {
 					errorMsg := fmt.Sprintf(
-						"Failed to download file: %s (ID: %s, MIME Type: %s)",
-						file["name"], file["id"], file["mimeType"],
+						"Failed to download file: %s (ID: %s, MIME Type: %s)\nError Details: %v",
+						file["name"], file["id"], file["mimeType"], err,
 					)
 					LogError(err, errorMsg, true)
 				}
-			})
+				<-queue
+			}(file)
 		}
+		close(queue)
 		wg.Wait()
 	}
 }
@@ -305,11 +326,11 @@ func (gdrive GDrive) DownloadGdriveUrls(gdriveUrls []map[string]string) {
 	gdriveFilesInfo := []map[string]string{}
 	for _, gdriveId := range gdriveIds {
 		if gdriveId["type"] == "file" {
-			fileInfo := gdrive.GetFileDetails(gdriveId["id"])
+			fileInfo := gdrive.GetFileDetails(gdriveId["id"], gdriveId["filepath"])
 			fileInfo["filepath"] = gdriveId["filepath"]
 			gdriveFilesInfo = append(gdriveFilesInfo, fileInfo)
 		} else if gdriveId["type"] == "folder" {
-			filesInfo := gdrive.GetNestedFolderContents(gdriveId["id"])
+			filesInfo := gdrive.GetNestedFolderContents(gdriveId["id"], gdriveId["filepath"])
 			for _, fileInfo := range filesInfo {
 				fileInfo["filepath"] = gdriveId["filepath"]
 				gdriveFilesInfo = append(gdriveFilesInfo, fileInfo)

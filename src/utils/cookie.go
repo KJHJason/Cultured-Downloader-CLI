@@ -1,22 +1,30 @@
 package utils
 
 import (
-	"time"
+	"fmt"
 	"net/http"
+	"os"
+	"time"
+	"github.com/fatih/color"
 )
 
 func GetCookie(sessionID, website string) http.Cookie {
 	var domainName, cookieName string
 	var sameSite http.SameSite
-	if website == "fantia" {
+	switch website {
+	case Fantia:
 		domainName = "fantia.jp"
 		cookieName = "_session_id"
 		sameSite = http.SameSiteLaxMode
-	} else if website == "fanbox" {
+	case PixivFanbox:
 		domainName = ".fanbox.cc"
 		cookieName = "FANBOXSESSID"
 		sameSite = http.SameSiteNoneMode
-	} else {
+	case Pixiv:
+		domainName = ".pixiv.net"
+		cookieName = "PHPSESSID"
+		sameSite = http.SameSiteNoneMode
+	default:
 		panic("invalid website")
 	}
 
@@ -25,13 +33,13 @@ func GetCookie(sessionID, website string) http.Cookie {
 	}
 
 	cookie := http.Cookie{
-		Name: cookieName,
-		Value: sessionID,
-		Domain: domainName,
-		Expires: time.Now().Add(365 * 24 * time.Hour),
-		Path: "/",
+		Name:     cookieName,
+		Value:    sessionID,
+		Domain:   domainName,
+		Expires:  time.Now().Add(365 * 24 * time.Hour),
+		Path:     "/",
 		SameSite: sameSite,
-		Secure: true,
+		Secure:   true,
 		HttpOnly: true,
 	}
 	return cookie
@@ -40,11 +48,14 @@ func GetCookie(sessionID, website string) http.Cookie {
 func VerifyCookie(cookie http.Cookie, website string) (bool, error) {
 	// sends a request to the website to verify the cookie
 	var websiteURL string
-	if website == "fantia" {
+	switch website {
+	case Fantia:
 		websiteURL = "https://fantia.jp/mypage/users/plans"
-	} else if website == "fanbox" {
+	case PixivFanbox:
 		websiteURL = "https://www.fanbox.cc/creators/supporting"
-	} else {
+	case Pixiv:
+		websiteURL = "https://www.pixiv.net/manage/requests"
+	default:
 		panic("invalid website")
 	}
 
@@ -61,4 +72,21 @@ func VerifyCookie(cookie http.Cookie, website string) (bool, error) {
 
 	// check if the cookie is valid
 	return resp.Request.URL.String() == websiteURL, nil
+}
+
+func VerifyAndGetCookie(website, title, cookieValue string) http.Cookie {
+	if title == "" {
+		title = website
+	}
+
+	cookie := GetCookie(cookieValue, website)
+	cookieIsValid, err := VerifyCookie(cookie, website)
+	if err != nil {
+		LogError(err, "Error occurred when trying to verify cookie.", true)
+	}
+	if cookieValue != "" && !cookieIsValid {
+		color.Red(fmt.Sprintf("%s cookie is invalid", title))
+		os.Exit(1)
+	}
+	return cookie
 }

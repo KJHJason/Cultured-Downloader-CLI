@@ -26,8 +26,7 @@ func LogError(err error, errorMsg string, exit bool) {
 	// write to log file
 	f, fileErr := os.OpenFile("cultured_downloader.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if fileErr != nil {
-		fmt.Println(fileErr)
-		os.Exit(1)
+		panic(fileErr)
 	}
 	defer f.Close()
 
@@ -45,6 +44,10 @@ func LogError(err error, errorMsg string, exit bool) {
 	}
 
 	if exit {
-		os.Exit(1)
+		if err != nil {
+			panic(err)
+		} else {
+			panic(errorMsg)
+		}
 	}
 }

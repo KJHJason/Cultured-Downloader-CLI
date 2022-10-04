@@ -11,10 +11,10 @@ func GetFantiaPosts(creatorId string, cookies []http.Cookie) []string {
 	var postIds []string
 	pageNum := 1
 	for {
-		url := GetAPICreatorPages("fantia", creatorId)
+		url := GetAPICreatorPages(Fantia, creatorId)
 		params := map[string]string{
-			"page": fmt.Sprintf("%d", pageNum),
-			"q[s]": "newer",
+			"page":   fmt.Sprintf("%d", pageNum),
+			"q[s]":   "newer",
 			"q[tag]": "",
 		}
 		res, err := CallRequest("GET", url, 30, cookies, nil, params, false)
@@ -57,22 +57,22 @@ func ProcessFantiaPost(res *http.Response, downloadPath string) []map[string]str
 	// returns a map containing the post id and the url to download the file from
 	post := LoadJsonFromResponse(res)
 	if post == nil {
-		return []map[string]string{}
+		return nil
 	}
 
 	postJson := post.(map[string]interface{})["post"].(map[string]interface{})
-	postId := fmt.Sprintf("%d",int64(postJson["id"].(float64)))
+	postId := fmt.Sprintf("%d", int64(postJson["id"].(float64)))
 	postTitle := postJson["title"].(string)
 	creatorName := postJson["fanclub"].(map[string]interface{})["user"].(map[string]interface{})["name"].(string)
-	postFolderPath := CreatePostFolder(filepath.Join(downloadPath, "Fantia"), creatorName, postId, postTitle)
+	postFolderPath := CreatePostFolder(filepath.Join(downloadPath, FantiaTitle), creatorName, postId, postTitle)
 
 	var urlsMap []map[string]string
 	thumbnail := postJson["thumb"].(map[string]interface{})
 	if thumbnail != nil {
 		thumbnailUrl := thumbnail["original"].(string)
 		urlsMap = append(urlsMap, map[string]string{
-			"url": thumbnailUrl,
-			"filepath": filepath.Join(postFolderPath),
+			"url":      thumbnailUrl,
+			"filepath": postFolderPath,
 		})
 	}
 
@@ -92,8 +92,8 @@ func ProcessFantiaPost(res *http.Response, downloadPath string) []map[string]str
 				// image url via ["url"]["original"]
 				imageUrl := image.(map[string]interface{})["url"].(map[string]interface{})["original"].(string)
 				urlsMap = append(urlsMap, map[string]string{
-					"url": imageUrl,
-					"filepath": filepath.Join(postFolderPath, "images"),
+					"url":      imageUrl,
+					"filepath": filepath.Join(postFolderPath, imagesFolder),
 				})
 			}
 		}
@@ -103,8 +103,8 @@ func ProcessFantiaPost(res *http.Response, downloadPath string) []map[string]str
 		if attachmentUrl != nil {
 			attachmentUrlStr := "https://fantia.jp" + attachmentUrl.(string)
 			urlsMap = append(urlsMap, map[string]string{
-				"url": attachmentUrlStr,
-				"filepath": filepath.Join(postFolderPath, "attachments"),
+				"url":      attachmentUrlStr,
+				"filepath": filepath.Join(postFolderPath, attachmentFolder),
 			})
 		}
 	}

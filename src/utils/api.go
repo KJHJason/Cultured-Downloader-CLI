@@ -2,15 +2,27 @@ package utils
 
 import (
 	"fmt"
-	"sync"
 	"net/http"
-	"github.com/panjf2000/ants/v2"
+	"sync"
+)
+
+const (
+	Fantia           = "fantia"
+	FantiaTitle      = "Fantia"
+	Pixiv            = "pixiv"
+	PixivTitle       = "Pixiv"
+	PixivFanbox      = "fanbox"
+	PixivFanboxTitle = "Pixiv Fanbox"
+
+	attachmentFolder = "attachments"
+	imagesFolder 	 = "images"
+	gdriveFolder 	 = "gdrive"
 )
 
 func GetAPIPostLink(website, postId string) string {
-	if website == "fantia" {
+	if website == Fantia {
 		return "https://fantia.jp/api/v1/posts/" + postId
-	} else if website == "fanbox" {
+	} else if website == PixivFanbox {
 		return "https://api.fanbox.cc/post.info"
 	} else {
 		panic("invalid website")
@@ -18,40 +30,34 @@ func GetAPIPostLink(website, postId string) string {
 }
 
 func GetAPICreatorPages(website, creatorId string) string {
-	if website == "fantia" {
+	if website == Fantia {
 		return "https://fantia.jp/fanclubs/" + creatorId + "/posts"
-	} else if website == "fanbox" {
+	} else if website == PixivFanbox {
 		return "https://api.fanbox.cc/post.paginateCreator"
 	} else {
 		panic("invalid website")
 	}
 }
 
-func GetPostDetails(postIdsOrUrls []string, website string, cookies []http.Cookie) ([]map[string]string, []map[string]string) {
+func GetPostDetails(postIds []string, website string, cookies []http.Cookie) ([]map[string]string, []map[string]string) {
 	var wg sync.WaitGroup
 	maxConcurrency := MAX_API_CALLS
-	if len(postIdsOrUrls) < MAX_API_CALLS {
-		maxConcurrency = len(postIdsOrUrls)
+	if len(postIds) < MAX_API_CALLS {
+		maxConcurrency = len(postIds)
 	}
-	pool, _ := ants.NewPool(maxConcurrency)
-	defer pool.Release()
-	resChan := make(chan *http.Response, len(postIdsOrUrls))
-	for _,  postIdOrUrl := range postIdsOrUrls {
+	queue := make(chan struct{}, maxConcurrency)
+	resChan := make(chan *http.Response, len(postIds))
+	for _, postId := range postIds {
 		wg.Add(1)
-		err := pool.Submit(func() {
+		queue <- struct{}{}
+		go func(postId string) {
 			defer wg.Done()
-
-			postId := GetLastPartOfURL(postIdOrUrl)
 			url := GetAPIPostLink(website, postId)
-			var header map[string]string
-			var params map[string]string
-			if website == "fantia" {
+			var header, params map[string]string
+			if website == Fantia {
 				header = map[string]string{"Referer": "https://fantia.jp/posts/" + postId}
-			} else if website == "fanbox" {
-				header = map[string]string{
-					"Referer": postIdOrUrl,
-					"Origin": "https://www.fanbox.cc",
-				}
+			} else if website == PixivFanbox {
+				header = GetPixivFanboxHeaders()
 				params = map[string]string{"postId": postId}
 			} else {
 				panic("invalid website")
@@ -61,23 +67,21 @@ func GetPostDetails(postIdsOrUrls []string, website string, cookies []http.Cooki
 			if err != nil || res.StatusCode != 200 {
 				LogError(err, fmt.Sprintf("failed to get post details for %s", url), false)
 			} else {
-				resChan <- res
+				resChan <-res
 			}
-		})
-		if err != nil {
-			panic(err)
-		}
+			<-queue
+		}(postId)
 	}
+	close(queue)
 	wg.Wait()
 	close(resChan)
 
 	// parse the responses
-	var urlsMap []map[string]string
-	var gdriveUrls []map[string]string
+	var urlsMap, gdriveUrls []map[string]string
 	for res := range resChan {
-		if website == "fantia" {
+		if website == Fantia {
 			urlsMap = append(urlsMap, ProcessFantiaPost(res, DOWNLOAD_PATH)...)
-		} else if website == "fanbox" {
+		} else if website == PixivFanbox {
 			postUrls, postGdriveLinks := ProcessFanboxPost(res, nil, DOWNLOAD_PATH)
 			urlsMap = append(urlsMap, postUrls...)
 			gdriveUrls = append(gdriveUrls, postGdriveLinks...)
@@ -88,41 +92,38 @@ func GetPostDetails(postIdsOrUrls []string, website string, cookies []http.Cooki
 	return urlsMap, gdriveUrls
 }
 
-func GetCreatorsPosts(creatorIds []string, website string, cookies []http.Cookie) ([]map[string]string, []string) {
-	var fantiaPostIds []string
-	var fanboxPostIds []map[string]string
-
-	if website == "fantia" {
+func GetCreatorsPosts(creatorIds []string, website string, cookies []http.Cookie) []string {
+	var postIds []string
+	if website == Fantia {
 		var wg sync.WaitGroup
 		maxConcurrency := MAX_API_CALLS
 		if len(creatorIds) < MAX_API_CALLS {
 			maxConcurrency = len(creatorIds)
 		}
-		pool, _ := ants.NewPool(maxConcurrency)
-		defer pool.Release()
+		queue := make(chan struct{}, maxConcurrency)
 		resChan := make(chan []string, len(creatorIds))
 		for _, creatorId := range creatorIds {
 			wg.Add(1)
-			err := pool.Submit(func() {
+			queue <- struct{}{}
+			go func(creatorId string) {
 				defer wg.Done()
 				resChan <- GetFantiaPosts(creatorId, cookies)
-			})
-			if err != nil {
-				panic(err)
-			}
+				<-queue
+			}(creatorId)
 		}
+		close(queue)
 		wg.Wait()
 		close(resChan)
 
-		for postIds := range resChan {
-			fantiaPostIds = append(fantiaPostIds, postIds...)
+		for postIdsRes := range resChan {
+			postIds = append(postIds, postIdsRes...)
 		}
-	} else if website == "fanbox" {
+	} else if website == PixivFanbox {
 		for _, creatorId := range creatorIds {
-			fanboxPostIds = append(fanboxPostIds, GetFanboxPosts(creatorId, cookies)...)
+			postIds = append(postIds, GetFanboxPosts(creatorId, cookies)...)
 		}
 	} else {
 		panic("invalid website")
 	}
-	return fanboxPostIds, fantiaPostIds
+	return postIds
 }
