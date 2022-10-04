@@ -229,7 +229,7 @@ func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpe
 	}
 	f.Close()
 
-	// ffmpeg flags: https://www.ffmpeg.org/ffmpeg.html
+	// FFmpeg flags: https://www.ffmpeg.org/ffmpeg.html
 	args := []string{
 		"-an",					 	// disable audio
 		"-f", "concat", 			// input is a concat file

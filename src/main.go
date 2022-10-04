@@ -57,6 +57,14 @@ func PixivDownloadProcess(
 	sortOrder, searchMode, ratingMode, artworkType, ugoiraOutputFormat, ffmpegPath string, 
 	deleteUgoiraZip bool, cookies []http.Cookie,
 ) {
+	// check if FFmpeg is installed
+	cmd := exec.Command(ffmpegPath, "-version")
+	err := cmd.Run()
+	if err != nil {
+		color.Red("FFmpeg is not installed. Please install FFmpeg and use the ffmpeg_path flag or add it to your PATH.")
+		os.Exit(1)
+	}
+
 	var ugoiraToDownload []utils.Ugoira
 	var artworksToDownload []map[string]string
 	if len(artworkIds) > 0 {
@@ -173,12 +181,13 @@ func main() {
 		".gif",
 		utils.CombineStrings(
 			[]string{
-				"Output format for the ugoira conversion using FFMPEG.",
+				"Output format for the ugoira conversion using FFmpeg.",
 				fmt.Sprintf(
 					"Accepted Extensions: %s",
 					strings.TrimSpace(strings.Join(utils.UGOIRA_ACCEPTED_EXT, ", ")),
 				),
 				"Note:",
+				// TODO: Check if the notes are accurate
 				"- .webm will take MORE time to convert and will have a LARGER file size but will have a BETTER quality.",
 				"- .mp4 will take LESS time to convert with ACCEPTABLE quality and SMALLER file size.",
 				"- .gif will take LESS time to convert with ACCEPTABLE quality but with a LARGER file size.\n",
@@ -292,15 +301,22 @@ func main() {
 	)
 	downloadPath := flag.String(
 		"download_path", 
-		"", 
-		"Configure the path to download the files to and save it for future runs.",
+		"",
+		utils.CombineStrings(
+			[]string{
+				"Configure the path to download the files to and save it for future runs.",
+				"Note:",
+				"If you had used the \"-download_path\" flag before or",
+				"had used the Cultured Downloader software, you can leave this argument empty.",
+			}, "\n",
+		),
 	)
 	ffmpegPath := flag.String(
 		"ffmpeg_path", 
 		"ffmpeg", 
 		utils.CombineStrings(
 			[]string{
-				"Configure the path to ffmpeg executable.",
+				"Configure the path to the FFmpeg executable.",
 				"Download Link: https://ffmpeg.org/download.html\n",
 			}, "\n",
 		),
@@ -340,14 +356,6 @@ func main() {
 	var gdrive *utils.GDrive
 	if *gdriveApiKey != "" {
 		gdrive = utils.GetNewGDrive(*gdriveApiKey, utils.MAX_CONCURRENT_DOWNLOADS)
-	}
-
-	// check if ffmpeg is installed
-	cmd := exec.Command(*ffmpegPath, "-version")
-	err := cmd.Run()
-	if err != nil {
-		color.Red("ffmpeg is not installed. Please install ffmpeg and use the ffmpeg_path flag or add it to your PATH.")
-		os.Exit(1)
 	}
 
 	if *downloadPath != "" {
