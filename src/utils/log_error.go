@@ -9,10 +9,10 @@ import (
 	"github.com/fatih/color"
 )
 
+var mut sync.Mutex
 func LogError(err error, errorMsg string, exit bool) {
-	var mu sync.Mutex
-	mu.Lock()
-	defer mu.Unlock()
+	mut.Lock()
+	defer mut.Unlock()
 
 	if err == nil && errorMsg == "" {
 		return

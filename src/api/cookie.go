@@ -1,10 +1,12 @@
-package utils
+package api
 
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"time"
+	"os"
+	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/fatih/color"
 )
 
@@ -64,7 +66,7 @@ func VerifyCookie(cookie http.Cookie, website string) (bool, error) {
 	}
 
 	cookies := []http.Cookie{cookie}
-	resp, err := CallRequest("HEAD", websiteURL, 5, cookies, nil, nil, true)
+	resp, err := request.CallRequest("HEAD", websiteURL, 5, cookies, nil, nil, true)
 	if err != nil {
 		return false, err
 	}
@@ -82,7 +84,7 @@ func VerifyAndGetCookie(website, title, cookieValue string) http.Cookie {
 	cookie := GetCookie(cookieValue, website)
 	cookieIsValid, err := VerifyCookie(cookie, website)
 	if err != nil {
-		LogError(err, "Error occurred when trying to verify cookie.", true)
+		utils.LogError(err, "Error occurred when trying to verify cookie.", true)
 	}
 	if cookieValue != "" && !cookieIsValid {
 		color.Red(fmt.Sprintf("%s cookie is invalid", title))

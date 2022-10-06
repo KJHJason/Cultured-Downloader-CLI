@@ -1,4 +1,4 @@
-package utils
+package gdrive
 
 import (
 	"io"
@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"encoding/json"
 	"github.com/fatih/color"
+	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 )
 
 type GDrive struct {
@@ -44,7 +46,7 @@ func (gdrive GDrive) GDriveKeyIsValid() bool {
 	}
 
 	params := map[string]string{"key": gdrive.apiKey}
-	res, err := CallRequest("GET", gdrive.apiUrl, gdrive.timeout, nil, nil, params, false)
+	res, err := request.CallRequest("GET", gdrive.apiUrl, gdrive.timeout, nil, nil, params, false)
 	if (err != nil) {
 		panic(err)
 	}
@@ -73,12 +75,12 @@ func LogFailedGdriveAPICalls(res *http.Response, downloadPath string) {
 		"Error while fetching from GDrive...\n" +
 		"GDrive URL (May not be accurate): https://drive.google.com/file/d/%s/view?usp=sharing\n" +
 		"Status Code: %s\nURL: %s",
-		GetLastPartOfURL(requestUrl),
+		utils.GetLastPartOfURL(requestUrl),
 		res.Status,
 		requestUrl,
 	)
 	if downloadPath != "" {
-		LogError(nil, errorMsg, false)
+		utils.LogError(nil, errorMsg, false)
 		return
 	}
 
@@ -117,7 +119,7 @@ func (gdrive GDrive) GetFolderContents(folderId, logPath string) []map[string]st
 		} else {
 			delete(params, "pageToken")
 		}
-		res, err := CallRequest("GET", gdrive.apiUrl, gdrive.timeout, nil, nil, params, false)
+		res, err := request.CallRequest("GET", gdrive.apiUrl, gdrive.timeout, nil, nil, params, false)
 		if (err != nil) {
 			panic(err)
 		}
@@ -127,7 +129,7 @@ func (gdrive GDrive) GetFolderContents(folderId, logPath string) []map[string]st
 			return nil
 		}
 
-		gdriveRes := ReadResBody(res)
+		gdriveRes := utils.ReadResBody(res)
 		gdriveFolder := GDriveFolder{}
 		if err := json.Unmarshal(gdriveRes, &gdriveFolder); err != nil {
 			panic(err)
@@ -169,7 +171,7 @@ func (gdrive GDrive) GetFileDetails(fileId, logPath string) map[string]string {
 		"fields": "id,name,mimeType,md5Checksum",
 	}
 	url := fmt.Sprintf("%s/%s", gdrive.apiUrl, fileId)
-	res, err := CallRequest("GET", url, gdrive.timeout, nil, nil, params, false)
+	res, err := request.CallRequest("GET", url, gdrive.timeout, nil, nil, params, false)
 	if (err != nil) {
 		panic(err)
 	}
@@ -180,7 +182,7 @@ func (gdrive GDrive) GetFileDetails(fileId, logPath string) map[string]string {
 	}
 
 	gdriveFile := GDriveFile{}
-	if err := json.Unmarshal(ReadResBody(res), &gdriveFile); err != nil {
+	if err := json.Unmarshal(utils.ReadResBody(res), &gdriveFile); err != nil {
 		panic(err)
 	}
 	return map[string]string{
@@ -192,7 +194,7 @@ func (gdrive GDrive) GetFileDetails(fileId, logPath string) map[string]string {
 }
 
 func (gdrive GDrive) DownloadFile(fileInfo map[string]string, filePath string) error {
-	if PathExists(filePath) {
+	if utils.PathExists(filePath) {
 		// check the md5 checksum
 		file, err := os.Open(filePath)
 		if err == nil {
@@ -212,7 +214,7 @@ func (gdrive GDrive) DownloadFile(fileInfo map[string]string, filePath string) e
 		"alt": "media", // to tell Google that we are downloading the file
 	}
 	url := fmt.Sprintf("%s/%s", gdrive.apiUrl, fileInfo["id"])
-	res, err := CallRequest("GET", url, gdrive.downloadTimeout, nil, nil, params, false)
+	res, err := request.CallRequest("GET", url, gdrive.downloadTimeout, nil, nil, params, false)
 	if (err != nil) {
 		return err
 	}
@@ -254,7 +256,7 @@ func (gdrive GDrive) DownloadMultipleFiles(files []map[string]string) {
 				file["name"], file["id"], file["mimeType"],
 			)
 		}
-		LogError(nil, noticeMsg, false)
+		utils.LogError(nil, noticeMsg, false)
 	}
 
 	if len(allowedForDownload) > 0 {
@@ -277,7 +279,7 @@ func (gdrive GDrive) DownloadMultipleFiles(files []map[string]string) {
 						"Failed to download file: %s (ID: %s, MIME Type: %s)\nError Details: %v",
 						file["name"], file["id"], file["mimeType"], err,
 					)
-					LogError(err, errorMsg, true)
+					utils.LogError(err, errorMsg, true)
 				}
 				<-queue
 			}(file)
@@ -288,13 +290,13 @@ func (gdrive GDrive) DownloadMultipleFiles(files []map[string]string) {
 }
 
 func GetFileIdAndTypeFromUrl(url string) (string, string) {
-	matched := GDRIVE_URL_REGEX.FindStringSubmatch(url)
+	matched := utils.GDRIVE_URL_REGEX.FindStringSubmatch(url)
 	if matched == nil {
 		return "", ""
 	}
 
 	var fileType string
-	matchedFileType := matched[GDRIVE_REGEX_TYPE_INDEX]
+	matchedFileType := matched[utils.GDRIVE_REGEX_TYPE_INDEX]
 	if strings.Contains(matchedFileType, "folder") {
 		fileType = "folder"
 	} else if strings.Contains(matchedFileType, "file") {
@@ -302,7 +304,7 @@ func GetFileIdAndTypeFromUrl(url string) (string, string) {
 	} else {
 		panic(fmt.Sprintf("Could not determine file type from URL: %s", url))
 	}
-	return matched[GDRIVE_REGEX_ID_INDEX], fileType
+	return matched[utils.GDRIVE_REGEX_ID_INDEX], fileType
 }
 
 func (gdrive GDrive) DownloadGdriveUrls(gdriveUrls []map[string]string) {

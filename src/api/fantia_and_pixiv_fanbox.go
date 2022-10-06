@@ -1,22 +1,11 @@
-package utils
+package api
 
 import (
 	"fmt"
 	"net/http"
 	"sync"
-)
-
-const (
-	Fantia           = "fantia"
-	FantiaTitle      = "Fantia"
-	Pixiv            = "pixiv"
-	PixivTitle       = "Pixiv"
-	PixivFanbox      = "fanbox"
-	PixivFanboxTitle = "Pixiv Fanbox"
-
-	attachmentFolder = "attachments"
-	imagesFolder 	 = "images"
-	gdriveFolder 	 = "gdrive"
+	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 )
 
 func GetAPIPostLink(website, postId string) string {
@@ -41,7 +30,7 @@ func GetAPICreatorPages(website, creatorId string) string {
 
 func GetPostDetails(postIds []string, website string, cookies []http.Cookie) ([]map[string]string, []map[string]string) {
 	var wg sync.WaitGroup
-	maxConcurrency := MAX_API_CALLS
+	maxConcurrency := utils.MAX_API_CALLS
 	if len(postIds) < maxConcurrency {
 		maxConcurrency = len(postIds)
 	}
@@ -63,9 +52,9 @@ func GetPostDetails(postIds []string, website string, cookies []http.Cookie) ([]
 				panic("invalid website")
 			}
 
-			res, err := CallRequest("GET", url, 30, cookies, header, params, false)
+			res, err := request.CallRequest("GET", url, 30, cookies, header, params, false)
 			if err != nil || res.StatusCode != 200 {
-				LogError(err, fmt.Sprintf("failed to get post details for %s", url), false)
+				utils.LogError(err, fmt.Sprintf("failed to get post details for %s", url), false)
 			} else {
 				resChan <-res
 			}
@@ -80,9 +69,9 @@ func GetPostDetails(postIds []string, website string, cookies []http.Cookie) ([]
 	var urlsMap, gdriveUrls []map[string]string
 	for res := range resChan {
 		if website == Fantia {
-			urlsMap = append(urlsMap, ProcessFantiaPost(res, DOWNLOAD_PATH)...)
+			urlsMap = append(urlsMap, ProcessFantiaPost(res, utils.DOWNLOAD_PATH)...)
 		} else if website == PixivFanbox {
-			postUrls, postGdriveLinks := ProcessFanboxPost(res, nil, DOWNLOAD_PATH)
+			postUrls, postGdriveLinks := ProcessFanboxPost(res, nil, utils.DOWNLOAD_PATH)
 			urlsMap = append(urlsMap, postUrls...)
 			gdriveUrls = append(gdriveUrls, postGdriveLinks...)
 		} else {
@@ -96,7 +85,7 @@ func GetCreatorsPosts(creatorIds []string, website string, cookies []http.Cookie
 	var postIds []string
 	if website == Fantia {
 		var wg sync.WaitGroup
-		maxConcurrency := MAX_API_CALLS
+		maxConcurrency := utils.MAX_API_CALLS
 		if len(creatorIds) < maxConcurrency {
 			maxConcurrency = len(creatorIds)
 		}

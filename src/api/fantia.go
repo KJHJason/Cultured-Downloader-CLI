@@ -1,4 +1,4 @@
-package utils
+package api
 
 import (
 	"fmt"
@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"path/filepath"
 	"github.com/PuerkitoBio/goquery"
+	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 )
 
 func GetFantiaPosts(creatorId string, cookies []http.Cookie) []string {
@@ -19,12 +21,12 @@ func GetFantiaPosts(creatorId string, cookies []http.Cookie) []string {
 			"q[s]":   "newer",
 			"q[tag]": "",
 		}
-		res, err := CallRequest("GET", url, 30, cookies, nil, params, false)
+		res, err := request.CallRequest("GET", url, 30, cookies, nil, params, false)
 		if err != nil || res.StatusCode != 200 {
 			if err == nil {
 				res.Body.Close()
 			}
-			LogError(err, fmt.Sprintf("failed to get creator's pages for %s", url), false)
+			utils.LogError(err, fmt.Sprintf("failed to get creator's pages for %s", url), false)
 			return []string{}
 		}
 
@@ -85,10 +87,10 @@ func ProcessFantiaPost(res *http.Response, downloadPath string) []map[string]str
 	// processes a fantia post
 	// returns a map containing the post id and the url to download the file from
 	var postJson FantiaPost
-	resBody := ReadResBody(res)
+	resBody := utils.ReadResBody(res)
 	err := json.Unmarshal(resBody, &postJson)
 	if err != nil {
-		LogError(err, fmt.Sprintf("failed to unmarshal json for fantia post\nJSON: %s", string(resBody)), false)
+		utils.LogError(err, fmt.Sprintf("failed to unmarshal json for fantia post\nJSON: %s", string(resBody)), false)
 		return nil
 	}
 
@@ -96,7 +98,7 @@ func ProcessFantiaPost(res *http.Response, downloadPath string) []map[string]str
 	postId := strconv.Itoa(postStruct.ID)
 	postTitle := postStruct.Title
 	creatorName := postStruct.Fanclub.User.Name
-	postFolderPath := CreatePostFolder(filepath.Join(downloadPath, FantiaTitle), creatorName, postId, postTitle)
+	postFolderPath := utils.CreatePostFolder(filepath.Join(downloadPath, FantiaTitle), creatorName, postId, postTitle)
 
 	var urlsMap []map[string]string
 	thumbnail := postStruct.Thumb.Original

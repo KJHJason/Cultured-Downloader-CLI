@@ -62,6 +62,7 @@ var (
 )
 
 const (
+	VERSION = "1.0.0"
 	MAX_RETRY_DELAY = 2.45
 	MIN_RETRY_DELAY = 0.95
 	RETRY_COUNTER = 5

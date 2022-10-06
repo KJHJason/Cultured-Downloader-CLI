@@ -1,4 +1,4 @@
-package utils
+package request
 
 import (
 	"fmt"
@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
 
 func CallRequest(method, url string, timeout int, cookies []http.Cookie, additionalHeaders, params map[string]string, checkStatus bool) (*http.Response, error) {
@@ -31,7 +32,7 @@ func CallRequest(method, url string, timeout int, cookies []http.Cookie, additio
 		req.Header.Add(key, value)
 	}
 	req.Header.Add(
-		"User-Agent", USER_AGENT,
+		"User-Agent", utils.USER_AGENT,
 	)
 
 	// add params to the request
@@ -46,7 +47,7 @@ func CallRequest(method, url string, timeout int, cookies []http.Cookie, additio
 	// send the request
 	client := &http.Client{}
 	client.Timeout = time.Duration(timeout) * time.Second
-	for i := 1; i <= RETRY_COUNTER; i++ {
+	for i := 1; i <= utils.RETRY_COUNTER; i++ {
 		resp, err := client.Do(req)
 		if err == nil {
 			if !checkStatus {
@@ -55,10 +56,10 @@ func CallRequest(method, url string, timeout int, cookies []http.Cookie, additio
 				return resp, nil
 			}
 		}
-		time.Sleep(GetRandomDelay())
+		time.Sleep(utils.GetRandomDelay())
 	}
-	errorMessage := fmt.Sprintf("failed to send a request to %s after %d retries", url, RETRY_COUNTER)
-	LogError(err, errorMessage, false)
+	errorMessage := fmt.Sprintf("failed to send a request to %s after %d retries", url, utils.RETRY_COUNTER)
+	utils.LogError(err, errorMessage, false)
 	return nil, err
 }
 
@@ -67,7 +68,6 @@ func DownloadURL(fileURL, filePath string, cookies []http.Cookie, headers, param
 								// can take quite a while for large files (especially for Pixiv)
 								// However, the average max file size on these platforms is around 300MB.
 								// Note: Fantia do have a max file size per post of 3GB if one paid extra for it.
-	fmt.Printf("Downloading %s to %s\n", fileURL, filePath)
 	resp, err := CallRequest("GET", fileURL, downloadTimeout, cookies, headers, params, true)
 	if err != nil {
 		return err
@@ -81,7 +81,7 @@ func DownloadURL(fileURL, filePath string, cookies []http.Cookie, headers, param
 		if err != nil {
 			panic(err)
 		}
-		filename = GetLastPartOfURL(filename)
+		filename = utils.GetLastPartOfURL(filename)
 		filenameWithoutExt := strings.TrimSuffix(filename, filepath.Ext(filename))
 		filePath = filepath.Join(filePath, filenameWithoutExt + strings.ToLower(filepath.Ext(filename)))
 	} else {
@@ -92,7 +92,7 @@ func DownloadURL(fileURL, filePath string, cookies []http.Cookie, headers, param
 	}
 
 	// check if the file already exists
-	if empty, _ := CheckIfFileIsEmpty(filePath); !empty {
+	if empty, _ := utils.CheckIfFileIsEmpty(filePath); !empty {
 		return nil
 	}
 
@@ -105,12 +105,11 @@ func DownloadURL(fileURL, filePath string, cookies []http.Cookie, headers, param
 	// write the body to file
 	// https://stackoverflow.com/a/11693049/16377492
 	_, err = io.Copy(file, resp.Body)
-	fmt.Printf("Downloaded %s to %s\n", fileURL, filePath)
 	if err != nil {
 		file.Close()
 		os.Remove(filePath)
 		errorMsg := fmt.Sprintf("failed to download %s due to %v", fileURL, err)
-		LogError(err, errorMsg, false)
+		utils.LogError(err, errorMsg, false)
 		return nil
 	}
 	file.Close()

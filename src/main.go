@@ -10,42 +10,45 @@ import (
 	"strconv"
 	"strings"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
+	"github.com/KJHJason/Cultured-Downloader-CLI/api"
+	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/fatih/color"
 )
 
 func FantiaDownloadProcess(fantiaPostIds, fanclubIds []string, cookies []http.Cookie) {
 	var urlsToDownload []map[string]string
 	if len(fantiaPostIds) > 0 {
-		urlsArr, _ := utils.GetPostDetails(fantiaPostIds, utils.Fantia, cookies)
+		urlsArr, _ := api.GetPostDetails(fantiaPostIds, api.Fantia, cookies)
 		urlsToDownload = append(urlsToDownload, urlsArr...)
 	}
 	if len(fanclubIds) > 0 {
-		fantiaPostIds := utils.GetCreatorsPosts(fanclubIds, utils.Fantia, cookies)
-		urlsArr, _ := utils.GetPostDetails(fantiaPostIds, utils.Fantia, cookies)
+		fantiaPostIds := api.GetCreatorsPosts(fanclubIds, api.Fantia, cookies)
+		urlsArr, _ := api.GetPostDetails(fantiaPostIds, api.Fantia, cookies)
 		urlsToDownload = append(urlsToDownload, urlsArr...)
 	}
 
 	if len(urlsToDownload) > 0 {
-		utils.DownloadURLsParallel(urlsToDownload, utils.MAX_CONCURRENT_DOWNLOADS, cookies, nil, nil)
+		request.DownloadURLsParallel(urlsToDownload, utils.MAX_CONCURRENT_DOWNLOADS, cookies, nil, nil)
 	}
 }
 
-func PixivFanboxDownloadProcess(pixivFanboxPostIds, creatorIds []string, cookies []http.Cookie, gdriveApiKey string, gdrive *utils.GDrive) {
+func PixivFanboxDownloadProcess(pixivFanboxPostIds, creatorIds []string, cookies []http.Cookie, gdriveApiKey string, gdrive *gdrive.GDrive) {
 	var urlsToDownload, gdriveUrlsToDownload []map[string]string
 	if len(pixivFanboxPostIds) > 0 {
-		urlsArr, gdriveArr := utils.GetPostDetails(pixivFanboxPostIds, utils.PixivFanbox, cookies)
+		urlsArr, gdriveArr := api.GetPostDetails(pixivFanboxPostIds, api.PixivFanbox, cookies)
 		urlsToDownload = append(urlsToDownload, urlsArr...)
 		gdriveUrlsToDownload = append(gdriveUrlsToDownload, gdriveArr...)
 	}
 	if len(creatorIds) > 0 {
-		fanboxIds := utils.GetCreatorsPosts(creatorIds, utils.PixivFanbox, cookies)
-		urlsArr, gdriveArr := utils.GetPostDetails(fanboxIds, utils.PixivFanbox, cookies)
+		fanboxIds := api.GetCreatorsPosts(creatorIds, api.PixivFanbox, cookies)
+		urlsArr, gdriveArr := api.GetPostDetails(fanboxIds, api.PixivFanbox, cookies)
 		urlsToDownload = append(urlsToDownload, urlsArr...)
 		gdriveUrlsToDownload = append(gdriveUrlsToDownload, gdriveArr...)
 	}
 
 	if len(urlsToDownload) > 0 {
-		utils.DownloadURLsParallel(urlsToDownload, utils.PIXIV_MAX_CONCURRENT_DOWNLOADS, cookies, utils.GetPixivFanboxHeaders(), nil)
+		request.DownloadURLsParallel(urlsToDownload, utils.PIXIV_MAX_CONCURRENT_DOWNLOADS, cookies, api.GetPixivFanboxHeaders(), nil)
 	}
 	if gdriveApiKey != "" {
 		gdrive.DownloadGdriveUrls(gdriveUrlsToDownload)
@@ -65,17 +68,17 @@ func PixivDownloadProcess(
 		os.Exit(1)
 	}
 
-	var ugoiraToDownload []utils.Ugoira
+	var ugoiraToDownload []api.Ugoira
 	var artworksToDownload []map[string]string
 	if len(artworkIds) > 0 {
-		artworksArr, ugoiraArr := utils.GetMultipleArtworkDetails(
+		artworksArr, ugoiraArr := api.GetMultipleArtworkDetails(
 			artworkIds, utils.DOWNLOAD_PATH, cookies,
 		)
 		artworksToDownload = append(artworksToDownload, artworksArr...)
 		ugoiraToDownload = append(ugoiraToDownload, ugoiraArr...)
 	}
 	if len(illustratorIds) > 0 {
-		artworksArr, ugoiraArr := utils.GetMultipleIllustratorPosts(
+		artworksArr, ugoiraArr := api.GetMultipleIllustratorPosts(
 			illustratorIds, utils.DOWNLOAD_PATH, artworkType, cookies,
 		)
 		artworksToDownload = append(artworksToDownload, artworksArr...)
@@ -93,7 +96,7 @@ func PixivDownloadProcess(
 				minPage, _ = strconv.Atoi(pageNums[idx])
 				maxPage = minPage
 			}
-			artworksArr, ugoiraArr := utils.TagSearch(
+			artworksArr, ugoiraArr := api.TagSearch(
 				tagName, utils.DOWNLOAD_PATH, sortOrder, searchMode, ratingMode, artworkType, minPage, maxPage, cookies,
 			)
 			artworksToDownload = append(artworksToDownload, artworksArr...)
@@ -102,10 +105,10 @@ func PixivDownloadProcess(
 	}
 
 	if len(artworksToDownload) > 0 {
-		utils.DownloadURLsParallel(artworksToDownload, utils.PIXIV_MAX_CONCURRENT_DOWNLOADS, cookies, utils.GetPixivRequestHeaders(), nil)
+		request.DownloadURLsParallel(artworksToDownload, utils.PIXIV_MAX_CONCURRENT_DOWNLOADS, cookies, api.GetPixivRequestHeaders(), nil)
 	}
 	if len(ugoiraToDownload) > 0 {
-		utils.DownloadUgoira(ugoiraToDownload, ugoiraOutputFormat, ffmpegPath, deleteUgoiraZip, ugoiraQuality, cookies)
+		api.DownloadUgoira(ugoiraToDownload, ugoiraOutputFormat, ffmpegPath, deleteUgoiraZip, ugoiraQuality, cookies)
 	}
 }
 
@@ -189,7 +192,7 @@ func main() {
 				"- webm: 0-63\n",
 				"For more information, see:",
 				"- mp4: https://trac.ffmpeg.org/wiki/Encode/H.264#crf",
-				"- webm: https://trac.ffmpeg.org/wiki/Encode/VP9#constantq",
+				"- webm: https://trac.ffmpeg.org/wiki/Encode/VP9#constantq\n",
 			},
 		),
 	)
@@ -260,7 +263,7 @@ func main() {
 				"Additionally, you can add the \"_d\" suffix for a descending order.",
 				"Example: \"popular_d\"",
 				"Note:",
-				"- Pixiv Premium is needed to search by popularity.",
+				"- Pixiv Premium is needed in order to search by popularity. Otherwise, Pixiv's API will default to \"date_d\".",
 				"- You can only specify ONE tag name per run!\n",
 			},
 		),
@@ -338,6 +341,11 @@ func main() {
 			},
 		),
 	)
+	version := flag.Bool(
+		"version",
+		false,
+		"Display the current version of the Cultured Downloader CLI software.",
+	)
 	help := flag.Bool(
 		"help",
 		false,
@@ -349,6 +357,10 @@ func main() {
 		flag.PrintDefaults()
 		return
 	}
+	if *version {
+		fmt.Println("Cultured Downloader CLI v" + utils.VERSION)
+		return
+	}
 
 	// check Pixiv args
 	ugoiraOutputFormat = utils.CheckStrArgs(utils.UGOIRA_ACCEPTED_EXT, *ugoiraOutputFormat, "ugoira output format")
@@ -358,9 +370,9 @@ func main() {
 	artworkType = utils.CheckStrArgs(utils.ACCEPTED_ARTWORK_TYPE, *artworkType, "artwork type")
 
 	// Get the GDrive object
-	var gdrive *utils.GDrive
+	var gdriveObj *gdrive.GDrive
 	if *gdriveApiKey != "" {
-		gdrive = utils.GetNewGDrive(*gdriveApiKey, utils.MAX_CONCURRENT_DOWNLOADS)
+		gdriveObj = gdrive.GetNewGDrive(*gdriveApiKey, utils.MAX_CONCURRENT_DOWNLOADS)
 	}
 
 	if *downloadPath != "" {
@@ -377,9 +389,9 @@ func main() {
 	}
 
 	// parse and verify the cookies
-	fantiaCookie := utils.VerifyAndGetCookie(utils.Fantia, utils.FantiaTitle, *fantiaSession)
-	pixivFanboxCookie := utils.VerifyAndGetCookie(utils.PixivFanbox, utils.PixivFanboxTitle, *pixivFanboxSession)
-	pixivCookie := utils.VerifyAndGetCookie(utils.Pixiv, utils.Pixiv, *pixivSession)
+	fantiaCookie := api.VerifyAndGetCookie(api.Fantia, api.FantiaTitle, *fantiaSession)
+	pixivFanboxCookie := api.VerifyAndGetCookie(api.PixivFanbox, api.PixivFanboxTitle, *pixivFanboxSession)
+	pixivCookie := api.VerifyAndGetCookie(api.Pixiv, api.Pixiv, *pixivSession)
 	cookies := []http.Cookie{fantiaCookie, pixivFanboxCookie, pixivCookie}
 
 	// parse the ID(s) to download from
@@ -408,7 +420,7 @@ func main() {
 	}
 
 	FantiaDownloadProcess(fantiaPostIds, fanclubIds, cookies)
-	PixivFanboxDownloadProcess(pixivFanboxPostIds, creatorIds, cookies, *gdriveApiKey, gdrive)
+	PixivFanboxDownloadProcess(pixivFanboxPostIds, creatorIds, cookies, *gdriveApiKey, gdriveObj)
 	PixivDownloadProcess(
 		artworkIds, illustratorIds, tagNames, pageNums,
 		*sortOrder, *searchMode, *ratingMode, *artworkType,

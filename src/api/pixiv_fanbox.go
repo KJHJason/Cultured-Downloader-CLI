@@ -1,4 +1,4 @@
-package utils
+package api
 
 import (
 	"fmt"
@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"encoding/json"
+	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 )
 
 var (
@@ -26,7 +28,7 @@ func GetPixivFanboxHeaders() map[string]string {
 func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath string) ([]map[string]string, []map[string]string) {
 	var post interface{}
 	if postJsonArg == nil {
-		post = LoadJsonFromResponse(res)
+		post = utils.LoadJsonFromResponse(res)
 		if post == nil {
 			return nil, nil
 		}
@@ -38,7 +40,7 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 	postId := postJson["id"].(string)
 	postTitle := postJson["title"].(string)
 	creatorId := postJson["creatorId"].(string)
-	postFolderPath := CreatePostFolder(filepath.Join(downloadPath, "Pixiv-Fanbox"), creatorId, postId, postTitle)
+	postFolderPath := utils.CreatePostFolder(filepath.Join(downloadPath, "Pixiv-Fanbox"), creatorId, postId, postTitle)
 
 	var urlsMap []map[string]string
 	thumbnail := postJson["coverImageUrl"]
@@ -69,7 +71,7 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 				func(c rune) bool { return c == '\n' },
 			)
 			for idx, text := range postBodyArr {
-				if DetectPasswordInText(postFolderPath, text) {
+				if utils.DetectPasswordInText(postFolderPath, text) {
 					// log the next element in the post body as a possible password
 					if idx+1 < len(postBodyArr) {
 						nextText := postBodyArr[idx+1]
@@ -78,15 +80,15 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 								"it might be in the next block of text:\n%s\n\n",
 							nextText,
 						)
-						LogMessageToPath(
+						utils.LogMessageToPath(
 							extraBlock,
 							filepath.Join(postFolderPath, "detected_passwords.txt"),
 						)
 					}
 				}
 
-				DetectOtherExtDLLink(text, postFolderPath)
-				if DetectGDriveLinks(text, postFolderPath, false) {
+				utils.DetectOtherExtDLLink(text, postFolderPath)
+				if utils.DetectGDriveLinks(text, postFolderPath, false) {
 					gdriveLinks = append(gdriveLinks, map[string]string{
 						"url":      text,
 						"filepath": filepath.Join(gdriveFolder, postFolderPath),
@@ -109,11 +111,11 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 				} else {
 					fileUrl = fileInfoMap["url"].(string)
 					extension = fileInfoMap["extension"].(string)
-					filename = GetLastPartOfURL(fileUrl)
+					filename = utils.GetLastPartOfURL(fileUrl)
 				}
 
 				var filePath string
-				if ArrContains(pixivFanboxAllowedImageExt, extension) {
+				if utils.ArrContains(pixivFanboxAllowedImageExt, extension) {
 					filePath = filepath.Join(postFolderPath, imagesFolder, filename)
 				} else {
 					filePath = filepath.Join(postFolderPath, attachmentFolder, filename)
@@ -134,15 +136,15 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 				text := articleBlock.(map[string]interface{})["text"]
 				if text != nil {
 					textStr := text.(string)
-					if DetectGDriveLinks(textStr, postFolderPath, false) {
+					if utils.DetectGDriveLinks(textStr, postFolderPath, false) {
 						gdriveLinks = append(gdriveLinks, map[string]string{
 							"url":      textStr,
 							"filepath": filepath.Join(postFolderPath, gdriveFolder),
 						})
 					}
 
-					DetectOtherExtDLLink(textStr, postFolderPath)
-					if DetectPasswordInText(postFolderPath, textStr) {
+					utils.DetectOtherExtDLLink(textStr, postFolderPath)
+					if utils.DetectPasswordInText(postFolderPath, textStr) {
 						// log the next two elements in the post body as a possible password
 						extraBlocks := "Note: If the password was not present in the text above,\n" +
 							"it might be in the next block of text:\n"
@@ -155,7 +157,7 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 							}
 						}
 						extraBlocks += "\n"
-						LogMessageToPath(
+						utils.LogMessageToPath(
 							extraBlocks,
 							filepath.Join(postFolderPath, "detected_passwords.txt"),
 						)
@@ -165,8 +167,8 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 				if articleLinks != nil {
 					for _, link := range articleLinks.([]interface{}) {
 						linkUrl := link.(map[string]interface{})["url"].(string)
-						DetectOtherExtDLLink(linkUrl, postFolderPath)
-						if DetectGDriveLinks(linkUrl, postFolderPath, true) {
+						utils.DetectOtherExtDLLink(linkUrl, postFolderPath)
+						if utils.DetectGDriveLinks(linkUrl, postFolderPath, true) {
 							gdriveLinks = append(gdriveLinks, map[string]string{
 								"url":      linkUrl,
 								"filepath": filepath.Join(postFolderPath, gdriveFolder),
@@ -223,20 +225,20 @@ type FanboxCreatorPosts struct {
 func GetFanboxPosts(creatorId string, cookies []http.Cookie) []string {
 	params := map[string]string{"creatorId": creatorId}
 	headers := GetPixivFanboxHeaders()
-	res, err := CallRequest("GET", GetAPICreatorPages(PixivFanbox, creatorId), 30, cookies, headers, params, false)
+	res, err := request.CallRequest("GET", GetAPICreatorPages(PixivFanbox, creatorId), 30, cookies, headers, params, false)
 	if err != nil || res.StatusCode != 200 {
 		if err == nil {
 			res.Body.Close()
 		}
-		LogError(err, fmt.Sprintf("failed to get creator's pages for %s", creatorId), false)
+		utils.LogError(err, fmt.Sprintf("failed to get creator's pages for %s", creatorId), false)
 		return nil
 	}
 
 	var resJson CreatorPaginatedPosts
-	resBody := ReadResBody(res)
+	resBody := utils.ReadResBody(res)
 	err = json.Unmarshal(resBody, &resJson)
 	if err != nil {
-		LogError(err, fmt.Sprintf("Failed to unmarshal json for Pixiv Fanbox creator's pages\nJSON: %s", string(resBody)), false)
+		utils.LogError(err, fmt.Sprintf("Failed to unmarshal json for Pixiv Fanbox creator's pages\nJSON: %s", string(resBody)), false)
 		return nil
 	}
 	paginationParamsArr := []map[string]string{}
@@ -252,7 +254,7 @@ func GetFanboxPosts(creatorId string, cookies []http.Cookie) []string {
 	}
 
 	var wg sync.WaitGroup
-	maxConcurrency := MAX_API_CALLS
+	maxConcurrency := utils.MAX_API_CALLS
 	if len(paginationParamsArr) < maxConcurrency {
 		maxConcurrency = len(paginationParamsArr)
 	}
@@ -263,13 +265,13 @@ func GetFanboxPosts(creatorId string, cookies []http.Cookie) []string {
 		queue <- struct{}{}
 		go func(params map[string]string) {
 			defer wg.Done()
-			res, err := CallRequest("GET", "https://api.fanbox.cc/post.listCreator", 30, cookies, headers, params, false)
+			res, err := request.CallRequest("GET", "https://api.fanbox.cc/post.listCreator", 30, cookies, headers, params, false)
 			if err != nil || res.StatusCode != 200 {
 				if err == nil {
 					res.Body.Close()
 				}
-				url := "https://api.fanbox.cc/post.listCreator" + ParamsToString(params)
-				LogError(err, fmt.Sprintf("failed to get post for %s", url), false)
+				url := "https://api.fanbox.cc/post.listCreator" + utils.ParamsToString(params)
+				utils.LogError(err, fmt.Sprintf("failed to get post for %s", url), false)
 			} else {
 				resChan <- res
 			}
@@ -283,11 +285,11 @@ func GetFanboxPosts(creatorId string, cookies []http.Cookie) []string {
 	// parse the JSON response
 	var postIds []string
 	for res := range resChan {
-		resBody := ReadResBody(res)
+		resBody := utils.ReadResBody(res)
 		var resJson FanboxCreatorPosts
 		err = json.Unmarshal(resBody, &resJson)
 		if err != nil {
-			LogError(err, fmt.Sprintf("Failed to unmarshal json for Pixiv Fanbox creator's post\nJSON: %s", string(resBody)), false)
+			utils.LogError(err, fmt.Sprintf("Failed to unmarshal json for Pixiv Fanbox creator's post\nJSON: %s", string(resBody)), false)
 			continue
 		}
 
