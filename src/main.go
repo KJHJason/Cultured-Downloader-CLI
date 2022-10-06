@@ -208,7 +208,7 @@ func main() {
 				),
 				"Notes:",
 				"- Both .webm and .mp4 generally have a smaller file size than .gif.\n",
-				"- Both .mp4 and .gif are converted relatively quickly, but .webm can take a long time to convert.",
+				"- Both .mp4 and .gif are converted relatively quickly while .webm can take a long time to convert.",
 			},
 		),
 	)

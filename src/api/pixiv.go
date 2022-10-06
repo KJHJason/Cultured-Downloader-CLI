@@ -226,7 +226,7 @@ func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpe
 		0.001,
 	)
 
-	concatDelayFilePath := filepath.Join(filepath.Dir(outputPath), "delays.txt")
+	concatDelayFilePath := filepath.Join(imagesFolderPath, "delays.txt")
 	f, err := os.Create(concatDelayFilePath)
 	if err != nil {
 		panic(err)
@@ -241,6 +241,7 @@ func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpe
 
 	// FFmpeg flags: https://www.ffmpeg.org/ffmpeg.html
 	args := []string{
+		"-y", 						// overwrite output file if it exists
 		"-an",					 	// disable audio
 		"-f", "concat", 			// input is a concat file
 		"-safe", "0",   			// allow absolute paths in the concat file
@@ -259,7 +260,6 @@ func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpe
 			// if converting to an mp4 file
 			args = append(
 				args,
-				"-pix_fmt", "yuv420p", 					// pixel format
 				"-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2", // pad the video to be even
 			)
 		} else {
@@ -273,6 +273,7 @@ func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpe
 
 		args = append(
 			args,
+			"-pix_fmt", "yuv420p", 			// set the pixel format to yuv420p
 			"-c:v", encodingMap[outputExt], // video codec
 			"-vsync", "vfr", 				// variable frame rate
 		)
@@ -323,7 +324,6 @@ func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpe
 
 	// delete unzipped folder which contains 
 	// the frames images and the delays text file
-	os.Remove(concatDelayFilePath)
 	os.RemoveAll(imagesFolderPath)
 }
 
