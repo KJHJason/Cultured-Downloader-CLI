@@ -53,9 +53,9 @@ func PixivFanboxDownloadProcess(pixivFanboxPostIds, creatorIds []string, cookies
 }
 
 func PixivDownloadProcess(
-	artworkIds, illustratorIds, tagNames, pageNums []string, 
-	sortOrder, searchMode, ratingMode, artworkType, ugoiraOutputFormat, ffmpegPath string, 
-	deleteUgoiraZip bool, cookies []http.Cookie,
+	artworkIds, illustratorIds, tagNames, pageNums []string,
+	sortOrder, searchMode, ratingMode, artworkType, ugoiraOutputFormat, ffmpegPath string,
+	deleteUgoiraZip bool, ugoiraQuality int, cookies []http.Cookie,
 ) {
 	// check if FFmpeg is installed
 	cmd := exec.Command(ffmpegPath, "-version")
@@ -105,7 +105,7 @@ func PixivDownloadProcess(
 		utils.DownloadURLsParallel(artworksToDownload, utils.PIXIV_MAX_CONCURRENT_DOWNLOADS, cookies, utils.GetPixivRequestHeaders(), nil)
 	}
 	if len(ugoiraToDownload) > 0 {
-		utils.DownloadUgoira(ugoiraToDownload, ugoiraOutputFormat, ffmpegPath, deleteUgoiraZip, cookies)
+		utils.DownloadUgoira(ugoiraToDownload, ugoiraOutputFormat, ffmpegPath, deleteUgoiraZip, ugoiraQuality, cookies)
 	}
 }
 
@@ -120,21 +120,21 @@ func main() {
 	fanclub := flag.String(
 		"fanclub_id",
 		"",
-		utils.CombineStrings(
+		utils.CombineStringsWithNewline(
 			[]string{
 				"Fantia Fanclub ID(s) to download from.",
 				mutlipleIdsMsg,
-			}, "\n",
+			},
 		),
 	)
 	fantiaPost := flag.String(
 		"fantia_post",
 		"",
-		utils.CombineStrings(
+		utils.CombineStringsWithNewline(
 			[]string{
 				"Fantia post ID(s) to download.",
 				mutlipleIdsMsg,
-			}, "\n",
+			},
 		),
 	)
 
@@ -147,21 +147,21 @@ func main() {
 	creator := flag.String(
 		"creator_id",
 		"",
-		utils.CombineStrings(
+		utils.CombineStringsWithNewline(
 			[]string{
 				"Pixiv Fanbox Creator ID(s) to download from.",
 				mutlipleIdsMsg,
-			}, "\n",
+			},
 		),
 	)
 	pixivFanboxPost := flag.String(
 		"fanbox_post",
 		"",
-		utils.CombineStrings(
+		utils.CombineStringsWithNewline(
 			[]string{
 				"Pixiv Fanbox post ID(s) to download.",
 				mutlipleIdsMsg,
-			}, "\n",
+			},
 		),
 	)
 
@@ -173,118 +173,135 @@ func main() {
 	)
 	deleteUgoiraZip := flag.Bool(
 		"delete_ugoira_zip",
-		false,
+		true,
 		"Whether to delete the downloaded ugoira zip file after conversion.",
+	)
+	ugoiraQuality := flag.Int(
+		"ugoira_quality",
+		10,
+		utils.CombineStringsWithNewline(
+			[]string{
+				"Configure the quality of the converted ugoira.",
+				"This argument will be used as the crf value for FFmpeg.",
+				"Lower values will result in higher quality but with larger file sizes and more time taken to convert.",
+				"Accepted values:",
+				"- mp4: 0-51",
+				"- webm: 0-63\n",
+				"For more information, see:",
+				"- mp4: https://trac.ffmpeg.org/wiki/Encode/H.264#crf",
+				"- webm: https://trac.ffmpeg.org/wiki/Encode/VP9#constantq",
+			},
+		),
 	)
 	ugoiraOutputFormat := flag.String(
 		"ugoira_output_format",
 		".gif",
-		utils.CombineStrings(
+		utils.CombineStringsWithNewline(
 			[]string{
 				"Output format for the ugoira conversion using FFmpeg.",
 				fmt.Sprintf(
 					"Accepted Extensions: %s",
 					strings.TrimSpace(strings.Join(utils.UGOIRA_ACCEPTED_EXT, ", ")),
 				),
-				"Note:",
-				// TODO: Check if the notes are accurate
-				"- .webm will take MORE time to convert and will have a LARGER file size but will have a BETTER quality.",
-				"- .mp4 will take LESS time to convert with ACCEPTABLE quality and SMALLER file size.",
-				"- .gif will take LESS time to convert with ACCEPTABLE quality but with a LARGER file size.\n",
-			}, "\n",
+				"Notes:",
+				"- Both .webm and .mp4 generally have a smaller file size than .gif.\n",
+				"- Both .mp4 and .gif are converted relatively quickly, but .webm can take a long time to convert.",
+			},
 		),
 	)
 	artworkId := flag.String(
 		"artwork_id",
 		"",
-		utils.CombineStrings(
+		utils.CombineStringsWithNewline(
 			[]string{
 				"Artwork ID(s) to download.",
 				mutlipleIdsMsg,
-			}, "\n",
+			},
 		),
 	)
 	illustratorId := flag.String(
 		"illustrator_id",
 		"",
-		utils.CombineStrings(
+		utils.CombineStringsWithNewline(
 			[]string{
 				"Illustrator ID(s) to download.",
 				mutlipleIdsMsg,
-			}, "\n",
+			},
 		),
 	)
 	tagName := flag.String(
 		"tag_name",
 		"",
-		utils.CombineStrings(
+		utils.CombineStringsWithNewline(
 			[]string{
 				"Tag names to search for and download related artworks.",
 				"For multiple tags, separate them with a comma.",
 				"Example: \"tag name 1, tagName2\"",
-			}, "\n",
+			},
 		),
 	)
 	pageNum := flag.String(
 		"page_num",
 		"",
-		utils.CombineStrings(
+		utils.CombineStringsWithNewline(
 			[]string{
 				"Min and max page numbers to search for corresponding to the order of the supplied tag names.",
 				"Format: \"pageNum\" or \"min-max\"",
 				"Example: \"1\" or \"1-10\"",
-			}, "\n",
+			},
 		),
 	)
 	sortOrder := flag.String(
 		"sort_order",
 		"date_d",
-		utils.CombineStrings(
+		utils.CombineStringsWithNewline(
 			[]string{
 				"Download Order Options: date, popular, popular_male, popular_female",
 				"Additionally, you can add the \"_d\" suffix for a descending order.",
 				"Example: \"popular_d\"",
-				"Note that you can only specify ONE tag name per run!\n",
-			}, "\n",
+				"Note:",
+				"- Pixiv Premium is needed to search by popularity.",
+				"- You can only specify ONE tag name per run!\n",
+			},
 		),
 	)
 	searchMode := flag.String(
 		"search_mode",
 		"s_tag_full",
-		utils.CombineStrings(
+		utils.CombineStringsWithNewline(
 			[]string{
 				"Search Mode Options:",
 				"- s_tag: Match any post with SIMILAR tag name",
 				"- s_tag_full: Match any post with the SAME tag name",
 				"- s_tc: Match any post related by its title or caption",
 				"Note that you can only specify ONE search mode per run!\n",
-			}, "\n",
+			},
 		),
 	)
 	ratingMode := flag.String(
 		"rating_mode",
 		"all",
-		utils.CombineStrings(
+		utils.CombineStringsWithNewline(
 			[]string{
 				"Rating Mode Options:",
 				"- r18: Restrict downloads to R-18 artworks",
 				"- safe: Restrict downloads to all ages artworks",
 				"- all: Include both R-18 and all ages artworks",
 				"Note that you can only specify ONE rating mode per run!\n",
-			}, "\n",
+			},
 		),
 	)
 	artworkType := flag.String(
 		"artwork_type",
-		"illust_and_ugoira",
-		utils.CombineStrings(
+		"all",
+		utils.CombineStringsWithNewline(
 			[]string{
 				"Artwork Type Options:",
 				"- illust_and_ugoira: Restrict downloads to illustrations and ugoira only",
 				"- manga: Restrict downloads to manga only",
 				"- all: Include both illustrations, ugoira, and manga artworks",
 				"Note that you can only specify ONE artwork type per run!",
-			}, "\n",
+			},
 		),
 	)
 
@@ -292,38 +309,38 @@ func main() {
 	gdriveApiKey := flag.String(
 		"gdrive_api_key",
 		"",
-		utils.CombineStrings(
+		utils.CombineStringsWithNewline(
 			[]string{
 				"Google Drive API key to use for downloading gdrive files.",
 				"Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_key_guide.md",
-			}, "\n",
+			},
 		),
 	)
 	downloadPath := flag.String(
-		"download_path", 
+		"download_path",
 		"",
-		utils.CombineStrings(
+		utils.CombineStringsWithNewline(
 			[]string{
 				"Configure the path to download the files to and save it for future runs.",
 				"Note:",
 				"If you had used the \"-download_path\" flag before or",
 				"had used the Cultured Downloader software, you can leave this argument empty.",
-			}, "\n",
+			},
 		),
 	)
 	ffmpegPath := flag.String(
-		"ffmpeg_path", 
-		"ffmpeg", 
-		utils.CombineStrings(
+		"ffmpeg_path",
+		"ffmpeg",
+		utils.CombineStringsWithNewline(
 			[]string{
 				"Configure the path to the FFmpeg executable.",
 				"Download Link: https://ffmpeg.org/download.html\n",
-			}, "\n",
+			},
 		),
 	)
 	help := flag.Bool(
-		"help", 
-		false, 
+		"help",
+		false,
 		"Show the list of arguments with its description.",
 	)
 	flag.Parse()
@@ -333,24 +350,12 @@ func main() {
 		return
 	}
 
-	// check ugoira output format
-	ugoiraExtIsValid := false
-	for _, format := range utils.UGOIRA_ACCEPTED_EXT {
-		if *ugoiraOutputFormat == format {
-			ugoiraExtIsValid = true
-			break
-		}
-	}
-	if !ugoiraExtIsValid {
-		color.Red("Invalid ugoira output format: %s", *ugoiraOutputFormat)
-		color.Red(
-			fmt.Sprintf(
-				"Valid ugoira output formats: %s",
-				strings.TrimSpace(strings.Join(utils.UGOIRA_ACCEPTED_EXT, ", ")),
-			),
-		)
-		os.Exit(1)
-	}
+	// check Pixiv args
+	ugoiraOutputFormat = utils.CheckStrArgs(utils.UGOIRA_ACCEPTED_EXT, *ugoiraOutputFormat, "ugoira output format")
+	sortOrder = utils.CheckStrArgs(utils.ACCEPTED_SORT_ORDER, *sortOrder, "sort order")
+	searchMode = utils.CheckStrArgs(utils.ACCEPTED_SEARCH_MODE, *searchMode, "search mode")
+	ratingMode = utils.CheckStrArgs(utils.ACCEPTED_RATING_MODE, *ratingMode, "rating mode")
+	artworkType = utils.CheckStrArgs(utils.ACCEPTED_ARTWORK_TYPE, *artworkType, "artwork type")
 
 	// Get the GDrive object
 	var gdrive *utils.GDrive
@@ -378,12 +383,12 @@ func main() {
 	cookies := []http.Cookie{fantiaCookie, pixivFanboxCookie, pixivCookie}
 
 	// parse the ID(s) to download from
-	fanclubIds := utils.SplitArgs(*fanclub)
-	fantiaPostIds := utils.SplitArgs(*fantiaPost)
+	fanclubIds := utils.SplitAndCheckIds(*fanclub)
+	fantiaPostIds := utils.SplitAndCheckIds(*fantiaPost)
 	creatorIds := utils.SplitArgs(*creator)
-	pixivFanboxPostIds := utils.SplitArgs(*pixivFanboxPost)
-	artworkIds := utils.SplitArgs(*artworkId)
-	illustratorIds := utils.SplitArgs(*illustratorId)
+	pixivFanboxPostIds := utils.SplitAndCheckIds(*pixivFanboxPost)
+	artworkIds := utils.SplitAndCheckIds(*artworkId)
+	illustratorIds := utils.SplitAndCheckIds(*illustratorId)
 	tagNames := utils.SplitArgsWithSep(*tagName, ",")
 	pageNums := utils.SplitArgs(*pageNum)
 
@@ -405,8 +410,8 @@ func main() {
 	FantiaDownloadProcess(fantiaPostIds, fanclubIds, cookies)
 	PixivFanboxDownloadProcess(pixivFanboxPostIds, creatorIds, cookies, *gdriveApiKey, gdrive)
 	PixivDownloadProcess(
-		artworkIds, illustratorIds, tagNames, pageNums, 
-		*sortOrder, *searchMode, *ratingMode, *artworkType, 
-		*ugoiraOutputFormat, *ffmpegPath, *deleteUgoiraZip, cookies,
+		artworkIds, illustratorIds, tagNames, pageNums,
+		*sortOrder, *searchMode, *ratingMode, *artworkType,
+		*ugoiraOutputFormat, *ffmpegPath, *deleteUgoiraZip, *ugoiraQuality, cookies,
 	)
 }

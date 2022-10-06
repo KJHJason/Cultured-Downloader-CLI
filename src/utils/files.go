@@ -71,8 +71,8 @@ func RemoveIllegalCharsInPath(dirtyPath string) string {
 }
 
 func CreatePostFolder(downloadPath, creatorName, postId, postTitle string) string {
-	creatorName = RemoveIllegalCharsInPath(creatorName)
-	postTitle = RemoveIllegalCharsInPath(postTitle)
+	creatorName = strings.TrimSpace(RemoveIllegalCharsInPath(creatorName))
+	postTitle = strings.TrimSpace(RemoveIllegalCharsInPath(postTitle))
 
 	postFolderPath := filepath.Join(
 		downloadPath,

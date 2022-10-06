@@ -13,12 +13,44 @@ import (
 	"archive/zip"
 	"path/filepath"
 	"encoding/json"
+	"github.com/fatih/color"
 )
 
-func GetRandomDelay() time.Duration {
+func GetRandomTime(min, max float64) time.Duration {
 	rand.Seed(time.Now().UnixNano())
-	randomDelay := MIN_RETRY_DELAY + rand.Float64() * (MAX_RETRY_DELAY - MIN_RETRY_DELAY)
+	randomDelay := min + rand.Float64() * (max - min)
 	return time.Duration(randomDelay * 1000) * time.Millisecond 
+}
+
+func GetRandomDelay() time.Duration {
+	return GetRandomTime(MIN_RETRY_DELAY, MAX_RETRY_DELAY)
+}
+
+func ArrContains(arr []string, str string) bool {
+	for _, el := range arr {
+		if el == str {
+			return true
+		}
+	}
+	return false
+}
+
+func CheckStrArgs(arr []string, str, argName string) *string {
+	str = strings.ToLower(str)
+	if ArrContains(arr, str) {
+		return &str
+	} else {
+		color.Red("Invalid %s: %s", argName, str)
+		color.Red(
+			fmt.Sprintf(
+				"Valid %ss: %s",
+				argName,
+				strings.TrimSpace(strings.Join(arr, ", ")),
+			),
+		)
+		os.Exit(1)
+		return nil
+	}
 }
 
 func SplitArgsWithSep(args, sep string) []string {
@@ -43,8 +75,24 @@ func SplitArgs(args string) []string {
 	return SplitArgsWithSep(args, " ")
 }
 
+func SplitAndCheckIds(args string) []string {
+	ids := SplitArgs(args)
+	for _, id := range ids {
+		if !NUMBER_REGEX.MatchString(id) {
+			color.Red("Invalid ID: %s", id)
+			color.Red("IDs must be numbers!")
+			os.Exit(1)
+		}
+	}
+	return ids
+}
+
 func CombineStrings(strs []string, sep string) string {
 	return strings.Join(strs, sep)
+}
+
+func CombineStringsWithNewline(strs []string) string {
+	return CombineStrings(strs, "\n")
 }
 
 // based on https://stackoverflow.com/a/24792688/2737403

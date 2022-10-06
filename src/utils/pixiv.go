@@ -1,15 +1,17 @@
 package utils
 
 import (
-	"os"
+	"encoding/json"
 	"fmt"
-	"sort"
-	"sync"
-	"strconv"
-	"os/exec"
-	"strings"
 	"net/http"
+	"os"
+	"os/exec"
 	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+	"reflect"
 )
 
 const (
@@ -45,8 +47,9 @@ func ProcessArtworkJson(artworkUrlsJson interface{}, artworkType int64, postDown
 
 		// map the files to their delay
 		frameInfoMap := map[string]int64{}
-		for _, frame := range ugoiraMap["frames"].([]map[string]interface{}) {
-			frameInfoMap[frame["file"].(string)] = int64(frame["delay"].(float64))
+		for _, frame := range ugoiraMap["frames"].([]interface{}) {
+			frameMap := frame.(map[string]interface{})
+			frameInfoMap[frameMap["file"].(string)] = int64(frameMap["delay"].(float64))
 		}
 
 		ugoiraDownloadInfo = Ugoira{
@@ -67,18 +70,24 @@ func ProcessArtworkJson(artworkUrlsJson interface{}, artworkType int64, postDown
 	return urlsToDownload, ugoiraDownloadInfo
 }
 
-type ArtworkDetailsJsonRes struct {
-	ArtworkFolderPath string
-	JsonRes interface{}
-	ArtworkType int64
+type ArtworkDetails struct {
+	Body struct {
+		UserName string `json:"userName"`
+		Title string `json:"title"`
+		IllustType int64 `json:"illustType"`
+	}
 }
 
 func GetArtworkDetails(artworkId, downloadPath string, cookies []http.Cookie) (string, interface{}, int64) {
+	if artworkId == "" {
+		return "", nil, -1
+	}
+
 	headers := GetPixivRequestHeaders()
 	url := fmt.Sprintf("https://www.pixiv.net/ajax/illust/%s", artworkId)
-	artworkDetailsRes, err := CallRequest("GET", url, 15, nil, headers, nil, false)
+	artworkDetailsRes, err := CallRequest("GET", url, 15, cookies, headers, nil, false)
 	if err != nil {
-		errorMsg := fmt.Sprintf("Pixiv: Failed to get artwork details for %v", artworkId)
+		errorMsg := fmt.Sprintf("Pixiv: Failed to get artwork details for %v\nURL: %s", artworkId, url)
 		LogError(err, errorMsg, false)
 		return "", nil, -1
 	}
@@ -88,46 +97,55 @@ func GetArtworkDetails(artworkId, downloadPath string, cookies []http.Cookie) (s
 	defer artworkDetailsRes.Body.Close()
 	if artworkDetailsRes.StatusCode != 200 {
 		errorMsg := fmt.Sprintf(
-			"Pixiv: Failed to get details for artwork ID %v due to %s response",
+			"Pixiv: Failed to get details for artwork ID %s due to %s response\nURL: %s",
 			artworkId,
 			artworkDetailsRes.Status,
+			url,
 		)
 		LogError(nil, errorMsg, false)
 		return "", nil, -1
 	}
-	artworkDetailsJson := LoadJsonFromResponse(artworkDetailsRes).(map[string]interface{})["body"]
-	if artworkDetailsJson == nil {
+	var artworkDetailsJsonRes ArtworkDetails
+	resBody := ReadResBody(artworkDetailsRes)
+	err = json.Unmarshal(resBody, &artworkDetailsJsonRes)
+	if err != nil {
+		LogError(
+			err, 
+			fmt.Sprintf("Pixiv: Failed to unmarshal artwork details for %s\nJSON: %s", artworkId, string(resBody)),
+			false,
+		)
 		return "", nil, -1
 	}
-	artworkJsonBody := artworkDetailsJson.(map[string]interface{})
-	illustratorName := artworkJsonBody["userName"].(string)
-	artworkName := artworkJsonBody["title"].(string)
+	artworkJsonBody := artworkDetailsJsonRes.Body
+	illustratorName := artworkJsonBody.UserName
+	artworkName := artworkJsonBody.Title
 	artworkPostDir := CreatePostFolder(filepath.Join(downloadPath, PixivTitle), illustratorName, artworkId, artworkName)
 
-	artworkType := int64(artworkJsonBody["illustType"].(float64))
+	artworkType := artworkJsonBody.IllustType
 	switch artworkType {
 	case illust, manga: // illustration or manga
-		url = fmt.Sprintf("https://www.pixiv.net/ajax/illust/%v/pages", artworkId)
+		url = fmt.Sprintf("https://www.pixiv.net/ajax/illust/%s/pages", artworkId)
 	case ugoira: // ugoira
-		url = fmt.Sprintf("https://www.pixiv.net/ajax/illust/%v/ugoira_meta", artworkId)
+		url = fmt.Sprintf("https://www.pixiv.net/ajax/illust/%s/ugoira_meta", artworkId)
 	default:
-		errorMsg := fmt.Sprintf("Pixiv: Unsupported artwork type %v for artwork ID %v", artworkType, artworkId)
+		errorMsg := fmt.Sprintf("Pixiv: Unsupported artwork type %d for artwork ID %s", artworkType, artworkId)
 		LogError(nil, errorMsg, false)
 		return "", nil, -1
 	}
 
-	artworkUrlsRes, err := CallRequest("GET", url, 15, nil, headers, nil, false)
+	artworkUrlsRes, err := CallRequest("GET", url, 15, cookies, headers, nil, false)
 	if err != nil {
-		errorMsg := fmt.Sprintf("Pixiv: Failed to get artwork URLs for %v", artworkId)
+		errorMsg := fmt.Sprintf("Pixiv: Failed to get artwork URLs for %s\nURL: %s", artworkId, url)
 		LogError(err, errorMsg, false)
 		return "", nil, -1
 	}
 	defer artworkUrlsRes.Body.Close()
 	if artworkUrlsRes.StatusCode != 200 {
 		errorMsg := fmt.Sprintf(
-			"Pixiv: Failed to get details for artwork ID %v due to %s response",
+			"Pixiv: Failed to get details for artwork URLs %v due to %s response\nURL: %s",
 			artworkId,
 			artworkUrlsRes.Status,
+			url,
 		)
 		LogError(nil, errorMsg, false)
 		return "", nil, -1
@@ -135,13 +153,19 @@ func GetArtworkDetails(artworkId, downloadPath string, cookies []http.Cookie) (s
 	return artworkPostDir, LoadJsonFromResponse(artworkUrlsRes), artworkType
 }
 
+type ArtworkDetailsJsonRes struct {
+	ArtworkFolderPath string
+	JsonRes interface{}
+	ArtworkType int64
+}
+
 func GetMultipleArtworkDetails(artworkIds []string, downloadPath string, cookies []http.Cookie) ([]map[string]string, []Ugoira) {
-	maxConcurrency := MAX_API_CALLS
-	if len(artworkIds) < MAX_API_CALLS {
+	maxConcurrency := PIXIV_MAX_CONCURRENT_API_CALLS
+	if len(artworkIds) < maxConcurrency {
 		maxConcurrency = len(artworkIds)
 	}
 	var wg sync.WaitGroup
-	resChan := make(chan ArtworkDetailsJsonRes, maxConcurrency)
+	resChan := make(chan ArtworkDetailsJsonRes, len(artworkIds))
 	queue := make(chan struct{}, maxConcurrency)
 	for _, artworkId := range artworkIds {
 		wg.Add(1)
@@ -176,16 +200,9 @@ func GetMultipleArtworkDetails(artworkIds []string, downloadPath string, cookies
 	return artworkDetails, ugoiraDetails
 }
 
-func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpegPath string) {
-	outputExtIsAllowed := false
+func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpegPath string, ugoiraQuality int) {
 	outputExt := filepath.Ext(outputPath)
-	for _, ext := range UGOIRA_ACCEPTED_EXT {
-		if outputExt == ext {
-			outputExtIsAllowed = true
-			break
-		}
-	}
-	if !outputExtIsAllowed {
+	if !ArrContains(UGOIRA_ACCEPTED_EXT, outputExt) {
 		panic(fmt.Sprintf("Pixiv: Output extension %v is not allowed for ugoira conversion", outputExt))
 	}
 
@@ -207,7 +224,7 @@ func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpe
 			filepath.Join(imagesFolderPath, frameName), delaySec,
 		)
 	}
-	// copy the last frame and add it to the end of the imagePath map
+	// copy the last frame and add it to the end of the delays text file
 	// https://video.stackexchange.com/questions/20588/ffmpeg-flash-frames-last-still-image-in-concat-sequence
 	lastFilename := sortedFilenames[len(sortedFilenames)-1]
 	delaysText += fmt.Sprintf(
@@ -254,7 +271,11 @@ func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpe
 			)
 		} else {
 			// webm will be loseless but takes longer to convert
-			args = append(args, "-lossless", "1") 
+			if ugoiraQuality == 0 {
+				args = append(args, "-lossless", "1") 
+			} else {
+				args = append(args, "-crf", strconv.Itoa(ugoiraQuality))
+			}
 		}
 
 		args = append(
@@ -263,16 +284,28 @@ func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpe
 			"-vsync", "vfr", 				// variable frame rate
 		)
 	} else {
+		// Generate a palette for the gif using FFmpeg for better quality
+		palettePath := filepath.Join(imagesFolderPath, "palette.png")
+		imagePaletteCmd := exec.Command(
+			ffmpegPath,
+			"-i", filepath.Join(imagesFolderPath, sortedFilenames[0]),
+			"-vf", "palettegen",
+			palettePath,
+		)
+		err = imagePaletteCmd.Run()
+		if err != nil {
+			panic(err)
+		}
 		args = append(
 			args,
 			"-loop", "0", // loop the gif
+			"-i", palettePath,
+			"-filter_complex", "paletteuse",
 		)
 	}
 
 	if outputExt != ".webm" {
-		crf := "10" // https://superuser.com/questions/677576/what-is-crf-used-for-in-ffmpeg
-					// the lower the crf value the better the quality
-		args = append(args, "-crf", crf)
+		args = append(args, "-crf", strconv.Itoa(ugoiraQuality))
 	}
 
 	args = append(
@@ -282,8 +315,8 @@ func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpe
 	)
 	// convert the frames to a gif or a video
 	cmd := exec.Command(ffmpegPath, args...)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
+	// cmd.Stderr = os.Stderr
+	// cmd.Stdout = os.Stdout
 	err = cmd.Run()
 	if err != nil {
 		os.Remove(outputPath)
@@ -301,7 +334,7 @@ func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpe
 	os.RemoveAll(imagesFolderPath)
 }
 
-func DownloadUgoira(downloadInfo []Ugoira, outputFormat, ffmpegPath string, deleteZip bool, cookies []http.Cookie) {
+func DownloadUgoira(downloadInfo []Ugoira, outputFormat, ffmpegPath string, deleteZip bool, ugoiraQuality int, cookies []http.Cookie) {
 	outputFormat = strings.ToLower(outputFormat)
 	var urlsToDownload []map[string]string
 	for _, ugoira := range downloadInfo {
@@ -330,7 +363,7 @@ func DownloadUgoira(downloadInfo []Ugoira, outputFormat, ffmpegPath string, dele
 			continue
 		}
 
-		ConvertUgoira(downloadInfo, unzipFolderPath, outputPath, ffmpegPath)
+		ConvertUgoira(downloadInfo, unzipFolderPath, outputPath, ffmpegPath, ugoiraQuality)
 		if deleteZip {
 			os.Remove(zipFilePath)
 		}
@@ -359,7 +392,7 @@ func GetIllustratorPosts(illustratorId, artworkType string, cookies []http.Cooki
 	var artworkIds []string
 	if artworkType == "all" || artworkType == "illust_and_ugoira" {
 		illusts := jsonBody.(map[string]interface{})["illusts"]
-		if illusts != nil {
+		if reflect.TypeOf(illusts).Kind() == reflect.Map {
 			for illustId := range illusts.(map[string]interface{}) {
 				artworkIds = append(artworkIds, illustId)
 			}
@@ -368,7 +401,7 @@ func GetIllustratorPosts(illustratorId, artworkType string, cookies []http.Cooki
 
 	if artworkType == "all" || artworkType == "manga" {
 		manga := jsonBody.(map[string]interface{})["manga"]
-		if manga != nil {
+		if reflect.TypeOf(manga).Kind() == reflect.Map {
 			for mangaId := range manga.(map[string]interface{}) {
 				artworkIds = append(artworkIds, mangaId)
 			}
@@ -378,46 +411,54 @@ func GetIllustratorPosts(illustratorId, artworkType string, cookies []http.Cooki
 }
 
 func GetMultipleIllustratorPosts(illustratorIds []string, downloadPath, artworkType string, cookies []http.Cookie) ([]map[string]string, []Ugoira) {
-	maxConcurrency := MAX_API_CALLS
-	if len(illustratorIds) < MAX_API_CALLS {
+	maxConcurrency := PIXIV_MAX_CONCURRENT_API_CALLS
+	if len(illustratorIds) < maxConcurrency {
 		maxConcurrency = len(illustratorIds)
 	}
 	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var artworkIdsArr []string
 	queue := make(chan struct{}, maxConcurrency)
-	resChan := make(chan []string)
 	for _, illustratorId := range illustratorIds {
 		wg.Add(1)
 		queue <- struct{}{}
 		go func(illustratorId string) {
 			defer wg.Done()
 			artworkIds := GetIllustratorPosts(illustratorId, artworkType, cookies)
-			resChan <- artworkIds
+			mu.Lock()
+			artworkIdsArr = append(artworkIdsArr, artworkIds...)
+			mu.Unlock()
 			<-queue
 		}(illustratorId)
 	}
 	close(queue)
 	wg.Wait()
-	close(resChan)
 
-	artworkIds := []string{}
-	for res := range resChan {
-		artworkIds = append(artworkIds, res...)
-	}
-	artworksArr, ugoiraArr := GetMultipleArtworkDetails(artworkIds, downloadPath, cookies)
+	artworksArr, ugoiraArr := GetMultipleArtworkDetails(artworkIdsArr, downloadPath, cookies)
 	return artworksArr, ugoiraArr
 }
 
-func ProcessTagJsonResults(jsonInterface interface{}) []string {
-	illustsBody := jsonInterface.(map[string]interface{})["body"]
-	illustsData := illustsBody.(map[string]interface{})["illustManga"].(map[string]interface{})["data"]
-	if illustsData == nil {
-		return nil
+type PixivTag struct {
+	Body struct {
+		IllustManga struct {
+			Data []struct {
+				Id string `json:"id"`
+			} `json:"data"`
+		} `json:"illustManga"`
+	} `json:"body"`
+}
+
+func ProcessTagJsonResults(res *http.Response) []string {
+	var pixivTagJson PixivTag
+	resBody := ReadResBody(res)
+	err := json.Unmarshal(resBody, &pixivTagJson)
+	if err != nil {
+		LogError(err, fmt.Sprintf("Failed to unmarshal json for Pixiv's Tag JSON\nJSON: %s", string(resBody)), false)
 	}
 
 	artworksArr := []string{}
-	for _, illust := range illustsData.([]interface{}) {
-		illustMap := illust.(map[string]interface{})
-		artworksArr = append(artworksArr, illustMap["id"].(string))
+	for _, illust := range pixivTagJson.Body.IllustManga.Data {
+		artworksArr = append(artworksArr, illust.Id)
 	}
 	return artworksArr
 }
@@ -442,22 +483,23 @@ func TagSearch(tagName, downloadPath, sortOrder, searchMode, ratingMode, artwork
 		minPage, maxPage = maxPage, minPage
 	}
 
-	maxConcurrency := MAX_API_CALLS
+	maxConcurrency := PIXIV_MAX_CONCURRENT_API_CALLS
 	pageDiff := maxPage - minPage + 1
-	if pageDiff < MAX_API_CALLS {
+	if pageDiff < maxConcurrency {
 		maxConcurrency = pageDiff
 	}
 
 	var wg sync.WaitGroup
 	resChan := make(chan *http.Response, pageDiff)
 	queue := make(chan struct{}, maxConcurrency)
+	headers := GetPixivRequestHeaders()
 	for page := minPage; page <= maxPage; page++ {
 		wg.Add(1)
 		params["p"] = strconv.Itoa(page) // page number
 		queue <- struct{}{}
 		go func(params map[string]string) {
 			defer wg.Done()
-			resp, err := CallRequest("GET", url, 5, cookies, GetPixivRequestHeaders(), params, true)
+			resp, err := CallRequest("GET", url, 5, cookies, headers, params, true)
 			if err != nil {
 				LogError(err, "Pixiv: Failed to get search results for " + tagName, false)
 				return
@@ -472,10 +514,8 @@ func TagSearch(tagName, downloadPath, sortOrder, searchMode, ratingMode, artwork
 
 	var artworkIds []string
 	for res := range resChan {
-		jsonBody := LoadJsonFromResponse(res)
-		artworkIds = append(artworkIds, ProcessTagJsonResults(jsonBody)...)
+		artworkIds = append(artworkIds, ProcessTagJsonResults(res)...)
 	}
-	// ignore ugoira since the tag search would have already separated them out
 	artworkArr, ugoiraArr := GetMultipleArtworkDetails(artworkIds, downloadPath, cookies)
 	return artworkArr, ugoiraArr
 }

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"encoding/json"
 )
 
 var (
@@ -111,15 +112,8 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 					filename = GetLastPartOfURL(fileUrl)
 				}
 
-				isImageExt := false
-				for _, imageExt := range pixivFanboxAllowedImageExt {
-					if extension == imageExt {
-						isImageExt = true
-						break
-					}
-				}
 				var filePath string
-				if isImageExt {
+				if ArrContains(pixivFanboxAllowedImageExt, extension) {
 					filePath = filepath.Join(postFolderPath, imagesFolder, filename)
 				} else {
 					filePath = filepath.Join(postFolderPath, attachmentFolder, filename)
@@ -214,6 +208,18 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 	return urlsMap, gdriveLinks
 }
 
+type CreatorPaginatedPosts struct {
+	Body []string `json:"body"`
+}
+
+type FanboxCreatorPosts struct {
+	Body struct {
+		Items []struct {
+			Id string `json:"id"`
+		} `json:"items"`
+	} `json:"body"`
+}
+
 func GetFanboxPosts(creatorId string, cookies []http.Cookie) []string {
 	params := map[string]string{"creatorId": creatorId}
 	headers := GetPixivFanboxHeaders()
@@ -226,19 +232,20 @@ func GetFanboxPosts(creatorId string, cookies []http.Cookie) []string {
 		return nil
 	}
 
-	// parse the response
-	resJson := LoadJsonFromResponse(res)
-	paginatedPosts := resJson.(map[string]interface{})["body"]
-	if paginatedPosts == nil {
+	var resJson CreatorPaginatedPosts
+	resBody := ReadResBody(res)
+	err = json.Unmarshal(resBody, &resJson)
+	if err != nil {
+		LogError(err, fmt.Sprintf("Failed to unmarshal json for Pixiv Fanbox creator's pages\nJSON: %s", string(resBody)), false)
 		return nil
 	}
 	paginationParamsArr := []map[string]string{}
-	for _, paginatedPost := range paginatedPosts.([]interface{}) {
-		parsedUrl, _ := url.Parse(paginatedPost.(string))
+	for _, paginatedPost := range resJson.Body {
+		parsedUrl, _ := url.Parse(paginatedPost)
 		parsedParamsMap := map[string]string{}
 		for key, value := range parsedUrl.Query() {
-			// since ParseQuery is a map of string to slices of strings, 
-			// we only need the first element
+			// since the Query will return a 
+			// map of slices of strings
 			parsedParamsMap[key] = value[0]
 		}
 		paginationParamsArr = append(paginationParamsArr, parsedParamsMap)
@@ -246,7 +253,7 @@ func GetFanboxPosts(creatorId string, cookies []http.Cookie) []string {
 
 	var wg sync.WaitGroup
 	maxConcurrency := MAX_API_CALLS
-	if len(paginationParamsArr) < MAX_API_CALLS {
+	if len(paginationParamsArr) < maxConcurrency {
 		maxConcurrency = len(paginationParamsArr)
 	}
 	queue := make(chan struct{}, maxConcurrency)
@@ -276,18 +283,16 @@ func GetFanboxPosts(creatorId string, cookies []http.Cookie) []string {
 	// parse the JSON response
 	var postIds []string
 	for res := range resChan {
-		resJson := LoadJsonFromResponse(res)
-		if resJson == nil {
+		resBody := ReadResBody(res)
+		var resJson FanboxCreatorPosts
+		err = json.Unmarshal(resBody, &resJson)
+		if err != nil {
+			LogError(err, fmt.Sprintf("Failed to unmarshal json for Pixiv Fanbox creator's post\nJSON: %s", string(resBody)), false)
 			continue
 		}
-		postInfoArr := resJson.(map[string]interface{})["body"].(map[string]interface{})["items"]
-		if postInfoArr == nil {
-			continue
-		}
-		for _, postInfo := range postInfoArr.([]interface{}) {
-			postInfoMap := postInfo.(map[string]interface{})
-			postId := postInfoMap["id"].(string)
-			postIds = append(postIds, postId)
+
+		for _, postInfoMap := range resJson.Body.Items {
+			postIds = append(postIds, postInfoMap.Id)
 		}
 	}
 	return postIds

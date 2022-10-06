@@ -2,7 +2,9 @@ package utils
 
 import (
 	"fmt"
+	"strconv"
 	"net/http"
+	"encoding/json"
 	"path/filepath"
 	"github.com/PuerkitoBio/goquery"
 )
@@ -54,56 +56,75 @@ func GetFantiaPosts(creatorId string, cookies []http.Cookie) []string {
 	return postIds
 }
 
+type FantiaPost struct {
+	Post struct {
+		ID    int    `json:"id"`
+		Title string `json:"title"`
+		Thumb struct {
+			Original string `json:"original"`
+		} `json:"thumb"`
+		Fanclub struct {
+			User struct {
+				Name string `json:"name"`
+			} `json:"user"`
+		} `json:"fanclub"`
+		Status string `json:"status"`
+		PostContents []struct {
+			AttachmentURI string `json:"attachment_uri"`
+			PostContentPhotos []struct {
+				ID int `json:"id"`
+				URL struct {
+					Original string `json:"original"`
+				} `json:"url"`
+			} `json:"post_content_photos"`
+		} `json:"post_contents"`
+	} `json:"post"`
+}
+
 func ProcessFantiaPost(res *http.Response, downloadPath string) []map[string]string {
 	// processes a fantia post
 	// returns a map containing the post id and the url to download the file from
-	post := LoadJsonFromResponse(res)
-	if post == nil {
+	var postJson FantiaPost
+	resBody := ReadResBody(res)
+	err := json.Unmarshal(resBody, &postJson)
+	if err != nil {
+		LogError(err, fmt.Sprintf("failed to unmarshal json for fantia post\nJSON: %s", string(resBody)), false)
 		return nil
 	}
 
-	postJson := post.(map[string]interface{})["post"].(map[string]interface{})
-	postId := fmt.Sprintf("%d", int64(postJson["id"].(float64)))
-	postTitle := postJson["title"].(string)
-	creatorName := postJson["fanclub"].(map[string]interface{})["user"].(map[string]interface{})["name"].(string)
+	postStruct := postJson.Post
+	postId := strconv.Itoa(postStruct.ID)
+	postTitle := postStruct.Title
+	creatorName := postStruct.Fanclub.User.Name
 	postFolderPath := CreatePostFolder(filepath.Join(downloadPath, FantiaTitle), creatorName, postId, postTitle)
 
 	var urlsMap []map[string]string
-	thumbnail := postJson["thumb"].(map[string]interface{})
-	if thumbnail != nil {
-		thumbnailUrl := thumbnail["original"].(string)
+	thumbnail := postStruct.Thumb.Original
+	if thumbnail != "" {
 		urlsMap = append(urlsMap, map[string]string{
-			"url":      thumbnailUrl,
+			"url":      thumbnail,
 			"filepath": postFolderPath,
 		})
 	}
 
-	// get an array of maps in ["post_contents"]
-	postContent := postJson["post_contents"]
+	postContent := postStruct.PostContents
 	if postContent == nil {
 		return urlsMap
 	}
-	for _, content := range postContent.([]interface{}) {
-		// get post_content_photos if exists
-		contentMap := content.(map[string]interface{})
-		postContentPhotos := contentMap["post_content_photos"]
-		if postContentPhotos != nil {
-			// get an array of maps in ["post_content_photos"]
-			images := postContentPhotos.([]interface{})
-			for _, image := range images {
-				// image url via ["url"]["original"]
-				imageUrl := image.(map[string]interface{})["url"].(map[string]interface{})["original"].(string)
-				urlsMap = append(urlsMap, map[string]string{
-					"url":      imageUrl,
-					"filepath": filepath.Join(postFolderPath, imagesFolder),
-				})
-			}
+	for _, content := range postContent{
+		postContentPhotos := content.PostContentPhotos
+		for _, image := range postContentPhotos {
+			imageUrl := image.URL.Original
+			urlsMap = append(urlsMap, map[string]string{
+				"url":      imageUrl,
+				"filepath": filepath.Join(postFolderPath, imagesFolder),
+			})
 		}
 
 		// get the attachment url string if it exists
-		attachmentUrl := contentMap["attachment_url"]
-		if attachmentUrl != nil {
-			attachmentUrlStr := "https://fantia.jp" + attachmentUrl.(string)
+		attachmentUrl := content.AttachmentURI
+		if attachmentUrl != "" {
+			attachmentUrlStr := "https://fantia.jp" + attachmentUrl
 			urlsMap = append(urlsMap, map[string]string{
 				"url":      attachmentUrlStr,
 				"filepath": filepath.Join(postFolderPath, attachmentFolder),

@@ -42,7 +42,7 @@ func GetAPICreatorPages(website, creatorId string) string {
 func GetPostDetails(postIds []string, website string, cookies []http.Cookie) ([]map[string]string, []map[string]string) {
 	var wg sync.WaitGroup
 	maxConcurrency := MAX_API_CALLS
-	if len(postIds) < MAX_API_CALLS {
+	if len(postIds) < maxConcurrency {
 		maxConcurrency = len(postIds)
 	}
 	queue := make(chan struct{}, maxConcurrency)
@@ -97,7 +97,7 @@ func GetCreatorsPosts(creatorIds []string, website string, cookies []http.Cookie
 	if website == Fantia {
 		var wg sync.WaitGroup
 		maxConcurrency := MAX_API_CALLS
-		if len(creatorIds) < MAX_API_CALLS {
+		if len(creatorIds) < maxConcurrency {
 			maxConcurrency = len(creatorIds)
 		}
 		queue := make(chan struct{}, maxConcurrency)

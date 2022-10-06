@@ -81,9 +81,14 @@ func DownloadURL(fileURL, filePath string, cookies []http.Cookie, headers, param
 		if err != nil {
 			panic(err)
 		}
-		filePath = filepath.Join(filePath, GetLastPartOfURL(filename))
+		filename = GetLastPartOfURL(filename)
+		filenameWithoutExt := strings.TrimSuffix(filename, filepath.Ext(filename))
+		filePath = filepath.Join(filePath, filenameWithoutExt + strings.ToLower(filepath.Ext(filename)))
 	} else {
-		os.MkdirAll(filepath.Dir(filePath), 0755)
+		filePathDir := filepath.Dir(filePath)
+		os.MkdirAll(filePathDir, 0755)
+		filePathWithoutExt := strings.TrimSuffix(filePath, filepath.Ext(filePath))
+		filePath = filepath.Join(filePathDir, filePathWithoutExt + strings.ToLower(filepath.Ext(filePath)))
 	}
 
 	// check if the file already exists
