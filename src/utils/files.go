@@ -66,7 +66,7 @@ func RemoveIllegalCharsInPath(dirtyPath string) string {
 	)
 	return ILLEGAL_PATH_CHARS_REGEX.ReplaceAllString(
 		partiallyCleanedPath,
-		"_",
+		"-",
 	)
 }
 

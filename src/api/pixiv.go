@@ -10,8 +10,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"reflect"
+	"time"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 )
@@ -21,6 +21,19 @@ const (
 	manga
 	ugoira
 )
+
+// This is due to Pixiv's strict rate limiting.
+// 
+// Without delays, the user might get 429 too many requests
+// or the user's account might get suspended.
+//
+// Additionally, pixiv.net is protected by cloudflare, so
+// to prevent the user's IP reputation from going down, delays are added.
+//
+// More info: https://github.com/Nandaka/PixivUtil2/issues/477
+func PixivSleep() {
+	time.Sleep(utils.GetRandomTime(3.0, 6.0))
+}
 
 func GetPixivRequestHeaders() map[string]string {
 	return map[string]string{
@@ -135,6 +148,7 @@ func GetArtworkDetails(artworkId, downloadPath string, cookies []http.Cookie) (s
 		return "", nil, -1
 	}
 
+	PixivSleep()
 	artworkUrlsRes, err := request.CallRequest("GET", url, 15, cookies, headers, nil, false)
 	if err != nil {
 		errorMsg := fmt.Sprintf("Pixiv: Failed to get artwork URLs for %s\nURL: %s", artworkId, url)
@@ -155,50 +169,27 @@ func GetArtworkDetails(artworkId, downloadPath string, cookies []http.Cookie) (s
 	return artworkPostDir, utils.LoadJsonFromResponse(artworkUrlsRes), artworkType
 }
 
-type ArtworkDetailsJsonRes struct {
-	ArtworkFolderPath string
-	JsonRes interface{}
-	ArtworkType int64
-}
-
 func GetMultipleArtworkDetails(artworkIds []string, downloadPath string, cookies []http.Cookie) ([]map[string]string, []Ugoira) {
-	maxConcurrency := utils.PIXIV_MAX_CONCURRENT_API_CALLS
-	if len(artworkIds) < maxConcurrency {
-		maxConcurrency = len(artworkIds)
-	}
-	var wg sync.WaitGroup
-	resChan := make(chan ArtworkDetailsJsonRes, len(artworkIds))
-	queue := make(chan struct{}, maxConcurrency)
-	for _, artworkId := range artworkIds {
-		wg.Add(1)
-		queue <- struct{}{}
-		go func(artworkId string) {
-			defer wg.Done()
-			artworkFolder, jsonRes, artworkType := GetArtworkDetails(artworkId, downloadPath, cookies)
-			if artworkFolder != "" && artworkType != -1 {
-				resChan <- ArtworkDetailsJsonRes{
-					ArtworkFolderPath: artworkFolder,
-					JsonRes: jsonRes,
-					ArtworkType: artworkType,
-				}
-			}
-			<-queue
-		}(artworkId)
-	}
-	close(queue)
-	wg.Wait()
-	close(resChan)
-
 	var ugoiraDetails []Ugoira
 	var artworkDetails []map[string]string
-	for res := range resChan {
-		processedJsonRes, ugoiraInfo := ProcessArtworkJson(res.JsonRes, res.ArtworkType, res.ArtworkFolderPath)
-		if res.ArtworkType == ugoira {
+	lastArtworkId := artworkIds[len(artworkIds)-1]
+	for _, artworkId := range artworkIds {
+		artworkFolder, jsonRes, artworkType := GetArtworkDetails(artworkId, downloadPath, cookies)
+		if artworkFolder == "" || artworkType == -1 {
+			continue
+		}
+		processedJsonRes, ugoiraInfo := ProcessArtworkJson(jsonRes, artworkType, artworkFolder)
+		if artworkType == ugoira {
 			ugoiraDetails = append(ugoiraDetails, ugoiraInfo)
 		} else {
 			artworkDetails = append(artworkDetails, processedJsonRes...)
 		}
+
+		if artworkId != lastArtworkId {
+			PixivSleep()
+		}
 	}
+
 	return artworkDetails, ugoiraDetails
 }
 
@@ -413,29 +404,11 @@ func GetIllustratorPosts(illustratorId, artworkType string, cookies []http.Cooki
 }
 
 func GetMultipleIllustratorPosts(illustratorIds []string, downloadPath, artworkType string, cookies []http.Cookie) ([]map[string]string, []Ugoira) {
-	maxConcurrency := utils.PIXIV_MAX_CONCURRENT_API_CALLS
-	if len(illustratorIds) < maxConcurrency {
-		maxConcurrency = len(illustratorIds)
-	}
-	var wg sync.WaitGroup
-	var mut sync.Mutex
 	var artworkIdsArr []string
-	queue := make(chan struct{}, maxConcurrency)
 	for _, illustratorId := range illustratorIds {
-		wg.Add(1)
-		queue <- struct{}{}
-		go func(illustratorId string) {
-			defer wg.Done()
-			artworkIds := GetIllustratorPosts(illustratorId, artworkType, cookies)
-			mut.Lock()
-			artworkIdsArr = append(artworkIdsArr, artworkIds...)
-			mut.Unlock()
-			<-queue
-		}(illustratorId)
+		artworkIds := GetIllustratorPosts(illustratorId, artworkType, cookies)
+		artworkIdsArr = append(artworkIdsArr, artworkIds...)
 	}
-	close(queue)
-	wg.Wait()
-
 	artworksArr, ugoiraArr := GetMultipleArtworkDetails(artworkIdsArr, downloadPath, cookies)
 	return artworksArr, ugoiraArr
 }
@@ -485,39 +458,21 @@ func TagSearch(tagName, downloadPath, sortOrder, searchMode, ratingMode, artwork
 		minPage, maxPage = maxPage, minPage
 	}
 
-	maxConcurrency := utils.PIXIV_MAX_CONCURRENT_API_CALLS
-	pageDiff := maxPage - minPage + 1
-	if pageDiff < maxConcurrency {
-		maxConcurrency = pageDiff
-	}
-
-	var wg sync.WaitGroup
-	resChan := make(chan *http.Response, pageDiff)
-	queue := make(chan struct{}, maxConcurrency)
+	var artworkIds []string
 	headers := GetPixivRequestHeaders()
 	for page := minPage; page <= maxPage; page++ {
-		wg.Add(1)
 		params["p"] = strconv.Itoa(page) // page number
-		queue <- struct{}{}
-		go func(params map[string]string) {
-			defer wg.Done()
-			resp, err := request.CallRequest("GET", url, 5, cookies, headers, params, true)
-			if err != nil {
-				utils.LogError(err, "Pixiv: Failed to get search results for " + tagName, false)
-				return
-			}
-			resChan <- resp
-			<-queue
-		}(params)
-	}
-	close(queue)
-	wg.Wait()
-	close(resChan)
-
-	var artworkIds []string
-	for res := range resChan {
+		res, err := request.CallRequest("GET", url, 5, cookies, headers, params, true)
+		if err != nil {
+			utils.LogError(err, "Pixiv: Failed to get search results for " + tagName, false)
+			continue
+		}
 		artworkIds = append(artworkIds, ProcessTagJsonResults(res)...)
+		if page != maxPage {
+			PixivSleep()
+		}
 	}
+
 	artworkArr, ugoiraArr := GetMultipleArtworkDetails(artworkIds, downloadPath, cookies)
 	return artworkArr, ugoiraArr
 }
