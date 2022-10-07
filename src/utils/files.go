@@ -3,6 +3,7 @@ package utils
 import (
 	"os"
 	"fmt"
+	"sync"
 	"bytes"
 	"strings"
 	"strconv"
@@ -11,14 +12,14 @@ import (
 	"github.com/fatih/color"
 )
 
+// checks if a file or directory exists
 func PathExists(filepath string) bool {
-	// checks if a file or directory exists
 	_, err := os.Stat(filepath)
 	return !os.IsNotExist(err)
 }
 
+// check if the file exists and has more than 0 bytes
 func CheckIfFileIsEmpty(filepath string) (bool, error) {
-	// check if the file exists and has more than 0 bytes
 	if PathExists(filepath) {
 		file, err := os.Open(filepath)
 		if err != nil {
@@ -36,7 +37,12 @@ func CheckIfFileIsEmpty(filepath string) (bool, error) {
 	return true, nil
 }
 
+// Thread-safe logging function that logs to the provided file path
+var logToPathMutex sync.Mutex
 func LogMessageToPath(message, filePath string) {
+	logToPathMutex.Lock()
+	defer logToPathMutex.Unlock()
+
 	var err error
 	var logFile *os.File
 	if !PathExists(filePath) {
@@ -58,21 +64,26 @@ func LogMessageToPath(message, filePath string) {
 	}
 } 
 
-func RemoveIllegalCharsInPath(dirtyPath string) string {
-	partiallyCleanedPath := strings.ReplaceAll(
-		strings.TrimSpace(dirtyPath),
+// Removes any illegal characters in a path name 
+// to prevent any error with file I/O using the path name
+func RemoveIllegalCharsInPathName(dirtyPathName string) string {
+	dirtyPathName = strings.TrimSpace(dirtyPathName)
+	partiallyCleanedPathName := strings.ReplaceAll(
+		strings.TrimSpace(dirtyPathName),
 		".",
 		" ",
 	)
 	return ILLEGAL_PATH_CHARS_REGEX.ReplaceAllString(
-		partiallyCleanedPath,
+		partiallyCleanedPathName,
 		"-",
 	)
 }
 
+// Creates a directory for a post, artwork, etc. 
+// based on the user's saved download path and the provided arguments
 func CreatePostFolder(downloadPath, creatorName, postId, postTitle string) string {
-	creatorName = strings.TrimSpace(RemoveIllegalCharsInPath(creatorName))
-	postTitle = strings.TrimSpace(RemoveIllegalCharsInPath(postTitle))
+	creatorName = RemoveIllegalCharsInPathName(creatorName)
+	postTitle = RemoveIllegalCharsInPathName(postTitle)
 
 	postFolderPath := filepath.Join(
 		downloadPath,
@@ -89,6 +100,7 @@ type ConfigFile struct {
 	ClientDigestMethod string `json:"client_digest_method"`
 }
 
+// Returns the download path from the config file
 func GetDefaultDownloadPath() string {
 	configFilePath := filepath.Join(APP_PATH, "config.json")
 	if !PathExists(configFilePath) {
@@ -114,6 +126,7 @@ func GetDefaultDownloadPath() string {
 	return config.DownloadDir
 }
 
+// Pretify a JSON bytes input by indenting it with 4 whitespaces
 func PretifyJSON(jsonBytes []byte) ([]byte, error) {
 	var prettyJSON bytes.Buffer
 	err := json.Indent(&prettyJSON, jsonBytes, "", "    ")
@@ -123,6 +136,7 @@ func PretifyJSON(jsonBytes []byte) ([]byte, error) {
 	return prettyJSON.Bytes(), nil
 }
 
+// Configure and saves the config file with updated download path
 func SetDefaultDownloadPath(newDownloadPath string) {
 	if !PathExists(newDownloadPath) {
 		color.Red("Download path does not exist. Please create the directory and try again.")

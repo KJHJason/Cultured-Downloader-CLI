@@ -35,6 +35,7 @@ func PixivSleep() {
 	time.Sleep(utils.GetRandomTime(3.0, 6.0))
 }
 
+// Returns a defined request header needed to communicate with Pixiv's API
 func GetPixivRequestHeaders() map[string]string {
 	return map[string]string{
 		"Origin": "https://www.pixiv.net/",
@@ -48,6 +49,7 @@ type Ugoira struct {
 	Frames map[string]int64
 }
 
+// Process the artwork details JSON and returns a map of urls with its file path and a slice of Ugoira structures
 func ProcessArtworkJson(artworkUrlsJson interface{}, artworkType int64, postDownloadDir string) ([]map[string]string, Ugoira) {
 	if artworkUrlsJson == nil {
 		return nil, Ugoira{}
@@ -93,6 +95,8 @@ type ArtworkDetails struct {
 	}
 }
 
+// Retrieves details of an artwork ID and returns 
+// the folder path to download the artwork to, the JSON response, and the artwork type
 func GetArtworkDetails(artworkId, downloadPath string, cookies []http.Cookie) (string, interface{}, int64) {
 	if artworkId == "" {
 		return "", nil, -1
@@ -169,7 +173,14 @@ func GetArtworkDetails(artworkId, downloadPath string, cookies []http.Cookie) (s
 	return artworkPostDir, utils.LoadJsonFromResponse(artworkUrlsRes), artworkType
 }
 
+// Retrieves multiple artwork details based on the given slice of artwork IDs
+// and returns a map to use for downloading and a slice of Ugoira structures
 func GetMultipleArtworkDetails(artworkIds []string, downloadPath string, cookies []http.Cookie) ([]map[string]string, []Ugoira) {
+	bar := utils.GetProgressBar(
+		len(artworkIds), 
+		"Getting and processing artwork details...",
+		utils.GetCompletionFunc(fmt.Sprintf("Finished getting and processing %d artwork details!", len(artworkIds))),
+	)
 	var ugoiraDetails []Ugoira
 	var artworkDetails []map[string]string
 	lastArtworkId := artworkIds[len(artworkIds)-1]
@@ -185,6 +196,7 @@ func GetMultipleArtworkDetails(artworkIds []string, downloadPath string, cookies
 			artworkDetails = append(artworkDetails, processedJsonRes...)
 		}
 
+		bar.Add(1)
 		if artworkId != lastArtworkId {
 			PixivSleep()
 		}
@@ -193,6 +205,7 @@ func GetMultipleArtworkDetails(artworkIds []string, downloadPath string, cookies
 	return artworkDetails, ugoiraDetails
 }
 
+// Converts the Ugoira to the desired output path using FFmpeg
 func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpegPath string, ugoiraQuality int) {
 	outputExt := filepath.Ext(outputPath)
 	if !utils.ArrContains(utils.UGOIRA_ACCEPTED_EXT, outputExt) {
@@ -356,7 +369,8 @@ func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpe
 	os.RemoveAll(imagesFolderPath)
 }
 
-func DownloadUgoira(downloadInfo []Ugoira, outputFormat, ffmpegPath string, deleteZip bool, ugoiraQuality int, cookies []http.Cookie) {
+// Downloads multiple Ugoira artworks and converts them based on the output format
+func DownloadMultipleUgoira(downloadInfo []Ugoira, outputFormat, ffmpegPath string, deleteZip bool, ugoiraQuality int, cookies []http.Cookie) {
 	outputFormat = strings.ToLower(outputFormat)
 	var urlsToDownload []map[string]string
 	for _, ugoira := range downloadInfo {
@@ -366,15 +380,28 @@ func DownloadUgoira(downloadInfo []Ugoira, outputFormat, ffmpegPath string, dele
 		})
 	}
 
-	request.DownloadURLsParallel(urlsToDownload, utils.PIXIV_MAX_CONCURRENT_DOWNLOADS, cookies, GetPixivRequestHeaders(), nil)
+	request.DownloadURLsParallel(
+		urlsToDownload, 
+		utils.PIXIV_MAX_CONCURRENT_DOWNLOADS, 
+		cookies, 
+		GetPixivRequestHeaders(), 
+		nil,
+	)
+	bar := utils.GetProgressBar(
+		len(downloadInfo), 
+		fmt.Sprintf("Converting Ugoira to %s...", outputFormat),
+		utils.GetCompletionFunc(fmt.Sprintf("Finished converting %d Ugoira to %s!", len(downloadInfo), outputFormat)),
+	)
 	for _, downloadInfo := range downloadInfo {
 		zipFilePath := filepath.Join(downloadInfo.FilePath, utils.GetLastPartOfURL(downloadInfo.Url))
 		outputPath := utils.RemoveExtFromFilename(zipFilePath) + outputFormat
 		if utils.PathExists(outputPath) {
+			bar.Add(1)
 			continue
 		}
 
 		if !utils.PathExists(zipFilePath) {
+			bar.Add(1)
 			continue
 		}
 		unzipFolderPath := filepath.Join(filepath.Dir(zipFilePath), "unzipped")
@@ -382,6 +409,7 @@ func DownloadUgoira(downloadInfo []Ugoira, outputFormat, ffmpegPath string, dele
 		if err != nil {
 			errorMsg := fmt.Sprintf("Pixiv: Failed to unzip file %v", zipFilePath)
 			utils.LogError(err, errorMsg, false)
+			bar.Add(1)
 			continue
 		}
 
@@ -389,9 +417,11 @@ func DownloadUgoira(downloadInfo []Ugoira, outputFormat, ffmpegPath string, dele
 		if deleteZip {
 			os.Remove(zipFilePath)
 		}
+		bar.Add(1)
 	}
 }
 
+// Query Pixiv's API for all the illustrator's posts
 func GetIllustratorPosts(illustratorId, artworkType string, cookies []http.Cookie) []string {
 	artworkType = strings.ToLower(artworkType)
 	url := fmt.Sprintf("https://www.pixiv.net/ajax/user/%s/profile/all", illustratorId)
@@ -432,11 +462,18 @@ func GetIllustratorPosts(illustratorId, artworkType string, cookies []http.Cooki
 	return artworkIds
 }
 
+// Get posts from multiple illustrators and returns a map and a slice for Ugoira structures for downloads
 func GetMultipleIllustratorPosts(illustratorIds []string, downloadPath, artworkType string, cookies []http.Cookie) ([]map[string]string, []Ugoira) {
+	bar := utils.GetProgressBar(
+		len(illustratorIds), 
+		"Getting artwork details from illustrator(s)...",
+		utils.GetCompletionFunc(fmt.Sprintf("Finished getting artwork details from %d illustrators!", len(illustratorIds))),
+	)
 	var artworkIdsArr []string
 	for _, illustratorId := range illustratorIds {
 		artworkIds := GetIllustratorPosts(illustratorId, artworkType, cookies)
 		artworkIdsArr = append(artworkIdsArr, artworkIds...)
+		bar.Add(1)
 	}
 	artworksArr, ugoiraArr := GetMultipleArtworkDetails(artworkIdsArr, downloadPath, cookies)
 	return artworksArr, ugoiraArr
@@ -452,6 +489,7 @@ type PixivTag struct {
 	} `json:"body"`
 }
 
+// Process the tag search results JSON and returns a slice of artwork IDs
 func ProcessTagJsonResults(res *http.Response) []string {
 	var pixivTagJson PixivTag
 	resBody := utils.ReadResBody(res)
@@ -467,6 +505,8 @@ func ProcessTagJsonResults(res *http.Response) []string {
 	return artworksArr
 }
 
+// Query Pixiv's API and search for posts based on the supplied tag name
+// which will return a map and a slice of Ugoira structures for downloads
 func TagSearch(tagName, downloadPath, sortOrder, searchMode, ratingMode, artworkType string, minPage, maxPage int, cookies []http.Cookie) ([]map[string]string, []Ugoira) {
 	searchMode = strings.ToLower(searchMode)
 	sortOrder = strings.ToLower(sortOrder)

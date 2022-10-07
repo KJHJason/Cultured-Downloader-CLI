@@ -9,13 +9,14 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"github.com/fatih/color"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
-	"github.com/fatih/color"
 )
 
+// Start the download process for Fantia
 func FantiaDownloadProcess(fantiaPostIds, fanclubIds []string, cookies []http.Cookie) {
 	var urlsToDownload []map[string]string
 	if len(fantiaPostIds) > 0 {
@@ -33,6 +34,7 @@ func FantiaDownloadProcess(fantiaPostIds, fanclubIds []string, cookies []http.Co
 	}
 }
 
+// Start the download process for Pixiv Fanbox
 func PixivFanboxDownloadProcess(pixivFanboxPostIds, creatorIds []string, cookies []http.Cookie, gdriveApiKey string, gdrive *gdrive.GDrive) {
 	var urlsToDownload, gdriveUrlsToDownload []map[string]string
 	if len(pixivFanboxPostIds) > 0 {
@@ -55,6 +57,7 @@ func PixivFanboxDownloadProcess(pixivFanboxPostIds, creatorIds []string, cookies
 	}
 }
 
+// Start the download process for Pixiv
 func PixivDownloadProcess(
 	artworkIds, illustratorIds, tagNames, pageNums []string,
 	sortOrder, searchMode, ratingMode, artworkType, ugoiraOutputFormat, ffmpegPath string,
@@ -86,6 +89,11 @@ func PixivDownloadProcess(
 	}
 	if len(tagNames) > 0 {
 		// loop through each tag and page number
+		bar := utils.GetProgressBar(
+			len(artworkIds), 
+			"Searching for artworks based on tag names...",
+			utils.GetCompletionFunc(fmt.Sprintf("Finished searching for artworks based on %d tag names!", len(artworkIds))),
+		)
 		for idx, tagName := range tagNames {
 			var minPage, maxPage int
 			if strings.Contains(pageNums[idx], "-") {
@@ -101,6 +109,7 @@ func PixivDownloadProcess(
 			)
 			artworksToDownload = append(artworksToDownload, artworksArr...)
 			ugoiraToDownload = append(ugoiraToDownload, ugoiraArr...)
+			bar.Add(1)
 		}
 	}
 
@@ -108,10 +117,11 @@ func PixivDownloadProcess(
 		request.DownloadURLsParallel(artworksToDownload, utils.PIXIV_MAX_CONCURRENT_DOWNLOADS, cookies, api.GetPixivRequestHeaders(), nil)
 	}
 	if len(ugoiraToDownload) > 0 {
-		api.DownloadUgoira(ugoiraToDownload, ugoiraOutputFormat, ffmpegPath, deleteUgoiraZip, ugoiraQuality, cookies)
+		api.DownloadMultipleUgoira(ugoiraToDownload, ugoiraOutputFormat, ffmpegPath, deleteUgoiraZip, ugoiraQuality, cookies)
 	}
 }
 
+// Main program
 func main() {
 	mutlipleIdsMsg := "For multiple IDs, separate them with a space.\nExample: \"12345 67891\""
 	// Fantia args

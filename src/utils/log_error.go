@@ -10,6 +10,7 @@ import (
 )
 
 var mut sync.Mutex
+// Thread-safe logging function that logs to "cultured_downloader.log" in the current working directory
 func LogError(err error, errorMsg string, exit bool) {
 	mut.Lock()
 	defer mut.Unlock()

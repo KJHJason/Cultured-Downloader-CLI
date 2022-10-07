@@ -10,6 +10,7 @@ import (
 	"github.com/fatih/color"
 )
 
+// Returns a cookie with given value and website to be used in requests
 func GetCookie(sessionID, website string) http.Cookie {
 	var domainName, cookieName string
 	var sameSite http.SameSite
@@ -47,6 +48,8 @@ func GetCookie(sessionID, website string) http.Cookie {
 	return cookie
 }
 
+// Verifies the given cookie by making a request to the website
+// and returns true if the cookie is valid
 func VerifyCookie(cookie http.Cookie, website string) (bool, error) {
 	// sends a request to the website to verify the cookie
 	var websiteURL string
@@ -76,6 +79,10 @@ func VerifyCookie(cookie http.Cookie, website string) (bool, error) {
 	return resp.Request.URL.String() == websiteURL, nil
 }
 
+// Verifies the given cookie by making a request to the website and checks if the cookie is valid
+// If the cookie is valid, the cookie will be returned
+//
+// However, if the cookie is invalid, an error message will be printed out and the program will shutdown
 func VerifyAndGetCookie(website, title, cookieValue string) http.Cookie {
 	if title == "" {
 		title = website

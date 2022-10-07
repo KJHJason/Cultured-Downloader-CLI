@@ -16,6 +16,10 @@ import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 )
 
+const (
+	GDRIVE_ERROR_FILENAME = "gdrive_download.log"
+)
+
 type GDrive struct {
 	apiKey string // Google Drive API key to use
 	apiUrl string // https://www.googleapis.com/drive/v3/files
@@ -24,6 +28,7 @@ type GDrive struct {
 	maxDownloadWorkers int // max concurrent workers for downloading files
 }
 
+// Returns a GDrive structure with the given API key and max download workers
 func GetNewGDrive(apiKey string, maxDownloadWorkers int) *GDrive {
 	gdrive := &GDrive{
 		apiKey: apiKey,
@@ -39,6 +44,9 @@ func GetNewGDrive(apiKey string, maxDownloadWorkers int) *GDrive {
 	return gdrive
 }
 
+// Checks if the given Google Drive API key is valid
+//
+// Will return true if the given Google Drive API key is valid
 func (gdrive GDrive) GDriveKeyIsValid() bool {
 	match, _ := regexp.MatchString(`^AIza[\w-]{35}$`, gdrive.apiKey)
 	if !match {
@@ -69,6 +77,7 @@ type GDriveFolder struct {
 	NextPageToken string `json:"nextPageToken"`
 }
 
+// Logs any failed GDrive API calls to the given log path
 func LogFailedGdriveAPICalls(res *http.Response, downloadPath string) {
 	requestUrl := res.Request.URL.String()
 	errorMsg := fmt.Sprintf(
@@ -86,7 +95,7 @@ func LogFailedGdriveAPICalls(res *http.Response, downloadPath string) {
 
 	// create new text file
 	var logFilePath string
-	logFilename := "gdrive_download.log"
+	logFilename := GDRIVE_ERROR_FILENAME
 	if filepath.Ext(downloadPath) == "" {
 		logFilePath = filepath.Join(filepath.Dir(downloadPath), logFilename)
 	} else {
@@ -105,6 +114,7 @@ func LogFailedGdriveAPICalls(res *http.Response, downloadPath string) {
 	}
 }
 
+// Returns the contents of the given GDrive folder
 func (gdrive GDrive) GetFolderContents(folderId, logPath string) []map[string]string {
 	params := map[string]string{
 		"key": gdrive.apiKey,
@@ -152,6 +162,7 @@ func (gdrive GDrive) GetFolderContents(folderId, logPath string) []map[string]st
 	return files
 }
 
+// Retrieves the content of a GDrive folder and its subfolders recursively using GDrive API v3
 func (gdrive GDrive) GetNestedFolderContents(folderId, logPath string) []map[string]string {
 	files := []map[string]string{}
 	folderContents := gdrive.GetFolderContents(folderId, logPath)
@@ -165,6 +176,7 @@ func (gdrive GDrive) GetNestedFolderContents(folderId, logPath string) []map[str
 	return files
 }
 
+// Retrieves the file details of the given GDrive file using GDrive API v3
 func (gdrive GDrive) GetFileDetails(fileId, logPath string) map[string]string {
 	params := map[string]string{
 		"key": gdrive.apiKey,
@@ -193,6 +205,9 @@ func (gdrive GDrive) GetFileDetails(fileId, logPath string) map[string]string {
 	}
 }
 
+// Downloads the given GDrive file using GDrive API v3
+//
+// If the md5Checksum has a mismatch, the file will be overwritten and downloaded again
 func (gdrive GDrive) DownloadFile(fileInfo map[string]string, filePath string) error {
 	if utils.PathExists(filePath) {
 		// check the md5 checksum
@@ -211,7 +226,8 @@ func (gdrive GDrive) DownloadFile(fileInfo map[string]string, filePath string) e
 
 	params := map[string]string{
 		"key": gdrive.apiKey,
-		"alt": "media", // to tell Google that we are downloading the file
+		"alt": "media", 			// to tell Google that we are downloading the file
+		"acknowledgeAbuse": "true", // If the files are marked as abusive, download them anyway
 	}
 	url := fmt.Sprintf("%s/%s", gdrive.apiUrl, fileInfo["id"])
 	res, err := request.CallRequest("GET", url, gdrive.downloadTimeout, nil, nil, params, false)
@@ -238,6 +254,7 @@ func (gdrive GDrive) DownloadFile(fileInfo map[string]string, filePath string) e
 	return nil
 }
 
+// Downloads the multiple GDrive file in parallel using GDrive API v3
 func (gdrive GDrive) DownloadMultipleFiles(files []map[string]string) {
 	var allowedForDownload, notAllowedForDownload []map[string]string
 	for _, file := range files {
@@ -265,6 +282,13 @@ func (gdrive GDrive) DownloadMultipleFiles(files []map[string]string) {
 			maxConcurrency = len(allowedForDownload)
 		}
 
+		bar := utils.GetProgressBar(
+			len(allowedForDownload),
+			"Downloading GDrive files...",
+			utils.GetCompletionFunc(
+				fmt.Sprintf("Downloaded %d GDrive files", len(allowedForDownload)),
+			),
+		)
 		var wg sync.WaitGroup
 		queue := make(chan struct{}, maxConcurrency)
 		for _, file := range allowedForDownload {
@@ -279,8 +303,9 @@ func (gdrive GDrive) DownloadMultipleFiles(files []map[string]string) {
 						"Failed to download file: %s (ID: %s, MIME Type: %s)\nError Details: %v",
 						file["name"], file["id"], file["mimeType"], err,
 					)
-					utils.LogError(err, errorMsg, true)
+					utils.LogMessageToPath(errorMsg, filepath.Join(file["filepath"], GDRIVE_ERROR_FILENAME))
 				}
+				bar.Add(1)
 				<-queue
 			}(file)
 		}
@@ -289,6 +314,7 @@ func (gdrive GDrive) DownloadMultipleFiles(files []map[string]string) {
 	}
 }
 
+// Uses regex to extract the file ID and the file type (type: file, folder) from the given URL
 func GetFileIdAndTypeFromUrl(url string) (string, string) {
 	matched := utils.GDRIVE_URL_REGEX.FindStringSubmatch(url)
 	if matched == nil {
@@ -307,6 +333,7 @@ func GetFileIdAndTypeFromUrl(url string) (string, string) {
 	return matched[utils.GDRIVE_REGEX_ID_INDEX], fileType
 }
 
+// Downloads multiple GDrive files based on a slice of GDrive URL strings in parallel
 func (gdrive GDrive) DownloadGdriveUrls(gdriveUrls []map[string]string) {
 	if len(gdriveUrls) == 0 {
 		return
@@ -325,6 +352,11 @@ func (gdrive GDrive) DownloadGdriveUrls(gdriveUrls []map[string]string) {
 		}
 	}
 
+	bar := utils.GetProgressBar(
+		len(gdriveIds), 
+		"Getting gdrive file info from gdrive ID(s)...",
+		utils.GetCompletionFunc(fmt.Sprintf("Finished getting gdrive file info from %d gdrive ID(s)!", len(gdriveIds))),
+	)
 	gdriveFilesInfo := []map[string]string{}
 	for _, gdriveId := range gdriveIds {
 		if gdriveId["type"] == "file" {
@@ -340,6 +372,7 @@ func (gdrive GDrive) DownloadGdriveUrls(gdriveUrls []map[string]string) {
 		} else {
 			panic(fmt.Sprintf("Unknown Google Drive URL type: %s", gdriveId["type"]))
 		}
+		bar.Add(1)
 	}
 
 	gdrive.DownloadMultipleFiles(gdriveFilesInfo)

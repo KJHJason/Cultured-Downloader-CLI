@@ -11,6 +11,7 @@ import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 )
 
+// Get all the creator's posts by using goquery to parse the HTML response to get the post IDs
 func GetFantiaPosts(creatorId string, cookies []http.Cookie) []string {
 	var postIds []string
 	pageNum := 1
@@ -41,7 +42,7 @@ func GetFantiaPosts(creatorId string, cookies []http.Cookie) []string {
 		hasPosts := false
 		doc.Find("a.link-block").Each(func(i int, s *goquery.Selection) {
 			if href, exists := s.Attr("href"); exists {
-				postIds = append(postIds, href)
+				postIds = append(postIds, utils.GetLastPartOfURL(href))
 				hasPosts = true
 			} else {
 				panic("failed to get href attribute for fantia post, please report this issue!")
@@ -83,6 +84,8 @@ type FantiaPost struct {
 	} `json:"post"`
 }
 
+// Process the JSON response from Fantia's API and 
+// returns a map of urls to download from
 func ProcessFantiaPost(res *http.Response, downloadPath string) []map[string]string {
 	// processes a fantia post
 	// returns a map containing the post id and the url to download the file from

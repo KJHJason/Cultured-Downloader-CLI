@@ -8,6 +8,7 @@ import (
 	"runtime"
 )
 
+// Returns the user agent based on the user's OS
 func GetUserAgent() string {
 	userAgent := map[string]string {
 		"linux":
@@ -17,13 +18,14 @@ func GetUserAgent() string {
 		"windows":
 			"Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
 	}
-	userAgentOS := userAgent[runtime.GOOS]
-	if userAgentOS == "" {
+	userAgentOS, ok := userAgent[runtime.GOOS]
+	if !ok {
 		panic(fmt.Sprintf("Failed to get user agent OS as your OS, \"%s\", is not supported", runtime.GOOS))
 	}
 	return userAgentOS + " AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36"
 }
 
+// Returns the path to the application's config directory
 func GetAppPath() string {
 	appPath, err := os.UserConfigDir()
 	if err != nil {
@@ -32,6 +34,8 @@ func GetAppPath() string {
 	return filepath.Join(appPath, "Cultured-Downloader")
 }
 
+// Although the variables below are not 
+// constants, they are not supposed to be changed
 var (
 	USER_AGENT = GetUserAgent()
 	APP_PATH = GetAppPath()
