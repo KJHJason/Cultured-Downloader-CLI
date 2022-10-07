@@ -119,7 +119,10 @@ func GetFanboxPosts(creatorId string, cookies []http.Cookie) []string {
 
 // Process the JSON response from Pixiv Fanbox's API and 
 // returns a map of urls and a map of GDrive urls to download from
-func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath string) ([]map[string]string, []map[string]string) {
+func ProcessFanboxPost(
+	res *http.Response, postJsonArg interface{}, downloadPath string, 
+	downloadThumbnail, downloadImages, downloadAttachments, downloadGdrive bool,
+) ([]map[string]string, []map[string]string) {
 	var post interface{}
 	if postJsonArg == nil {
 		post = utils.LoadJsonFromResponse(res)
@@ -138,7 +141,7 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 
 	var urlsMap []map[string]string
 	thumbnail := postJson["coverImageUrl"]
-	if thumbnail != nil {
+	if downloadThumbnail && thumbnail != nil {
 		urlsMap = append(urlsMap, map[string]string{
 			"url":      thumbnail.(string),
 			"filepath": postFolderPath,
@@ -164,25 +167,23 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 				postBody.(string),
 				func(c rune) bool { return c == '\n' },
 			)
-			for idx, text := range postBodyArr {
-				if utils.DetectPasswordInText(postFolderPath, text) {
-					// log the next element in the post body as a possible password
-					if idx+1 < len(postBodyArr) {
-						nextText := postBodyArr[idx+1]
-						extraBlock := fmt.Sprintf(
-							"Note: If the password was not present in the text above,\n"+
-								"it might be in the next block of text:\n%s\n\n",
-							nextText,
-						)
+			loggedPassword := false
+			for _, text := range postBodyArr {
+				if utils.DetectPasswordInText(text) && !loggedPassword {
+					// Log the entire post text if it contains a password
+					filePath := filepath.Join(postFolderPath, passwordFilename)
+					if !utils.PathExists(filePath) {
+						loggedPassword = true
+						postBodyStr := strings.Join(postBodyArr, "\n")
 						utils.LogMessageToPath(
-							extraBlock,
-							filepath.Join(postFolderPath, "detected_passwords.txt"),
+							"Found potential password in the post:\n\n" + postBodyStr,
+							filePath,
 						)
 					}
 				}
 
 				utils.DetectOtherExtDLLink(text, postFolderPath)
-				if utils.DetectGDriveLinks(text, postFolderPath, false) {
+				if utils.DetectGDriveLinks(text, postFolderPath, false) && downloadGdrive {
 					gdriveLinks = append(gdriveLinks, map[string]string{
 						"url":      text,
 						"filepath": filepath.Join(postFolderPath, gdriveFolder),
@@ -193,7 +194,7 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 
 		// retrieve images and attachments url(s)
 		imageAndAttachmentUrls := postContent[postType+"s"]
-		if imageAndAttachmentUrls != nil {
+		if (imageAndAttachmentUrls != nil) && (downloadImages || downloadAttachments) {
 			for _, fileInfo := range imageAndAttachmentUrls.([]interface{}) {
 				fileInfoMap := fileInfo.(map[string]interface{})
 
@@ -209,16 +210,19 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 				}
 
 				var filePath string
-				if utils.ArrContains(pixivFanboxAllowedImageExt, extension) {
+				isImage := utils.ArrContains(pixivFanboxAllowedImageExt, extension)
+				if isImage {
 					filePath = filepath.Join(postFolderPath, imagesFolder, filename)
 				} else {
 					filePath = filepath.Join(postFolderPath, attachmentFolder, filename)
 				}
 
-				urlsMap = append(urlsMap, map[string]string{
-					"url":      fileUrl,
-					"filepath": filePath,
-				})
+				if (isImage && downloadImages) || (!isImage && downloadAttachments) {
+					urlsMap = append(urlsMap, map[string]string{
+						"url":      fileUrl,
+						"filepath": filePath,
+					})
+				}
 			}
 		}
 	case "article":
@@ -226,43 +230,45 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 		articleContents := postContent["blocks"]
 		if articleContents != nil {
 			articleContentsArr := articleContents.([]interface{})
-			for idx, articleBlock := range articleContentsArr {
+			loggedPassword := false
+			for _, articleBlock := range articleContentsArr {
 				text := articleBlock.(map[string]interface{})["text"]
 				if text != nil {
 					textStr := text.(string)
-					if utils.DetectGDriveLinks(textStr, postFolderPath, false) {
+					if utils.DetectPasswordInText(textStr) && !loggedPassword {
+						// Log the entire post text if it contains a password
+						filePath := filepath.Join(postFolderPath, passwordFilename)
+						if !utils.PathExists(filePath) {
+							loggedPassword = true
+							postBodyStr := "Found potential password in the post:\n\n"
+							for _, articleContent := range articleContentsArr {
+								articleText := articleContent.(map[string]interface{})["text"]
+								if articleText != nil {
+									postBodyStr += articleText.(string) + "\n"
+								}
+							}
+							utils.LogMessageToPath(
+								postBodyStr,
+								filePath,
+							)
+						}
+					}
+
+					utils.DetectOtherExtDLLink(textStr, postFolderPath)
+					if utils.DetectGDriveLinks(textStr, postFolderPath, false) && downloadGdrive {
 						gdriveLinks = append(gdriveLinks, map[string]string{
 							"url":      textStr,
 							"filepath": filepath.Join(postFolderPath, gdriveFolder),
 						})
 					}
-
-					utils.DetectOtherExtDLLink(textStr, postFolderPath)
-					if utils.DetectPasswordInText(postFolderPath, textStr) {
-						// log the next two elements in the post body as a possible password
-						extraBlocks := "Note: If the password was not present in the text above,\n" +
-							"it might be in the next block of text:\n"
-						for i := 1; i <= 2; i++ {
-							if idx+i < len(articleContentsArr) {
-								nextText := articleContentsArr[idx+i].(map[string]interface{})["text"]
-								if nextText != nil {
-									extraBlocks += nextText.(string) + "\n"
-								}
-							}
-						}
-						extraBlocks += "\n"
-						utils.LogMessageToPath(
-							extraBlocks,
-							filepath.Join(postFolderPath, "detected_passwords.txt"),
-						)
-					}
 				}
+
 				articleLinks := articleBlock.(map[string]interface{})["links"]
 				if articleLinks != nil {
 					for _, link := range articleLinks.([]interface{}) {
 						linkUrl := link.(map[string]interface{})["url"].(string)
 						utils.DetectOtherExtDLLink(linkUrl, postFolderPath)
-						if utils.DetectGDriveLinks(linkUrl, postFolderPath, true) {
+						if utils.DetectGDriveLinks(linkUrl, postFolderPath, true) && downloadGdrive {
 							gdriveLinks = append(gdriveLinks, map[string]string{
 								"url":      linkUrl,
 								"filepath": filepath.Join(postFolderPath, gdriveFolder),
@@ -273,9 +279,10 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 				}
 			}
 		}
+
 		// retrieve images and attachments url(s)
 		images := postContent["imageMap"]
-		if images != nil {
+		if images != nil && downloadImages {
 			imageMap := images.(map[string]interface{})
 			for _, imageInfo := range imageMap {
 				imageUrl := imageInfo.(map[string]interface{})["originalUrl"].(string)
@@ -285,8 +292,9 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 				})
 			}
 		}
+
 		attachments := postContent["fileMap"]
-		if attachments != nil {
+		if attachments != nil && downloadAttachments {
 			attachmentMap := attachments.(map[string]interface{})
 			for _, attachmentInfo := range attachmentMap {
 				attachmentInfoMap := attachmentInfo.(map[string]interface{})

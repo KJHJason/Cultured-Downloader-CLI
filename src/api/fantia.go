@@ -86,7 +86,10 @@ type FantiaPost struct {
 
 // Process the JSON response from Fantia's API and 
 // returns a map of urls to download from
-func ProcessFantiaPost(res *http.Response, downloadPath string) []map[string]string {
+func ProcessFantiaPost(
+	res *http.Response, downloadPath string, 
+	downloadThumbnail, downloadImages, downloadAttachments bool,
+) []map[string]string {
 	// processes a fantia post
 	// returns a map containing the post id and the url to download the file from
 	var postJson FantiaPost
@@ -105,7 +108,7 @@ func ProcessFantiaPost(res *http.Response, downloadPath string) []map[string]str
 
 	var urlsMap []map[string]string
 	thumbnail := postStruct.Thumb.Original
-	if thumbnail != "" {
+	if downloadThumbnail && thumbnail != "" {
 		urlsMap = append(urlsMap, map[string]string{
 			"url":      thumbnail,
 			"filepath": postFolderPath,
@@ -117,23 +120,27 @@ func ProcessFantiaPost(res *http.Response, downloadPath string) []map[string]str
 		return urlsMap
 	}
 	for _, content := range postContent{
-		postContentPhotos := content.PostContentPhotos
-		for _, image := range postContentPhotos {
-			imageUrl := image.URL.Original
-			urlsMap = append(urlsMap, map[string]string{
-				"url":      imageUrl,
-				"filepath": filepath.Join(postFolderPath, imagesFolder),
-			})
+		if downloadImages {
+			postContentPhotos := content.PostContentPhotos
+			for _, image := range postContentPhotos {
+				imageUrl := image.URL.Original
+				urlsMap = append(urlsMap, map[string]string{
+					"url":      imageUrl,
+					"filepath": filepath.Join(postFolderPath, imagesFolder),
+				})
+			}
 		}
 
-		// get the attachment url string if it exists
-		attachmentUrl := content.AttachmentURI
-		if attachmentUrl != "" {
-			attachmentUrlStr := "https://fantia.jp" + attachmentUrl
-			urlsMap = append(urlsMap, map[string]string{
-				"url":      attachmentUrlStr,
-				"filepath": filepath.Join(postFolderPath, attachmentFolder),
-			})
+		if downloadAttachments {
+			// get the attachment url string if it exists
+			attachmentUrl := content.AttachmentURI
+			if attachmentUrl != "" {
+				attachmentUrlStr := "https://fantia.jp" + attachmentUrl
+				urlsMap = append(urlsMap, map[string]string{
+					"url":      attachmentUrlStr,
+					"filepath": filepath.Join(postFolderPath, attachmentFolder),
+				})
+			}
 		}
 	}
 	return urlsMap

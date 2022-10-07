@@ -17,15 +17,28 @@ import (
 )
 
 // Start the download process for Fantia
-func FantiaDownloadProcess(fantiaPostIds, fanclubIds []string, cookies []http.Cookie) {
+func FantiaDownloadProcess(
+	fantiaPostIds, fanclubIds []string, cookies []http.Cookie,
+	downloadThumbnail, downloadImages, downloadAttachments bool,
+) {
+	if !downloadThumbnail && !downloadImages && !downloadAttachments {
+		return
+	}
+
 	var urlsToDownload []map[string]string
 	if len(fantiaPostIds) > 0 {
-		urlsArr, _ := api.GetPostDetails(fantiaPostIds, api.Fantia, cookies)
+		urlsArr, _ := api.GetPostDetails(
+			fantiaPostIds, api.Fantia, cookies, 
+			downloadThumbnail, downloadImages, downloadAttachments, false,
+		)
 		urlsToDownload = append(urlsToDownload, urlsArr...)
 	}
 	if len(fanclubIds) > 0 {
 		fantiaPostIds := api.GetCreatorsPosts(fanclubIds, api.Fantia, cookies)
-		urlsArr, _ := api.GetPostDetails(fantiaPostIds, api.Fantia, cookies)
+		urlsArr, _ := api.GetPostDetails(
+			fantiaPostIds, api.Fantia, cookies,
+			downloadThumbnail, downloadImages, downloadAttachments, false,
+		)
 		urlsToDownload = append(urlsToDownload, urlsArr...)
 	}
 
@@ -35,16 +48,29 @@ func FantiaDownloadProcess(fantiaPostIds, fanclubIds []string, cookies []http.Co
 }
 
 // Start the download process for Pixiv Fanbox
-func PixivFanboxDownloadProcess(pixivFanboxPostIds, creatorIds []string, cookies []http.Cookie, gdriveApiKey string, gdrive *gdrive.GDrive) {
+func PixivFanboxDownloadProcess(
+	pixivFanboxPostIds, creatorIds []string, cookies []http.Cookie, gdriveApiKey string, gdrive *gdrive.GDrive,
+	downloadThumbnail, downloadImages, downloadAttachments, downloadGdrive bool,
+) {
+	if !downloadThumbnail && !downloadImages && !downloadAttachments && !downloadGdrive {
+		return
+	}
+
 	var urlsToDownload, gdriveUrlsToDownload []map[string]string
 	if len(pixivFanboxPostIds) > 0 {
-		urlsArr, gdriveArr := api.GetPostDetails(pixivFanboxPostIds, api.PixivFanbox, cookies)
+		urlsArr, gdriveArr := api.GetPostDetails(
+			pixivFanboxPostIds, api.PixivFanbox, cookies,
+			downloadThumbnail, downloadImages, downloadAttachments, downloadGdrive,
+		)
 		urlsToDownload = append(urlsToDownload, urlsArr...)
 		gdriveUrlsToDownload = append(gdriveUrlsToDownload, gdriveArr...)
 	}
 	if len(creatorIds) > 0 {
 		fanboxIds := api.GetCreatorsPosts(creatorIds, api.PixivFanbox, cookies)
-		urlsArr, gdriveArr := api.GetPostDetails(fanboxIds, api.PixivFanbox, cookies)
+		urlsArr, gdriveArr := api.GetPostDetails(
+			fanboxIds, api.PixivFanbox, cookies,
+			downloadThumbnail, downloadImages, downloadAttachments, downloadGdrive,
+		)
 		urlsToDownload = append(urlsToDownload, urlsArr...)
 		gdriveUrlsToDownload = append(gdriveUrlsToDownload, gdriveArr...)
 	}
@@ -52,7 +78,7 @@ func PixivFanboxDownloadProcess(pixivFanboxPostIds, creatorIds []string, cookies
 	if len(urlsToDownload) > 0 {
 		request.DownloadURLsParallel(urlsToDownload, utils.PIXIV_MAX_CONCURRENT_DOWNLOADS, cookies, api.GetPixivFanboxHeaders(), nil)
 	}
-	if gdriveApiKey != "" {
+	if gdriveApiKey != "" && len(gdriveUrlsToDownload) > 0 {
 		gdrive.DownloadGdriveUrls(gdriveUrlsToDownload)
 	}
 }
@@ -176,6 +202,28 @@ func main() {
 				mutlipleIdsMsg,
 			},
 		),
+	)
+
+	// Fantia and Pixiv Fanbox args
+	downloadThumbnail := flag.Bool(
+		"download_thumbnail",
+		true,
+		"Whether to download the thumbnail of a post.",
+	)
+	downloadImages := flag.Bool(
+		"download_images",
+		true,
+		"Whether to download the images of a post.",
+	)
+	downloadAttachments := flag.Bool(
+		"download_attachments",
+		true,
+		"Whether to download the attachments of a post.",
+	)
+	downloadGdrive := flag.Bool(
+		"download_gdrive",
+		true,
+		"Whether to download the Google Drive links of a Pixiv Fanbox post.",
 	)
 
 	// Pixiv args
@@ -426,8 +474,14 @@ func main() {
 		}
 	}
 
-	FantiaDownloadProcess(fantiaPostIds, fanclubIds, cookies)
-	PixivFanboxDownloadProcess(pixivFanboxPostIds, creatorIds, cookies, *gdriveApiKey, gdriveObj)
+	FantiaDownloadProcess(
+		fantiaPostIds, fanclubIds, cookies,
+		*downloadThumbnail, *downloadImages, *downloadAttachments,
+	)
+	PixivFanboxDownloadProcess(
+		pixivFanboxPostIds, creatorIds, cookies, *gdriveApiKey, gdriveObj,
+		*downloadThumbnail, *downloadImages, *downloadAttachments, *downloadGdrive,
+	)
 	PixivDownloadProcess(
 		artworkIds, illustratorIds, tagNames, pageNums,
 		*sortOrder, *searchMode, *ratingMode, *artworkType,

@@ -374,6 +374,5 @@ func (gdrive GDrive) DownloadGdriveUrls(gdriveUrls []map[string]string) {
 		}
 		bar.Add(1)
 	}
-
 	gdrive.DownloadMultipleFiles(gdriveFilesInfo)
 }

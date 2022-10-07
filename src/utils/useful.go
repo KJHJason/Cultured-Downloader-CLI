@@ -259,17 +259,10 @@ func LoadJsonFromResponse(res *http.Response) interface{} {
 	return post
 }
 
-// Detects if the given string contains any passwords and logs it if detected
-func DetectPasswordInText(postFolderPath, text string) bool {
-	passwordFilename := "detected_passwords.txt"
-	passwordFilepath := filepath.Join(postFolderPath, passwordFilename)
+// Detects if the given string contains any passwords
+func DetectPasswordInText(text string) bool {
 	for _, passwordText := range PASSWORD_TEXTS {
 		if strings.Contains(text, passwordText) {
-			passwordText := fmt.Sprintf(
-				"Detected a possible password-protected content in post: %s\n\n",
-				text,
-			)
-			LogMessageToPath(passwordText, passwordFilepath)
 			return true
 		}
 	}
