@@ -33,7 +33,6 @@ func GetProgressBar(total int, desc string, completionFunc func()) *progressbar.
 		progressbar.OptionUseANSICodes(true),
 		progressbar.OptionSetDescription(desc),
 		progressbar.OptionSetWriter(os.Stderr),
-		progressbar.OptionSetWidth(10),
 		progressbar.OptionThrottle(65*time.Millisecond),
 		progressbar.OptionShowCount(),
 		progressbar.OptionShowIts(),
