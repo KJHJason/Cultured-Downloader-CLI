@@ -152,7 +152,6 @@ func GetArtworkDetails(artworkId, downloadPath string, cookies []http.Cookie) (s
 		return "", nil, -1
 	}
 
-	PixivSleep()
 	artworkUrlsRes, err := request.CallRequest("GET", url, 15, cookies, headers, nil, false)
 	if err != nil {
 		errorMsg := fmt.Sprintf("Pixiv: Failed to get artwork URLs for %s\nURL: %s", artworkId, url)
