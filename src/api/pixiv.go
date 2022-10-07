@@ -32,7 +32,7 @@ const (
 //
 // More info: https://github.com/Nandaka/PixivUtil2/issues/477
 func PixivSleep() {
-	time.Sleep(utils.GetRandomTime(3.0, 6.0))
+	time.Sleep(utils.GetRandomTime(1.5, 2.5))
 }
 
 // Returns a defined request header needed to communicate with Pixiv's API

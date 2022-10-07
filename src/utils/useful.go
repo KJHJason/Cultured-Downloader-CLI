@@ -39,7 +39,7 @@ func GetProgressBar(total int, desc string, completionFunc func()) *progressbar.
 		progressbar.OptionShowIts(),
 		progressbar.OptionOnCompletion(completionFunc),
 		progressbar.OptionSpinnerType(14),
-		progressbar.OptionSetWidth(40),
+		progressbar.OptionSetWidth(30),
 		progressbar.OptionSetRenderBlankState(true),
 	)
 }
