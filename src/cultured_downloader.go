@@ -116,9 +116,9 @@ func PixivDownloadProcess(
 	if len(tagNames) > 0 {
 		// loop through each tag and page number
 		bar := utils.GetProgressBar(
-			len(artworkIds), 
+			len(tagNames), 
 			"Searching for artworks based on tag names...",
-			utils.GetCompletionFunc(fmt.Sprintf("Finished searching for artworks based on %d tag names!", len(artworkIds))),
+			utils.GetCompletionFunc(fmt.Sprintf("Finished searching for artworks based on %d tag names!", len(tagNames))),
 		)
 		for idx, tagName := range tagNames {
 			var minPage, maxPage int
