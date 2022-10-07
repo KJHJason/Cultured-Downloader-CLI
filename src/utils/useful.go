@@ -171,6 +171,10 @@ func GetLastPartOfURL(url string) string {
 	return splittedUrl[len(splittedUrl)-1]
 }
 
+func RemoveExtFromFilename(filename string) string {
+	return strings.TrimSuffix(filename, filepath.Ext(filename))
+}
+
 func ParamsToString(params map[string]string) string {
 	paramsStr := ""
 	for key, value := range params {

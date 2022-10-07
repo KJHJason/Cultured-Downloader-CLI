@@ -82,12 +82,12 @@ func DownloadURL(fileURL, filePath string, cookies []http.Cookie, headers, param
 			panic(err)
 		}
 		filename = utils.GetLastPartOfURL(filename)
-		filenameWithoutExt := strings.TrimSuffix(filename, filepath.Ext(filename))
+		filenameWithoutExt := utils.RemoveExtFromFilename(filename)
 		filePath = filepath.Join(filePath, filenameWithoutExt + strings.ToLower(filepath.Ext(filename)))
 	} else {
 		filePathDir := filepath.Dir(filePath)
 		os.MkdirAll(filePathDir, 0755)
-		filePathWithoutExt := strings.TrimSuffix(filePath, filepath.Ext(filePath))
+		filePathWithoutExt := utils.RemoveExtFromFilename(filePath)
 		filePath = filepath.Join(filePathDir, filePathWithoutExt + strings.ToLower(filepath.Ext(filePath)))
 	}
 

@@ -49,7 +49,7 @@ var (
 	EXTERNAL_DOWNLOAD_PLATFORMS = []string {"mega", "gigafile", "dropbox", "mediafire"}
 
 	// For Pixiv
-	UGOIRA_ACCEPTED_EXT = []string {".gif", ".mp4", ".webm"}
+	UGOIRA_ACCEPTED_EXT = []string {".gif", ".apng", ".webp", ".webm", ".mp4"}
 	ACCEPTED_SORT_ORDER = []string {
 		"date", "date_d", 
 		"popular", "popular_d", 

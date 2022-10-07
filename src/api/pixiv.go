@@ -247,7 +247,7 @@ func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpe
 		"-safe", "0",   			// allow absolute paths in the concat file
 		"-i", concatDelayFilePath,	// input file
 	}
-	if outputExt != ".gif" {
+	if outputExt == ".webm" || outputExt == ".mp4" {
 		// if converting the ugoira to a webm or .mp4 file 
 		// then set the output video codec to vp9 or h264 respectively
 		// 	- webm: https://trac.ffmpeg.org/wiki/Encode/VP9
@@ -258,14 +258,23 @@ func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpe
 		}
 		if outputExt == ".mp4" {
 			// if converting to an mp4 file
+			// crf range is 0-51 for .mp4 files
+			if ugoiraQuality > 51 {
+				ugoiraQuality = 51
+			} else if ugoiraQuality < 0 {
+				ugoiraQuality = 0
+			}
 			args = append(
 				args,
 				"-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2", // pad the video to be even
+				"-crf", strconv.Itoa(ugoiraQuality), // set the quality
 			)
 		} else {
-			// webm will be loseless but takes longer to convert
-			if ugoiraQuality == 0 {
+			// crf range is 0-63 for .webm files
+			if ugoiraQuality == 0 || ugoiraQuality < 0 {
 				args = append(args, "-lossless", "1") 
+			} else if ugoiraQuality > 63 {
+				args = append(args, "-crf", "63")
 			} else {
 				args = append(args, "-crf", strconv.Itoa(ugoiraQuality))
 			}
@@ -275,20 +284,27 @@ func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpe
 			args,
 			"-pix_fmt", "yuv420p", 			// set the pixel format to yuv420p
 			"-c:v", encodingMap[outputExt], // video codec
-			"-vsync", "vfr", 				// variable frame rate
+			"-vsync", "passthrough", 		// Prevents frame dropping
 		)
-	} else {
+	} else if outputExt == ".gif" {
 		// Generate a palette for the gif using FFmpeg for better quality
 		palettePath := filepath.Join(imagesFolderPath, "palette.png")
+		ffmpegImages := "%" + fmt.Sprintf(
+			"%dd%s", // Usually it's %6d.extension but just in case, measure the length of the filename
+			len(utils.RemoveExtFromFilename(sortedFilenames[0])), 
+			filepath.Ext(sortedFilenames[0]),
+		)
 		imagePaletteCmd := exec.Command(
 			ffmpegPath,
-			"-i", filepath.Join(imagesFolderPath, sortedFilenames[0]),
+			"-i", filepath.Join(imagesFolderPath, ffmpegImages),
 			"-vf", "palettegen",
 			palettePath,
 		)
+		// imagePaletteCmd.Stderr = os.Stderr
+		// imagePaletteCmd.Stdout = os.Stdout
 		err = imagePaletteCmd.Run()
 		if err != nil {
-			panic(err)
+			panic("Pixiv: Failed to generate palette for ugoira gif")
 		}
 		args = append(
 			args,
@@ -296,15 +312,28 @@ func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpe
 			"-i", palettePath,
 			"-filter_complex", "paletteuse",
 		)
+	} else if outputExt == ".apng" {
+		args = append(
+			args,
+			"-plays", "0", 								// loop the apng
+			"-vf", 
+			"setpts=PTS-STARTPTS,hqdn3d=1.5:1.5:6:6", 	// set the setpts filter and apply some denoising
+		)
+	} else { // outputExt == ".webp"
+		args = append(
+			args,
+			"-pix_fmt", "yuv420p",   // set the pixel format to yuv420p
+			"-loop", "0", 		   	 // loop the webp
+			"-vsync", "passthrough", // Prevents frame dropping
+			"-lossless", "1", 	     // lossless compression
+		)
 	}
-
-	if outputExt != ".webm" {
-		args = append(args, "-crf", strconv.Itoa(ugoiraQuality))
+	if outputExt != ".webp" {
+		args = append(args, "-quality", "best")
 	}
 
 	args = append(
 		args, 
-		"-quality", "best",
 		outputPath,
 	)
 	// convert the frames to a gif or a video
@@ -340,7 +369,7 @@ func DownloadUgoira(downloadInfo []Ugoira, outputFormat, ffmpegPath string, dele
 	request.DownloadURLsParallel(urlsToDownload, utils.PIXIV_MAX_CONCURRENT_DOWNLOADS, cookies, GetPixivRequestHeaders(), nil)
 	for _, downloadInfo := range downloadInfo {
 		zipFilePath := filepath.Join(downloadInfo.FilePath, utils.GetLastPartOfURL(downloadInfo.Url))
-		outputPath := strings.TrimSuffix(zipFilePath, filepath.Ext(zipFilePath)) + outputFormat
+		outputPath := utils.RemoveExtFromFilename(zipFilePath) + outputFormat
 		if utils.PathExists(outputPath) {
 			continue
 		}

@@ -184,9 +184,9 @@ func main() {
 		10,
 		utils.CombineStringsWithNewline(
 			[]string{
-				"Configure the quality of the converted ugoira.",
+				"Configure the quality of the converted ugoira (Only for .mp4 and .webm).",
 				"This argument will be used as the crf value for FFmpeg.",
-				"Lower values will result in higher quality but with larger file sizes and more time taken to convert.",
+				"The lower the value, the higher the quality.",
 				"Accepted values:",
 				"- mp4: 0-51",
 				"- webm: 0-63\n",
@@ -203,12 +203,9 @@ func main() {
 			[]string{
 				"Output format for the ugoira conversion using FFmpeg.",
 				fmt.Sprintf(
-					"Accepted Extensions: %s",
+					"Accepted Extensions: %s\n",
 					strings.TrimSpace(strings.Join(utils.UGOIRA_ACCEPTED_EXT, ", ")),
 				),
-				"Notes:",
-				"- Both .webm and .mp4 generally have a smaller file size than .gif.\n",
-				"- Both .mp4 and .gif are converted relatively quickly while .webm can take a long time to convert.",
 			},
 		),
 	)
