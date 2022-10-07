@@ -32,6 +32,13 @@ The CLI version of the program is currently only available for Windows, Linux an
 
 This program has only been tested on Windows 10. Hence, if you encounter any issues on other operating systems, I may not be able to help you.
 
+## Disclaimers
+
+- Cultured Downloader is not liable for any damages caused.
+- Pixiv:
+  - Pixiv API calls are throttled to avoid being rate limited.
+  - Try not to overuse the program when downloading from Pixiv as it can cause your IP to be flagged by Cloudflare.
+
 ## Usage Example
 
 The example below assumes you are using [Go](https://go.dev/dl/) to run the program.

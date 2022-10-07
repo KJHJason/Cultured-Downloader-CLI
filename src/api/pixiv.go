@@ -32,7 +32,7 @@ const (
 //
 // More info: https://github.com/Nandaka/PixivUtil2/issues/477
 func PixivSleep() {
-	time.Sleep(utils.GetRandomTime(1.5, 2.5))
+	time.Sleep(utils.GetRandomTime(0.5, 1.0))
 }
 
 // Returns a defined request header needed to communicate with Pixiv's API
@@ -201,7 +201,6 @@ func GetMultipleArtworkDetails(artworkIds []string, downloadPath string, cookies
 			PixivSleep()
 		}
 	}
-
 	return artworkDetails, ugoiraDetails
 }
 
