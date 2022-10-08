@@ -13,6 +13,9 @@ import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api"
+	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv"
+	"github.com/KJHJason/Cultured-Downloader-CLI/api/fantia"
+	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv_fanbox"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 )
 
@@ -27,17 +30,17 @@ func FantiaDownloadProcess(
 
 	var urlsToDownload []map[string]string
 	if len(fantiaPostIds) > 0 {
-		urlsArr, _ := api.GetPostDetails(
-			fantiaPostIds, api.Fantia, cookies, 
-			downloadThumbnail, downloadImages, downloadAttachments, false,
+		urlsArr := fantia.GetPostDetails(
+			fantiaPostIds, cookies, 
+			downloadThumbnail, downloadImages, downloadAttachments,
 		)
 		urlsToDownload = append(urlsToDownload, urlsArr...)
 	}
 	if len(fanclubIds) > 0 {
-		fantiaPostIds := api.GetCreatorsPosts(fanclubIds, api.Fantia, cookies)
-		urlsArr, _ := api.GetPostDetails(
-			fantiaPostIds, api.Fantia, cookies,
-			downloadThumbnail, downloadImages, downloadAttachments, false,
+		fantiaPostIds := fantia.GetCreatorsPosts(fanclubIds, cookies)
+		urlsArr := fantia.GetPostDetails(
+			fantiaPostIds, cookies,
+			downloadThumbnail, downloadImages, downloadAttachments,
 		)
 		urlsToDownload = append(urlsToDownload, urlsArr...)
 	}
@@ -58,17 +61,17 @@ func PixivFanboxDownloadProcess(
 
 	var urlsToDownload, gdriveUrlsToDownload []map[string]string
 	if len(pixivFanboxPostIds) > 0 {
-		urlsArr, gdriveArr := api.GetPostDetails(
-			pixivFanboxPostIds, api.PixivFanbox, cookies,
+		urlsArr, gdriveArr := pixiv_fanbox.GetPostDetails(
+			pixivFanboxPostIds, cookies,
 			downloadThumbnail, downloadImages, downloadAttachments, downloadGdrive,
 		)
 		urlsToDownload = append(urlsToDownload, urlsArr...)
 		gdriveUrlsToDownload = append(gdriveUrlsToDownload, gdriveArr...)
 	}
 	if len(creatorIds) > 0 {
-		fanboxIds := api.GetCreatorsPosts(creatorIds, api.PixivFanbox, cookies)
-		urlsArr, gdriveArr := api.GetPostDetails(
-			fanboxIds, api.PixivFanbox, cookies,
+		fanboxIds := pixiv_fanbox.GetCreatorsPosts(creatorIds, cookies)
+		urlsArr, gdriveArr := pixiv_fanbox.GetPostDetails(
+			fanboxIds, cookies,
 			downloadThumbnail, downloadImages, downloadAttachments, downloadGdrive,
 		)
 		urlsToDownload = append(urlsToDownload, urlsArr...)
@@ -76,7 +79,10 @@ func PixivFanboxDownloadProcess(
 	}
 
 	if len(urlsToDownload) > 0 {
-		request.DownloadURLsParallel(urlsToDownload, utils.PIXIV_MAX_CONCURRENT_DOWNLOADS, cookies, api.GetPixivFanboxHeaders(), nil)
+		request.DownloadURLsParallel(
+			urlsToDownload, utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
+			cookies, pixiv_fanbox.GetPixivFanboxHeaders(), nil,
+		)
 	}
 	if gdriveApiKey != "" && len(gdriveUrlsToDownload) > 0 {
 		gdrive.DownloadGdriveUrls(gdriveUrlsToDownload)
@@ -97,17 +103,17 @@ func PixivDownloadProcess(
 		os.Exit(1)
 	}
 
-	var ugoiraToDownload []api.Ugoira
+	var ugoiraToDownload []pixiv.Ugoira
 	var artworksToDownload []map[string]string
 	if len(artworkIds) > 0 {
-		artworksArr, ugoiraArr := api.GetMultipleArtworkDetails(
+		artworksArr, ugoiraArr := pixiv.GetMultipleArtworkDetails(
 			artworkIds, utils.DOWNLOAD_PATH, cookies,
 		)
 		artworksToDownload = append(artworksToDownload, artworksArr...)
 		ugoiraToDownload = append(ugoiraToDownload, ugoiraArr...)
 	}
 	if len(illustratorIds) > 0 {
-		artworksArr, ugoiraArr := api.GetMultipleIllustratorPosts(
+		artworksArr, ugoiraArr := pixiv.GetMultipleIllustratorPosts(
 			illustratorIds, utils.DOWNLOAD_PATH, artworkType, cookies,
 		)
 		artworksToDownload = append(artworksToDownload, artworksArr...)
@@ -130,7 +136,7 @@ func PixivDownloadProcess(
 				minPage, _ = strconv.Atoi(pageNums[idx])
 				maxPage = minPage
 			}
-			artworksArr, ugoiraArr := api.TagSearch(
+			artworksArr, ugoiraArr := pixiv.TagSearch(
 				tagName, utils.DOWNLOAD_PATH, sortOrder, searchMode, ratingMode, artworkType, minPage, maxPage, cookies,
 			)
 			artworksToDownload = append(artworksToDownload, artworksArr...)
@@ -140,10 +146,10 @@ func PixivDownloadProcess(
 	}
 
 	if len(artworksToDownload) > 0 {
-		request.DownloadURLsParallel(artworksToDownload, utils.PIXIV_MAX_CONCURRENT_DOWNLOADS, cookies, api.GetPixivRequestHeaders(), nil)
+		request.DownloadURLsParallel(artworksToDownload, utils.PIXIV_MAX_CONCURRENT_DOWNLOADS, cookies, pixiv.GetPixivRequestHeaders(), nil)
 	}
 	if len(ugoiraToDownload) > 0 {
-		api.DownloadMultipleUgoira(ugoiraToDownload, ugoiraOutputFormat, ffmpegPath, deleteUgoiraZip, ugoiraQuality, cookies)
+		pixiv.DownloadMultipleUgoira(ugoiraToDownload, ugoiraOutputFormat, ffmpegPath, deleteUgoiraZip, ugoiraQuality, cookies)
 	}
 }
 
@@ -227,6 +233,11 @@ func main() {
 	)
 
 	// Pixiv args
+	pixivStartOauth := flag.Bool(
+		"pixiv_start_oauth",
+		false,
+		"Whether to start the Pixiv OAuth process to get one's refresh token.",
+	)
 	pixivSession := flag.String(
 		"pixiv_session",
 		"",
@@ -415,6 +426,9 @@ func main() {
 	if *version {
 		fmt.Println("Cultured Downloader CLI v" + utils.VERSION)
 		return
+	}
+	if *pixivStartOauth {
+		pixiv.New("", 5).StartOauthFlow()
 	}
 
 	// check Pixiv args

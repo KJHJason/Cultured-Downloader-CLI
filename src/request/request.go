@@ -13,33 +13,52 @@ import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
 
-// CallRequest is used to make a request to a URL and return the response
-//
-// If the request fails, it will retry the request again up 
-// to the defined max retries in the constants.go in utils package
-func CallRequest(method, url string, timeout int, cookies []http.Cookie, additionalHeaders, params map[string]string, checkStatus bool) (*http.Response, error) {
-	// sends a request to the website
-	req, err := http.NewRequest(method, url, nil)
-	if err != nil {
-		return nil, err
-	}
+// send the request to the target URL and retries if the request was not successful
+func sendRequest(reqUrl string, req *http.Request, timeout int, checkStatus bool) (*http.Response, error) {
+	var err error
+	var res *http.Response
 
-	// add cookies to the request
+	client := &http.Client{}
+	client.Timeout = time.Duration(timeout) * time.Second
+	for i := 1; i <= utils.RETRY_COUNTER; i++ {
+		res, err = client.Do(req)
+		if err == nil {
+			if !checkStatus {
+				return res, nil
+			} else if res.StatusCode == 200 {
+				return res, nil
+			}
+		}
+		time.Sleep(utils.GetRandomDelay())
+	}
+	err = fmt.Errorf("request to %s failed after %d retries", reqUrl, utils.RETRY_COUNTER)
+	utils.LogError(nil, err.Error(), false)
+	return nil, err
+}
+
+// add headers to the request
+func AddHeaders(headers map[string]string, req *http.Request) {
+	for key, value := range headers {
+		req.Header.Add(key, value)
+	}
+	if req.Header.Get("User-Agent") == "" {
+		req.Header.Add(
+			"User-Agent", utils.USER_AGENT,
+		)
+	}
+}
+
+// add cookies to the request
+func AddCookies(reqUrl string, cookies []http.Cookie, req *http.Request) {
 	for _, cookie := range cookies {
-		if strings.Contains(url, cookie.Domain) {
+		if strings.Contains(reqUrl, cookie.Domain) {
 			req.AddCookie(&cookie)
 		}
 	}
+}
 
-	// add headers to the request
-	for key, value := range additionalHeaders {
-		req.Header.Add(key, value)
-	}
-	req.Header.Add(
-		"User-Agent", utils.USER_AGENT,
-	)
-
-	// add params to the request
+// add params to the request
+func AddParams(params map[string]string, req *http.Request) {
 	if len(params) > 0 {
 		query := req.URL.Query()
 		for key, value := range params {
@@ -47,24 +66,49 @@ func CallRequest(method, url string, timeout int, cookies []http.Cookie, additio
 		}
 		req.URL.RawQuery = query.Encode()
 	}
+}
 
-	// send the request
-	client := &http.Client{}
-	client.Timeout = time.Duration(timeout) * time.Second
-	for i := 1; i <= utils.RETRY_COUNTER; i++ {
-		resp, err := client.Do(req)
-		if err == nil {
-			if !checkStatus {
-				return resp, nil
-			} else if resp.StatusCode == 200 {
-				return resp, nil
-			}
-		}
-		time.Sleep(utils.GetRandomDelay())
+// CallRequest is used to make a request to a URL and return the response
+//
+// If the request fails, it will retry the request again up 
+// to the defined max retries in the constants.go in utils package
+func CallRequest(
+	method, reqUrl string, timeout int, cookies []http.Cookie, 
+	additionalHeaders, params map[string]string, checkStatus bool,
+) (*http.Response, error) {
+	req, err := http.NewRequest(method, reqUrl, nil)
+	if err != nil {
+		return nil, err
 	}
-	errorMessage := fmt.Sprintf("failed to send a request to %s after %d retries", url, utils.RETRY_COUNTER)
-	utils.LogError(err, errorMessage, false)
-	return nil, err
+
+	AddCookies(reqUrl, cookies, req)
+	AddHeaders(additionalHeaders, req)
+	AddParams(params, req)
+	return sendRequest(reqUrl, req, timeout, checkStatus)
+}
+
+// Sends a request with the given data
+func CallRequestWithData(
+	reqUrl, method string, timeout int, cookies []http.Cookie, 
+	data, additionalHeaders, params map[string]string, checkStatus bool,
+) (*http.Response, error) {
+	form := url.Values{}
+	for key, value := range data {
+		form.Add(key, value)
+	}
+	if len(data) > 0 {
+		additionalHeaders["Content-Type"] = "application/x-www-form-urlencoded"
+	}
+
+	req, err := http.NewRequest(method, reqUrl, strings.NewReader(form.Encode()))
+	if err != nil {
+		return nil, err
+	}
+
+	AddCookies(reqUrl, cookies, req)
+	AddHeaders(additionalHeaders, req)
+	AddParams(params, req)
+	return sendRequest(reqUrl, req, timeout, checkStatus)
 }
 
 // DownloadURL is used to download a file from a URL

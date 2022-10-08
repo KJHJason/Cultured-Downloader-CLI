@@ -1,13 +1,13 @@
-package api
+package pixiv_fanbox
 
 import (
 	"fmt"
-	"net/url"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"sync"
 	"encoding/json"
+	"github.com/KJHJason/Cultured-Downloader-CLI/api"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 )
@@ -24,97 +24,6 @@ func GetPixivFanboxHeaders() map[string]string {
 		"Origin": "https://www.fanbox.cc", 
 		"Referer": "https://www.fanbox.cc/",
 	}
-}
-
-type CreatorPaginatedPosts struct {
-	Body []string `json:"body"`
-}
-
-type FanboxCreatorPosts struct {
-	Body struct {
-		Items []struct {
-			Id string `json:"id"`
-		} `json:"items"`
-	} `json:"body"`
-}
-
-// GetFanboxCreatorPosts returns a slice of post IDs for a given creator
-func GetFanboxPosts(creatorId string, cookies []http.Cookie) []string {
-	params := map[string]string{"creatorId": creatorId}
-	headers := GetPixivFanboxHeaders()
-	res, err := request.CallRequest("GET", GetAPICreatorPages(PixivFanbox, creatorId), 30, cookies, headers, params, false)
-	if err != nil || res.StatusCode != 200 {
-		if err == nil {
-			res.Body.Close()
-		}
-		utils.LogError(err, fmt.Sprintf("failed to get creator's pages for %s", creatorId), false)
-		return nil
-	}
-
-	var resJson CreatorPaginatedPosts
-	resBody := utils.ReadResBody(res)
-	err = json.Unmarshal(resBody, &resJson)
-	if err != nil {
-		utils.LogError(err, fmt.Sprintf("Failed to unmarshal json for Pixiv Fanbox creator's pages\nJSON: %s", string(resBody)), false)
-		return nil
-	}
-	paginationParamsArr := []map[string]string{}
-	for _, paginatedPost := range resJson.Body {
-		parsedUrl, _ := url.Parse(paginatedPost)
-		parsedParamsMap := map[string]string{}
-		for key, value := range parsedUrl.Query() {
-			// since the Query will return a 
-			// map of slices of strings
-			parsedParamsMap[key] = value[0]
-		}
-		paginationParamsArr = append(paginationParamsArr, parsedParamsMap)
-	}
-
-	var wg sync.WaitGroup
-	maxConcurrency := utils.MAX_API_CALLS
-	if len(paginationParamsArr) < maxConcurrency {
-		maxConcurrency = len(paginationParamsArr)
-	}
-	queue := make(chan struct{}, maxConcurrency)
-	resChan := make(chan *http.Response, len(paginationParamsArr))
-	for _, paginationParams := range paginationParamsArr {
-		wg.Add(1)
-		queue <- struct{}{}
-		go func(params map[string]string) {
-			defer wg.Done()
-			res, err := request.CallRequest("GET", "https://api.fanbox.cc/post.listCreator", 30, cookies, headers, params, false)
-			if err != nil || res.StatusCode != 200 {
-				if err == nil {
-					res.Body.Close()
-				}
-				url := "https://api.fanbox.cc/post.listCreator" + utils.ParamsToString(params)
-				utils.LogError(err, fmt.Sprintf("failed to get post for %s", url), false)
-			} else {
-				resChan <- res
-			}
-			<-queue
-		}(paginationParams)
-	}
-	close(queue)
-	wg.Wait()
-	close(resChan)
-
-	// parse the JSON response
-	var postIds []string
-	for res := range resChan {
-		resBody := utils.ReadResBody(res)
-		var resJson FanboxCreatorPosts
-		err = json.Unmarshal(resBody, &resJson)
-		if err != nil {
-			utils.LogError(err, fmt.Sprintf("Failed to unmarshal json for Pixiv Fanbox creator's post\nJSON: %s", string(resBody)), false)
-			continue
-		}
-
-		for _, postInfoMap := range resJson.Body.Items {
-			postIds = append(postIds, postInfoMap.Id)
-		}
-	}
-	return postIds
 }
 
 // Process the JSON response from Pixiv Fanbox's API and 
@@ -171,7 +80,7 @@ func ProcessFanboxPost(
 			for _, text := range postBodyArr {
 				if utils.DetectPasswordInText(text) && !loggedPassword {
 					// Log the entire post text if it contains a password
-					filePath := filepath.Join(postFolderPath, passwordFilename)
+					filePath := filepath.Join(postFolderPath, api.PasswordFilename)
 					if !utils.PathExists(filePath) {
 						loggedPassword = true
 						postBodyStr := strings.Join(postBodyArr, "\n")
@@ -186,7 +95,7 @@ func ProcessFanboxPost(
 				if utils.DetectGDriveLinks(text, postFolderPath, false) && downloadGdrive {
 					gdriveLinks = append(gdriveLinks, map[string]string{
 						"url":      text,
-						"filepath": filepath.Join(postFolderPath, gdriveFolder),
+						"filepath": filepath.Join(postFolderPath, api.GdriveFolder),
 					})
 				}
 			}
@@ -212,9 +121,9 @@ func ProcessFanboxPost(
 				var filePath string
 				isImage := utils.ArrContains(pixivFanboxAllowedImageExt, extension)
 				if isImage {
-					filePath = filepath.Join(postFolderPath, imagesFolder, filename)
+					filePath = filepath.Join(postFolderPath, api.ImagesFolder, filename)
 				} else {
-					filePath = filepath.Join(postFolderPath, attachmentFolder, filename)
+					filePath = filepath.Join(postFolderPath, api.AttachmentFolder, filename)
 				}
 
 				if (isImage && downloadImages) || (!isImage && downloadAttachments) {
@@ -237,7 +146,7 @@ func ProcessFanboxPost(
 					textStr := text.(string)
 					if utils.DetectPasswordInText(textStr) && !loggedPassword {
 						// Log the entire post text if it contains a password
-						filePath := filepath.Join(postFolderPath, passwordFilename)
+						filePath := filepath.Join(postFolderPath, api.PasswordFilename)
 						if !utils.PathExists(filePath) {
 							loggedPassword = true
 							postBodyStr := "Found potential password in the post:\n\n"
@@ -258,7 +167,7 @@ func ProcessFanboxPost(
 					if utils.DetectGDriveLinks(textStr, postFolderPath, false) && downloadGdrive {
 						gdriveLinks = append(gdriveLinks, map[string]string{
 							"url":      textStr,
-							"filepath": filepath.Join(postFolderPath, gdriveFolder),
+							"filepath": filepath.Join(postFolderPath, api.GdriveFolder),
 						})
 					}
 				}
@@ -271,7 +180,7 @@ func ProcessFanboxPost(
 						if utils.DetectGDriveLinks(linkUrl, postFolderPath, true) && downloadGdrive {
 							gdriveLinks = append(gdriveLinks, map[string]string{
 								"url":      linkUrl,
-								"filepath": filepath.Join(postFolderPath, gdriveFolder),
+								"filepath": filepath.Join(postFolderPath, api.GdriveFolder),
 							})
 							continue
 						}
@@ -288,7 +197,7 @@ func ProcessFanboxPost(
 				imageUrl := imageInfo.(map[string]interface{})["originalUrl"].(string)
 				urlsMap = append(urlsMap, map[string]string{
 					"url":      imageUrl,
-					"filepath": filepath.Join(postFolderPath, imagesFolder),
+					"filepath": filepath.Join(postFolderPath, api.ImagesFolder),
 				})
 			}
 		}
@@ -302,7 +211,7 @@ func ProcessFanboxPost(
 				filename := attachmentInfoMap["name"].(string) + "." + attachmentInfoMap["extension"].(string)
 				urlsMap = append(urlsMap, map[string]string{
 					"url":      attachmentUrl,
-					"filepath": filepath.Join(postFolderPath, attachmentFolder, filename),
+					"filepath": filepath.Join(postFolderPath, api.AttachmentFolder, filename),
 				})
 			}
 		}
@@ -310,4 +219,160 @@ func ProcessFanboxPost(
 		panic(fmt.Sprintf("Unknown post type: %s\nPlease report it as a bug!", postType))
 	}
 	return urlsMap, gdriveLinks
+}
+
+// Query Pixiv Fanbox's API based on the slice of post IDs and returns a map of 
+// urls and a map of GDrive urls to download from
+func GetPostDetails(
+	postIds []string, cookies []http.Cookie,
+	downloadThumbnail, downloadImages, downloadAttachments, downloadGdrive bool,
+) ([]map[string]string, []map[string]string) {
+	maxConcurrency := utils.MAX_API_CALLS
+	if len(postIds) < maxConcurrency {
+		maxConcurrency = len(postIds)
+	}
+	var wg sync.WaitGroup
+	queue := make(chan struct{}, maxConcurrency)
+	resChan := make(chan *http.Response, len(postIds))
+
+	bar := utils.GetProgressBar(
+		len(postIds), 
+		"Getting Pixiv Fanbox post details...",
+		utils.GetCompletionFunc(fmt.Sprintf("Finished getting %d Pixiv Fanbox post details!", len(postIds))),
+	)
+	url := "https://api.fanbox.cc/post.info"
+	for _, postId := range postIds {
+		wg.Add(1)
+		queue <- struct{}{}
+		go func(postId string) {
+			defer wg.Done()
+
+			header := GetPixivFanboxHeaders()
+			params := map[string]string{"postId": postId}
+			res, err := request.CallRequest("GET", url, 30, cookies, header, params, false)
+			if err != nil || res.StatusCode != 200 {
+				utils.LogError(err, fmt.Sprintf("failed to get post details for %s", url), false)
+			} else {
+				resChan <-res
+			}
+			bar.Add(1)
+			<-queue
+		}(postId)
+	}
+	close(queue)
+	wg.Wait()
+	close(resChan)
+
+	// parse the responses
+	bar = utils.GetProgressBar(
+		len(resChan), 
+		"Processing received JSON(s)...",
+		utils.GetCompletionFunc(fmt.Sprintf("Finished processing %d JSON(s)!", len(resChan))),
+	)
+	var urlsMap, gdriveUrls []map[string]string
+	for res := range resChan {
+		postUrls, postGdriveLinks := ProcessFanboxPost(
+			res, nil, utils.DOWNLOAD_PATH, 
+			downloadThumbnail, downloadImages, downloadAttachments, downloadGdrive,
+		)
+		urlsMap = append(urlsMap, postUrls...)
+		gdriveUrls = append(gdriveUrls, postGdriveLinks...)
+		bar.Add(1)
+	}
+	return urlsMap, gdriveUrls
+}
+
+type CreatorPaginatedPosts struct {
+	Body []string `json:"body"`
+}
+
+type FanboxCreatorPosts struct {
+	Body struct {
+		Items []struct {
+			Id string `json:"id"`
+		} `json:"items"`
+	} `json:"body"`
+}
+
+// GetFanboxCreatorPosts returns a slice of post IDs for a given creator
+func GetFanboxPosts(creatorId string, cookies []http.Cookie) []string {
+	params := map[string]string{"creatorId": creatorId}
+	headers := GetPixivFanboxHeaders()
+	res, err := request.CallRequest("GET", "https://api.fanbox.cc/post.paginateCreator", 30, cookies, headers, params, false)
+	if err != nil || res.StatusCode != 200 {
+		if err == nil {
+			res.Body.Close()
+		}
+		utils.LogError(err, fmt.Sprintf("failed to get creator's pages for %s", creatorId), false)
+		return nil
+	}
+
+	var resJson CreatorPaginatedPosts
+	resBody := utils.ReadResBody(res)
+	err = json.Unmarshal(resBody, &resJson)
+	if err != nil {
+		utils.LogError(err, fmt.Sprintf("Failed to unmarshal json for Pixiv Fanbox creator's pages\nJSON: %s", string(resBody)), false)
+		return nil
+	}
+	paginatedUrls := resJson.Body
+
+	var wg sync.WaitGroup
+	maxConcurrency := utils.MAX_API_CALLS
+	if len(paginatedUrls) < maxConcurrency {
+		maxConcurrency = len(paginatedUrls)
+	}
+	queue := make(chan struct{}, maxConcurrency)
+	resChan := make(chan *http.Response, len(paginatedUrls))
+	for _, paginatedUrl := range paginatedUrls {
+		wg.Add(1)
+		queue <- struct{}{}
+		go func(reqUrl string) {
+			defer wg.Done()
+			res, err := request.CallRequest("GET", reqUrl, 30, cookies, headers, nil, false)
+			if err != nil || res.StatusCode != 200 {
+				if err == nil {
+					res.Body.Close()
+				}
+				utils.LogError(err, fmt.Sprintf("failed to get post for %s", reqUrl), false)
+			} else {
+				resChan <- res
+			}
+			<-queue
+		}(paginatedUrl)
+	}
+	close(queue)
+	wg.Wait()
+	close(resChan)
+
+	// parse the JSON response
+	var postIds []string
+	for res := range resChan {
+		resBody := utils.ReadResBody(res)
+		var resJson FanboxCreatorPosts
+		err = json.Unmarshal(resBody, &resJson)
+		if err != nil {
+			utils.LogError(err, fmt.Sprintf("Failed to unmarshal json for Pixiv Fanbox creator's post\nJSON: %s", string(resBody)), false)
+			continue
+		}
+
+		for _, postInfoMap := range resJson.Body.Items {
+			postIds = append(postIds, postInfoMap.Id)
+		}
+	}
+	return postIds
+}
+
+// Retrieves all the posts based on the slice of creator IDs and returns a slice of post IDs
+func GetCreatorsPosts(creatorIds []string, cookies []http.Cookie) []string {
+	var postIds []string
+	bar := utils.GetProgressBar(
+		len(creatorIds), 
+		"Getting post IDs from creator(s)...",
+		utils.GetCompletionFunc(fmt.Sprintf("Finished getting post IDs from %d creator(s)!", len(creatorIds))),
+	)
+	for _, creatorId := range creatorIds {
+		postIds = append(postIds, GetFanboxPosts(creatorId, cookies)...)
+		bar.Add(1)
+	}
+	return postIds
 }
