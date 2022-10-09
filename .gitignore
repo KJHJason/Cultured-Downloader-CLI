@@ -1,5 +1,4 @@
 *test*.*
 *.json
 *.log
-!winres.json
 *.syso
