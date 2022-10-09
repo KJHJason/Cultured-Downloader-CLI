@@ -45,6 +45,7 @@ func LogMessageToPath(message, filePath string) {
 	logToPathMutex.Lock()
 	defer logToPathMutex.Unlock()
 
+	os.MkdirAll(filepath.Dir(filePath), 0755)
 	var err error
 	var logFile *os.File
 	if !PathExists(filePath) {
