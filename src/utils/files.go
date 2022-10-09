@@ -71,15 +71,8 @@ func LogMessageToPath(message, filePath string) {
 // to prevent any error with file I/O using the path name
 func RemoveIllegalCharsInPathName(dirtyPathName string) string {
 	dirtyPathName = strings.TrimSpace(dirtyPathName)
-	partiallyCleanedPathName := strings.ReplaceAll(
-		strings.TrimSpace(dirtyPathName),
-		".",
-		" ",
-	)
-	return ILLEGAL_PATH_CHARS_REGEX.ReplaceAllString(
-		partiallyCleanedPathName,
-		"-",
-	)
+	partiallyCleanedPathName := strings.ReplaceAll(dirtyPathName, ".", " ")
+	return ILLEGAL_PATH_CHARS_REGEX.ReplaceAllString(partiallyCleanedPathName, "-")
 }
 
 // Returns a directory path for a post, artwork, etc. 
