@@ -471,7 +471,8 @@ func main() {
 		return
 	}
 	if *version {
-		fmt.Println("Cultured Downloader CLI v" + utils.VERSION)
+		fmt.Printf("Cultured Downloader CLI v%s by KJHJason\n", utils.VERSION)
+		fmt.Println("GitHub Repo: https://github.com/KJHJason/Cultured-Downloader-CLI")
 		return
 	}
 	if *pixivStartOauth {
