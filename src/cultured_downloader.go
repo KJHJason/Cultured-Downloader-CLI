@@ -92,8 +92,8 @@ func PixivFanboxDownloadProcess(
 // Start the download process for Pixiv
 func PixivDownloadProcess(
 	artworkIds, illustratorIds, tagNames, pageNums []string,
-	sortOrder, searchMode, ratingMode, artworkType, ugoiraOutputFormat, ffmpegPath string,
-	deleteUgoiraZip bool, ugoiraQuality int, cookies []http.Cookie,
+	sortOrder, searchMode, ratingMode, artworkType, ugoiraOutputFormat, ffmpegPath, pixivRefreshToken string,
+	deleteUgoiraZip bool, ugoiraQuality int, cookies []http.Cookie, pixivMobile *pixiv.PixivMobile,
 ) {
 	// check if FFmpeg is installed
 	cmd := exec.Command(ffmpegPath, "-version")
@@ -106,16 +106,32 @@ func PixivDownloadProcess(
 	var ugoiraToDownload []pixiv.Ugoira
 	var artworksToDownload []map[string]string
 	if len(artworkIds) > 0 {
-		artworksArr, ugoiraArr := pixiv.GetMultipleArtworkDetails(
-			artworkIds, utils.DOWNLOAD_PATH, cookies,
-		)
+		var artworksArr []map[string]string
+		var ugoiraArr []pixiv.Ugoira
+		if pixivRefreshToken == "" {
+			artworksArr, ugoiraArr = pixiv.GetMultipleArtworkDetails(
+				artworkIds, utils.DOWNLOAD_PATH, cookies,
+			)
+		} else {
+			artworksArr, ugoiraArr = pixivMobile.GetMultipleArtworkDetails(
+				artworkIds, utils.DOWNLOAD_PATH,
+			)
+		}
 		artworksToDownload = append(artworksToDownload, artworksArr...)
 		ugoiraToDownload = append(ugoiraToDownload, ugoiraArr...)
 	}
 	if len(illustratorIds) > 0 {
-		artworksArr, ugoiraArr := pixiv.GetMultipleIllustratorPosts(
-			illustratorIds, utils.DOWNLOAD_PATH, artworkType, cookies,
-		)
+		var artworksArr []map[string]string
+		var ugoiraArr []pixiv.Ugoira
+		if pixivRefreshToken == "" {
+			artworksArr, ugoiraArr = pixiv.GetMultipleIllustratorPosts(
+				illustratorIds, utils.DOWNLOAD_PATH, artworkType, cookies,
+			)
+		} else {
+			artworksArr, ugoiraArr = pixivMobile.GetMultipleIllustratorPosts(
+				illustratorIds, utils.DOWNLOAD_PATH, artworkType,
+			)
+		}
 		artworksToDownload = append(artworksToDownload, artworksArr...)
 		ugoiraToDownload = append(ugoiraToDownload, ugoiraArr...)
 	}
@@ -136,9 +152,17 @@ func PixivDownloadProcess(
 				minPage, _ = strconv.Atoi(pageNums[idx])
 				maxPage = minPage
 			}
-			artworksArr, ugoiraArr := pixiv.TagSearch(
-				tagName, utils.DOWNLOAD_PATH, sortOrder, searchMode, ratingMode, artworkType, minPage, maxPage, cookies,
-			)
+			var artworksArr []map[string]string
+			var ugoiraArr []pixiv.Ugoira
+			if pixivRefreshToken == "" {
+				artworksArr, ugoiraArr = pixiv.TagSearch(
+					tagName, utils.DOWNLOAD_PATH, sortOrder, searchMode, ratingMode, artworkType, minPage, maxPage, cookies,
+				)
+			} else {
+				artworksArr, ugoiraArr = pixivMobile.TagSearch(
+					tagName, searchMode, sortOrder, utils.DOWNLOAD_PATH, minPage, maxPage,
+				)
+			}
 			artworksToDownload = append(artworksToDownload, artworksArr...)
 			ugoiraToDownload = append(ugoiraToDownload, ugoiraArr...)
 			bar.Add(1)
@@ -238,6 +262,22 @@ func main() {
 		false,
 		"Whether to start the Pixiv OAuth process to get one's refresh token.",
 	)
+	pixivRefreshToken := flag.String(
+		"pixiv_refresh_token",
+		"",
+		utils.CombineStringsWithNewline(
+			[]string{
+				"Your Pixiv refresh token to use for the requests to Pixiv.",
+				"",
+				"If you're downloading from Pixiv, it is recommended to use this flag",
+				"instead of the \"-pixiv_session\" flag as there will be significantly lesser API calls to Pixiv.",
+				"However, if you prefer more flexibility with your Pixiv downloads, you can use",
+				"the \"-pixiv_session\" flag instead at the expense of longer API call time due to Pixiv's rate limiting.",
+				"",
+				"Note that you can get your refresh token by running the program with the \"-pixiv_start_oauth\" flag.",
+			},
+		),
+	)
 	pixivSession := flag.String(
 		"pixiv_session",
 		"",
@@ -258,7 +298,8 @@ func main() {
 				"The lower the value, the higher the quality.",
 				"Accepted values:",
 				"- mp4: 0-51",
-				"- webm: 0-63\n",
+				"- webm: 0-63",
+				"",
 				"For more information, see:",
 				"- mp4: https://trac.ffmpeg.org/wiki/Encode/H.264#crf",
 				"- webm: https://trac.ffmpeg.org/wiki/Encode/VP9#constantq\n",
@@ -329,6 +370,7 @@ func main() {
 				"Additionally, you can add the \"_d\" suffix for a descending order.",
 				"Example: \"popular_d\"",
 				"Note:",
+				"- If using the \"-pixiv_refresh_token\" flag, only \"date\", \"date_d\", \"popular_d\" are supported.",
 				"- Pixiv Premium is needed in order to search by popularity. Otherwise, Pixiv's API will default to \"date_d\".",
 				"- You can only specify ONE tag name per run!\n",
 			},
@@ -356,7 +398,10 @@ func main() {
 				"- r18: Restrict downloads to R-18 artworks",
 				"- safe: Restrict downloads to all ages artworks",
 				"- all: Include both R-18 and all ages artworks",
-				"Note that you can only specify ONE rating mode per run!\n",
+				"Notes:",
+				"- You can only specify ONE rating mode per run!",
+				"- If you're using the \"-pixiv_refresh_token\" flag, only \"all\" is supported.",
+				"",
 			},
 		),
 	)
@@ -369,7 +414,9 @@ func main() {
 				"- illust_and_ugoira: Restrict downloads to illustrations and ugoira only",
 				"- manga: Restrict downloads to manga only",
 				"- all: Include both illustrations, ugoira, and manga artworks",
-				"Note that you can only specify ONE artwork type per run!",
+				"Notes:",
+				"- You can only specify ONE artwork type per run!",
+				"- If you're using the \"-pixiv_refresh_token\" flag and are downloading by tag names, only \"all\" is supported.",
 			},
 		),
 	)
@@ -428,10 +475,14 @@ func main() {
 		return
 	}
 	if *pixivStartOauth {
-		pixiv.New("", 5).StartOauthFlow()
+		pixiv.NewPixivMobile("", 10).StartOauthFlow()
 	}
 
 	// check Pixiv args
+	var pixivMobile *pixiv.PixivMobile
+	if *pixivRefreshToken != "" {
+		pixivMobile = pixiv.NewPixivMobile(*pixivRefreshToken, 10)
+	}
 	ugoiraOutputFormat = utils.CheckStrArgs(utils.UGOIRA_ACCEPTED_EXT, *ugoiraOutputFormat, "ugoira output format")
 	sortOrder = utils.CheckStrArgs(utils.ACCEPTED_SORT_ORDER, *sortOrder, "sort order")
 	searchMode = utils.CheckStrArgs(utils.ACCEPTED_SEARCH_MODE, *searchMode, "search mode")
@@ -498,7 +549,7 @@ func main() {
 	)
 	PixivDownloadProcess(
 		artworkIds, illustratorIds, tagNames, pageNums,
-		*sortOrder, *searchMode, *ratingMode, *artworkType,
-		*ugoiraOutputFormat, *ffmpegPath, *deleteUgoiraZip, *ugoiraQuality, cookies,
+		*sortOrder, *searchMode, *ratingMode, *artworkType, *ugoiraOutputFormat, *ffmpegPath,
+		*pixivRefreshToken, *deleteUgoiraZip, *ugoiraQuality, cookies, pixivMobile,
 	)
 }

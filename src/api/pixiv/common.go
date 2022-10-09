@@ -209,15 +209,25 @@ func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpe
 	os.RemoveAll(imagesFolderPath)
 }
 
+// Returns the ugoira's zip file path and the ugoira's converted file path
+func GetUgoiraFilePaths(ugoireFilePath, ugoiraUrl, outputFormat string) (string, string) {
+	filePath := filepath.Join(ugoireFilePath, utils.GetLastPartOfURL(ugoiraUrl))
+	outputFilePath := utils.RemoveExtFromFilename(filePath) + outputFormat
+	return filePath, outputFilePath
+}
+
 // Downloads multiple Ugoira artworks and converts them based on the output format
 func DownloadMultipleUgoira(downloadInfo []Ugoira, outputFormat, ffmpegPath string, deleteZip bool, ugoiraQuality int, cookies []http.Cookie) {
 	outputFormat = strings.ToLower(outputFormat)
 	var urlsToDownload []map[string]string
 	for _, ugoira := range downloadInfo {
-		urlsToDownload = append(urlsToDownload, map[string]string{
-			"url": ugoira.Url,
-			"filepath": ugoira.FilePath,
-		})
+		filePath, outputFilePath := GetUgoiraFilePaths(ugoira.FilePath, ugoira.Url, outputFormat)
+		if !utils.PathExists(outputFilePath) {
+			urlsToDownload = append(urlsToDownload, map[string]string{
+				"url": ugoira.Url,
+				"filepath": filePath,
+			})
+		}
 	}
 
 	request.DownloadURLsParallel(
@@ -232,14 +242,12 @@ func DownloadMultipleUgoira(downloadInfo []Ugoira, outputFormat, ffmpegPath stri
 		fmt.Sprintf("Converting Ugoira to %s...", outputFormat),
 		utils.GetCompletionFunc(fmt.Sprintf("Finished converting %d Ugoira to %s!", len(downloadInfo), outputFormat)),
 	)
-	for _, downloadInfo := range downloadInfo {
-		zipFilePath := filepath.Join(downloadInfo.FilePath, utils.GetLastPartOfURL(downloadInfo.Url))
-		outputPath := utils.RemoveExtFromFilename(zipFilePath) + outputFormat
+	for _, ugoira := range downloadInfo {
+		zipFilePath, outputPath := GetUgoiraFilePaths(ugoira.FilePath, ugoira.Url, outputFormat)
 		if utils.PathExists(outputPath) {
 			bar.Add(1)
 			continue
 		}
-
 		if !utils.PathExists(zipFilePath) {
 			bar.Add(1)
 			continue
@@ -253,7 +261,7 @@ func DownloadMultipleUgoira(downloadInfo []Ugoira, outputFormat, ffmpegPath stri
 			continue
 		}
 
-		ConvertUgoira(downloadInfo, unzipFolderPath, outputPath, ffmpegPath, ugoiraQuality)
+		ConvertUgoira(ugoira, unzipFolderPath, outputPath, ffmpegPath, ugoiraQuality)
 		if deleteZip {
 			os.Remove(zipFilePath)
 		}

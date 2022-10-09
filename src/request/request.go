@@ -171,6 +171,9 @@ func DownloadURL(fileURL, filePath string, cookies []http.Cookie, headers, param
 //
 // Note: If the file already exists, the download process will be skipped
 func DownloadURLsParallel(urls []map[string]string, maxConcurrency int, cookies []http.Cookie, headers, params map[string]string) {
+	if len(urls) == 0 {
+		return
+	}
 	if len(urls) < maxConcurrency {
 		maxConcurrency = len(urls)
 	}

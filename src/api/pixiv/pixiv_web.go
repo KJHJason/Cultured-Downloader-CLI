@@ -229,7 +229,7 @@ func GetMultipleIllustratorPosts(illustratorIds []string, downloadPath, artworkT
 	bar := utils.GetProgressBar(
 		len(illustratorIds), 
 		"Getting artwork details from illustrator(s)...",
-		utils.GetCompletionFunc(fmt.Sprintf("Finished getting artwork details from %d illustrators!", len(illustratorIds))),
+		utils.GetCompletionFunc(fmt.Sprintf("Finished getting artwork details from %d illustrator(s)!", len(illustratorIds))),
 	)
 	var artworkIdsArr []string
 	for _, illustratorId := range illustratorIds {
