@@ -13,29 +13,52 @@ import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
 
-func CallRequest(method, url string, timeout int, cookies []http.Cookie, additionalHeaders, params map[string]string, checkStatus bool) (*http.Response, error) {
-	// sends a request to the website
-	req, err := http.NewRequest(method, url, nil)
-	if err != nil {
-		return nil, err
-	}
+// send the request to the target URL and retries if the request was not successful
+func sendRequest(reqUrl string, req *http.Request, timeout int, checkStatus bool) (*http.Response, error) {
+	var err error
+	var res *http.Response
 
-	// add cookies to the request
+	client := &http.Client{}
+	client.Timeout = time.Duration(timeout) * time.Second
+	for i := 1; i <= utils.RETRY_COUNTER; i++ {
+		res, err = client.Do(req)
+		if err == nil {
+			if !checkStatus {
+				return res, nil
+			} else if res.StatusCode == 200 {
+				return res, nil
+			}
+		}
+		time.Sleep(utils.GetRandomDelay())
+	}
+	err = fmt.Errorf("request to %s failed after %d retries", reqUrl, utils.RETRY_COUNTER)
+	utils.LogError(nil, err.Error(), false)
+	return nil, err
+}
+
+// add headers to the request
+func AddHeaders(headers map[string]string, req *http.Request) {
+	for key, value := range headers {
+		req.Header.Add(key, value)
+	}
+	if req.Header.Get("User-Agent") == "" {
+		req.Header.Add(
+			"User-Agent", utils.USER_AGENT,
+		)
+	}
+}
+
+// add cookies to the request
+func AddCookies(reqUrl string, cookies []http.Cookie, req *http.Request) {
 	for _, cookie := range cookies {
-		if strings.Contains(url, cookie.Domain) {
+		if strings.Contains(reqUrl, cookie.Domain) {
 			req.AddCookie(&cookie)
 		}
 	}
+}
 
-	// add headers to the request
-	for key, value := range additionalHeaders {
-		req.Header.Add(key, value)
-	}
-	req.Header.Add(
-		"User-Agent", utils.USER_AGENT,
-	)
-
-	// add params to the request
+// add params to the request
+func AddParams(params map[string]string, req *http.Request) {
 	if len(params) > 0 {
 		query := req.URL.Query()
 		for key, value := range params {
@@ -43,52 +66,80 @@ func CallRequest(method, url string, timeout int, cookies []http.Cookie, additio
 		}
 		req.URL.RawQuery = query.Encode()
 	}
-
-	// send the request
-	client := &http.Client{}
-	client.Timeout = time.Duration(timeout) * time.Second
-	for i := 1; i <= utils.RETRY_COUNTER; i++ {
-		resp, err := client.Do(req)
-		if err == nil {
-			if !checkStatus {
-				return resp, nil
-			} else if resp.StatusCode == 200 {
-				return resp, nil
-			}
-		}
-		time.Sleep(utils.GetRandomDelay())
-	}
-	errorMessage := fmt.Sprintf("failed to send a request to %s after %d retries", url, utils.RETRY_COUNTER)
-	utils.LogError(err, errorMessage, false)
-	return nil, err
 }
 
+// CallRequest is used to make a request to a URL and return the response
+//
+// If the request fails, it will retry the request again up 
+// to the defined max retries in the constants.go in utils package
+func CallRequest(
+	method, reqUrl string, timeout int, cookies []http.Cookie, 
+	additionalHeaders, params map[string]string, checkStatus bool,
+) (*http.Response, error) {
+	req, err := http.NewRequest(method, reqUrl, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	AddCookies(reqUrl, cookies, req)
+	AddHeaders(additionalHeaders, req)
+	AddParams(params, req)
+	return sendRequest(reqUrl, req, timeout, checkStatus)
+}
+
+// Sends a request with the given data
+func CallRequestWithData(
+	reqUrl, method string, timeout int, cookies []http.Cookie, 
+	data, additionalHeaders, params map[string]string, checkStatus bool,
+) (*http.Response, error) {
+	form := url.Values{}
+	for key, value := range data {
+		form.Add(key, value)
+	}
+	if len(data) > 0 {
+		additionalHeaders["Content-Type"] = "application/x-www-form-urlencoded"
+	}
+
+	req, err := http.NewRequest(method, reqUrl, strings.NewReader(form.Encode()))
+	if err != nil {
+		return nil, err
+	}
+
+	AddCookies(reqUrl, cookies, req)
+	AddHeaders(additionalHeaders, req)
+	AddParams(params, req)
+	return sendRequest(reqUrl, req, timeout, checkStatus)
+}
+
+// DownloadURL is used to download a file from a URL
+//
+// Note: If the file already exists, the download process will be skipped
 func DownloadURL(fileURL, filePath string, cookies []http.Cookie, headers, params map[string]string) error {
 	downloadTimeout := 25 * 60  // 25 minutes in seconds as downloads 
 								// can take quite a while for large files (especially for Pixiv)
 								// However, the average max file size on these platforms is around 300MB.
 								// Note: Fantia do have a max file size per post of 3GB if one paid extra for it.
-	resp, err := CallRequest("GET", fileURL, downloadTimeout, cookies, headers, params, true)
+	res, err := CallRequest("GET", fileURL, downloadTimeout, cookies, headers, params, true)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer res.Body.Close()
 
 	// check if filepath already have a filename attached
 	if filepath.Ext(filePath) == "" {
 		os.MkdirAll(filePath, 0755)
-		filename, err := url.PathUnescape(resp.Request.URL.String())
+		filename, err := url.PathUnescape(res.Request.URL.String())
 		if err != nil {
 			panic(err)
 		}
 		filename = utils.GetLastPartOfURL(filename)
-		filenameWithoutExt := strings.TrimSuffix(filename, filepath.Ext(filename))
+		filenameWithoutExt := utils.RemoveExtFromFilename(filename)
 		filePath = filepath.Join(filePath, filenameWithoutExt + strings.ToLower(filepath.Ext(filename)))
 	} else {
 		filePathDir := filepath.Dir(filePath)
 		os.MkdirAll(filePathDir, 0755)
-		filePathWithoutExt := strings.TrimSuffix(filePath, filepath.Ext(filePath))
-		filePath = filepath.Join(filePathDir, filePathWithoutExt + strings.ToLower(filepath.Ext(filePath)))
+		filePathWithoutExt := utils.RemoveExtFromFilename(filePath)
+		filePath = filePathWithoutExt + strings.ToLower(filepath.Ext(filePath))
 	}
 
 	// check if the file already exists
@@ -104,7 +155,7 @@ func DownloadURL(fileURL, filePath string, cookies []http.Cookie, headers, param
 
 	// write the body to file
 	// https://stackoverflow.com/a/11693049/16377492
-	_, err = io.Copy(file, resp.Body)
+	_, err = io.Copy(file, res.Body)
 	if err != nil {
 		file.Close()
 		os.Remove(filePath)
@@ -116,11 +167,24 @@ func DownloadURL(fileURL, filePath string, cookies []http.Cookie, headers, param
 	return nil
 }
 
+// DownloadURLsParallel is used to download multiple files from URLs in parallel
+//
+// Note: If the file already exists, the download process will be skipped
 func DownloadURLsParallel(urls []map[string]string, maxConcurrency int, cookies []http.Cookie, headers, params map[string]string) {
+	if len(urls) == 0 {
+		return
+	}
 	if len(urls) < maxConcurrency {
 		maxConcurrency = len(urls)
 	}
 
+	bar := utils.GetProgressBar(
+		len(urls),
+		"Downloading...",
+		utils.GetCompletionFunc(
+			fmt.Sprintf("Downloaded %d files", len(urls)),
+		),
+	)
 	var wg sync.WaitGroup
 	queue := make(chan struct{}, maxConcurrency)
 	for _, url := range urls {
@@ -129,6 +193,7 @@ func DownloadURLsParallel(urls []map[string]string, maxConcurrency int, cookies 
 		go func(fileUrl, filePath string) {
 			defer wg.Done()
 			DownloadURL(fileUrl, filePath, cookies, headers, params)
+			bar.Add(1)
 			<-queue
 		}(url["url"], url["filepath"])
 	}

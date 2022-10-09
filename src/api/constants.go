@@ -8,7 +8,8 @@ const (
 	PixivFanbox      = "fanbox"
 	PixivFanboxTitle = "Pixiv Fanbox"
 
-	attachmentFolder = "attachments"
-	imagesFolder 	 = "images"
-	gdriveFolder 	 = "gdrive"
+	PasswordFilename = "detected_passwords.txt"
+	AttachmentFolder = "attachments"
+	ImagesFolder 	 = "images"
+	GdriveFolder 	 = "gdrive"
 )
