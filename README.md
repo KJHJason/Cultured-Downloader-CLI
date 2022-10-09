@@ -43,7 +43,7 @@ This program has only been tested on Windows 10. Hence, if you encounter any iss
 ## Usage Example
 
 The example below assumes you are using [Go](https://go.dev/dl/) to run the program.
-Otherwise, instead of `go run cultured_downloader.go`, you can run the executable file by typing `./cultured_downloader.exe` for Windows or `./cultured_downloader` for Linux in the terminal.
+Otherwise, instead of `go run cultured_downloader.go`, you can run the executable file by typing `./cultured_downloader.exe` for Windows.
 
 Note:
 - For boolean flags, you can use `-flag` or `-flag=true` to enable the flag, and `-flag=false` to disable the flag.
