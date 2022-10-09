@@ -14,7 +14,6 @@
     <a href="https://github.com/KJHJason/Cultured-Downloader-CLI/pulls">
         <img src="https://img.shields.io/github/issues-pr/KJHJason/Cultured-Downloader-CLI">
     </a>
-    <img src="https://img.shields.io/github/downloads/KJHJason/Cultured-Downloader-CLI/latest/total">
 </div>
 
 ## Introduction
