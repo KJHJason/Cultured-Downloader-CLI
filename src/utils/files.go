@@ -19,6 +19,8 @@ func PathExists(filepath string) bool {
 }
 
 // check if the file exists and has more than 0 bytes
+// 
+// Returns false if the file exists and has more than 0 bytes
 func CheckIfFileIsEmpty(filepath string) (bool, error) {
 	if PathExists(filepath) {
 		file, err := os.Open(filepath)
@@ -79,9 +81,9 @@ func RemoveIllegalCharsInPathName(dirtyPathName string) string {
 	)
 }
 
-// Creates a directory for a post, artwork, etc. 
+// Returns a directory path for a post, artwork, etc. 
 // based on the user's saved download path and the provided arguments
-func CreatePostFolder(downloadPath, creatorName, postId, postTitle string) string {
+func GetPostFolder(downloadPath, creatorName, postId, postTitle string) string {
 	creatorName = RemoveIllegalCharsInPathName(creatorName)
 	postTitle = RemoveIllegalCharsInPathName(postTitle)
 
@@ -90,7 +92,6 @@ func CreatePostFolder(downloadPath, creatorName, postId, postTitle string) strin
 		creatorName,
 		fmt.Sprintf("[%s] %s", postId, postTitle),
 	)
-	os.MkdirAll(postFolderPath, 0755)
 	return postFolderPath
 }
 

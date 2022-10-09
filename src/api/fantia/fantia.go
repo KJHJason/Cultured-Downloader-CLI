@@ -58,7 +58,7 @@ func ProcessFantiaPost(
 	postId := strconv.Itoa(postStruct.ID)
 	postTitle := postStruct.Title
 	creatorName := postStruct.Fanclub.User.Name
-	postFolderPath := utils.CreatePostFolder(filepath.Join(downloadPath, api.FantiaTitle), creatorName, postId, postTitle)
+	postFolderPath := utils.GetPostFolder(filepath.Join(downloadPath, api.FantiaTitle), creatorName, postId, postTitle)
 
 	var urlsMap []map[string]string
 	thumbnail := postStruct.Thumb.Original

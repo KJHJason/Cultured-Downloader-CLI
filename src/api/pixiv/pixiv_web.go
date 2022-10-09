@@ -116,7 +116,7 @@ func GetArtworkDetails(artworkId, downloadPath string, cookies []http.Cookie) (s
 	artworkJsonBody := artworkDetailsJsonRes.Body
 	illustratorName := artworkJsonBody.UserName
 	artworkName := artworkJsonBody.Title
-	artworkPostDir := utils.CreatePostFolder(filepath.Join(downloadPath, api.PixivTitle), illustratorName, artworkId, artworkName)
+	artworkPostDir := utils.GetPostFolder(filepath.Join(downloadPath, api.PixivTitle), illustratorName, artworkId, artworkName)
 
 	artworkType := artworkJsonBody.IllustType
 	switch artworkType {

@@ -301,7 +301,7 @@ func (pixiv *PixivMobile) ProcessArtworkJson(artworkJson map[string]interface{},
 	artworkType := artworkJson["type"].(string)
 	illustratorJson := artworkJson["user"].(map[string]interface{})
 	illustratorName := illustratorJson["name"].(string)
-	artworkFolderPath := utils.CreatePostFolder(
+	artworkFolderPath := utils.GetPostFolder(
 		filepath.Join(downloadPath, api.PixivTitle), illustratorName, artworkId, artworkTitle,
 	)
 

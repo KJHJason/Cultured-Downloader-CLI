@@ -46,7 +46,7 @@ func ProcessFanboxPost(
 	postId := postJson["id"].(string)
 	postTitle := postJson["title"].(string)
 	creatorId := postJson["creatorId"].(string)
-	postFolderPath := utils.CreatePostFolder(filepath.Join(downloadPath, "Pixiv-Fanbox"), creatorId, postId, postTitle)
+	postFolderPath := utils.GetPostFolder(filepath.Join(downloadPath, "Pixiv-Fanbox"), creatorId, postId, postTitle)
 
 	var urlsMap []map[string]string
 	thumbnail := postJson["coverImageUrl"]

@@ -539,6 +539,10 @@ func main() {
 		}
 	}
 
+	color.Yellow("CAUTION:")
+	color.Yellow("Please do NOT stop the program while it is downloading.")
+	color.Yellow("Doing so may result in incomplete downloads and corrupted files.")
+	fmt.Println()
 	FantiaDownloadProcess(
 		fantiaPostIds, fanclubIds, cookies,
 		*downloadThumbnail, *downloadImages, *downloadAttachments,
