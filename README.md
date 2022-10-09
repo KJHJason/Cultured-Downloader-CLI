@@ -37,6 +37,7 @@ This program has only been tested on Windows 10. Hence, if you encounter any iss
 - Cultured Downloader is not liable for any damages caused.
 - Pixiv:
   - Pixiv API calls are throttled to avoid being rate limited.
+    - You can try using the `-pixiv_refresh_token` flag instead of the `-pixiv_session` flag if you prefer faster downloads as it generally has lesser API calls but at the expense of a less flexible download options.
   - Try not to overuse the program when downloading from Pixiv as it can cause your IP to be flagged by Cloudflare.
 
 ## Usage Example
