@@ -61,7 +61,11 @@ func ProcessFanboxPost(
 	//	1. With proper formatting and mapping of post content elements ("article")
 	//	2. With a simple formatting that obly contains info about the text and files ("file", "image")
 	postType := postJson["type"].(string)
-	postContent := postJson["body"].(map[string]interface{})
+	postBody := postJson["body"]
+	if postBody == nil {
+		return urlsMap, nil
+	}
+	postContent := postBody.(map[string]interface{})
 	if postContent == nil {
 		return urlsMap, nil
 	}
