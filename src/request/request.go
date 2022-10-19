@@ -137,7 +137,10 @@ func CallRequestNoCompression(
 // DownloadURL is used to download a file from a URL
 //
 // Note: If the file already exists, the download process will be skipped
-func DownloadURL(fileURL, filePath string, cookies []http.Cookie, headers, params map[string]string) error {
+func DownloadURL(
+	fileURL, filePath string, cookies []http.Cookie, 
+	headers, params map[string]string, overwriteExistingFiles bool,
+) error {
 	// Send a HEAD request first to get the expected file size from the Content-Length header.
 	// A GET request might work but most of the time 
 	// as the Content-Length header may not present due to chunked encoding.
@@ -189,10 +192,11 @@ func DownloadURL(fileURL, filePath string, cookies []http.Cookie, headers, param
 			return nil
 		}
 	} else {
-		if fileSize > 0 {
+		if !overwriteExistingFiles && fileSize > 0 {
 			// If the file already exists and have more than 0 bytes
 			// but the Content-Length header does not exist in the response,
-			// we will assume that the file is already downloaded and skip the download process.
+			// we will assume that the file is already downloaded 
+			// and skip the download process if the overwrite flag is false.
 			return nil
 		}
 	}
@@ -220,7 +224,10 @@ func DownloadURL(fileURL, filePath string, cookies []http.Cookie, headers, param
 // DownloadURLsParallel is used to download multiple files from URLs in parallel
 //
 // Note: If the file already exists, the download process will be skipped
-func DownloadURLsParallel(urls []map[string]string, maxConcurrency int, cookies []http.Cookie, headers, params map[string]string) {
+func DownloadURLsParallel(
+	urls []map[string]string, maxConcurrency int, cookies []http.Cookie, 
+	headers, params map[string]string, overwriteExistingFiles bool,
+) {
 	if len(urls) == 0 {
 		return
 	}
@@ -242,7 +249,7 @@ func DownloadURLsParallel(urls []map[string]string, maxConcurrency int, cookies 
 		queue <- struct{}{}
 		go func(fileUrl, filePath string) {
 			defer wg.Done()
-			DownloadURL(fileUrl, filePath, cookies, headers, params)
+			DownloadURL(fileUrl, filePath, cookies, headers, params, overwriteExistingFiles)
 			bar.Add(1)
 			<-queue
 		}(url["url"], url["filepath"])

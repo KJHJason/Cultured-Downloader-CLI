@@ -18,6 +18,10 @@ import (
 
 const (
 	GDRIVE_ERROR_FILENAME = "gdrive_download.log"
+
+	// file fields to fetch from GDrive API:
+	// https://developers.google.com/drive/api/v3/reference/files
+	GDRIVE_FILE_FIELDS = "id,name,size,mimeType,md5Checksum" 
 )
 
 type GDrive struct {
@@ -66,6 +70,7 @@ type GDriveFile struct {
 	Kind string `json:"kind"`
 	Id string `json:"id"`
 	Name string `json:"name"`
+	Size string `json:"size"`
 	MimeType string `json:"mimeType"`
 	Md5Checksum string `json:"md5Checksum"`
 }
@@ -119,7 +124,7 @@ func (gdrive GDrive) GetFolderContents(folderId, logPath string) []map[string]st
 	params := map[string]string{
 		"key": gdrive.apiKey,
 		"q": fmt.Sprintf("'%s' in parents", folderId),
-		"fields": "nextPageToken,files(id,name,mimeType,md5Checksum)",
+		"fields": fmt.Sprintf("nextPageToken,files(%s)", GDRIVE_FILE_FIELDS),
 	}
 	files := []map[string]string{}
 	pageToken := ""
@@ -148,6 +153,7 @@ func (gdrive GDrive) GetFolderContents(folderId, logPath string) []map[string]st
 			files = append(files, map[string]string{
 				"id": file.Id,
 				"name": file.Name,
+				"size": file.Size,
 				"mimeType": file.MimeType,
 				"md5Checksum": file.Md5Checksum,
 			})
@@ -180,7 +186,7 @@ func (gdrive GDrive) GetNestedFolderContents(folderId, logPath string) []map[str
 func (gdrive GDrive) GetFileDetails(fileId, logPath string) map[string]string {
 	params := map[string]string{
 		"key": gdrive.apiKey,
-		"fields": "id,name,mimeType,md5Checksum",
+		"fields": GDRIVE_FILE_FIELDS,
 	}
 	url := fmt.Sprintf("%s/%s", gdrive.apiUrl, fileId)
 	res, err := request.CallRequest("GET", url, gdrive.timeout, nil, nil, params, false)
@@ -200,6 +206,7 @@ func (gdrive GDrive) GetFileDetails(fileId, logPath string) map[string]string {
 	return map[string]string{
 		"id": gdriveFile.Id,
 		"name": gdriveFile.Name,
+		"size": gdriveFile.Size,
 		"mimeType": gdriveFile.MimeType,
 		"md5Checksum": gdriveFile.Md5Checksum,
 	}
@@ -210,17 +217,27 @@ func (gdrive GDrive) GetFileDetails(fileId, logPath string) map[string]string {
 // If the md5Checksum has a mismatch, the file will be overwritten and downloaded again
 func (gdrive GDrive) DownloadFile(fileInfo map[string]string, filePath string) error {
 	if utils.PathExists(filePath) {
-		// check the md5 checksum
+		// check the md5 checksum and the file size
 		file, err := os.Open(filePath)
-		if err == nil {
-			md5Hash := md5.New()
-			_, err := io.Copy(md5Hash, file)
+		if err != nil {
+			panic(err)
+		}
+		fileStatInfo, err := file.Stat()
+		if err != nil {
+			panic(err)
+		}
+		fileSize := fileStatInfo.Size()
+		if fmt.Sprintf("%d", fileSize) == fileInfo["size"] {
+			md5Checksum := md5.New()
+			_, err = io.Copy(md5Checksum, file)
 			file.Close()
 			if err == nil {
-				if fmt.Sprintf("%x", md5Hash.Sum(nil)) == fileInfo["md5Checksum"] {
+				if fmt.Sprintf("%x", md5Checksum.Sum(nil)) == fileInfo["md5Checksum"] {
 					return nil
 				}
 			}
+		} else {
+			file.Close()
 		}
 	}
 

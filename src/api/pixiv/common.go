@@ -217,7 +217,9 @@ func GetUgoiraFilePaths(ugoireFilePath, ugoiraUrl, outputFormat string) (string,
 }
 
 // Downloads multiple Ugoira artworks and converts them based on the output format
-func DownloadMultipleUgoira(downloadInfo []Ugoira, outputFormat, ffmpegPath string, deleteZip bool, ugoiraQuality int, cookies []http.Cookie) {
+func DownloadMultipleUgoira(
+	downloadInfo []Ugoira, outputFormat, ffmpegPath string, deleteZip, overwriteExistingFiles bool, ugoiraQuality int, cookies []http.Cookie,
+) {
 	outputFormat = strings.ToLower(outputFormat)
 	var urlsToDownload []map[string]string
 	for _, ugoira := range downloadInfo {
@@ -236,6 +238,7 @@ func DownloadMultipleUgoira(downloadInfo []Ugoira, outputFormat, ffmpegPath stri
 		cookies, 
 		GetPixivRequestHeaders(), 
 		nil,
+		overwriteExistingFiles,
 	)
 	bar := utils.GetProgressBar(
 		len(downloadInfo), 

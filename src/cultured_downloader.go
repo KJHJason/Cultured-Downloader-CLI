@@ -22,7 +22,7 @@ import (
 // Start the download process for Fantia
 func FantiaDownloadProcess(
 	fantiaPostIds, fanclubIds []string, cookies []http.Cookie,
-	downloadThumbnail, downloadImages, downloadAttachments bool,
+	downloadThumbnail, downloadImages, downloadAttachments, overwriteExistingFiles bool,
 ) {
 	if !downloadThumbnail && !downloadImages && !downloadAttachments {
 		return
@@ -46,14 +46,16 @@ func FantiaDownloadProcess(
 	}
 
 	if len(urlsToDownload) > 0 {
-		request.DownloadURLsParallel(urlsToDownload, utils.MAX_CONCURRENT_DOWNLOADS, cookies, nil, nil)
+		request.DownloadURLsParallel(
+			urlsToDownload, utils.MAX_CONCURRENT_DOWNLOADS, cookies, nil, nil, overwriteExistingFiles,
+		)
 	}
 }
 
 // Start the download process for Pixiv Fanbox
 func PixivFanboxDownloadProcess(
 	pixivFanboxPostIds, creatorIds []string, cookies []http.Cookie, gdriveApiKey string, gdrive *gdrive.GDrive,
-	downloadThumbnail, downloadImages, downloadAttachments, downloadGdrive bool,
+	downloadThumbnail, downloadImages, downloadAttachments, downloadGdrive, overwriteExistingFiles bool,
 ) {
 	if !downloadThumbnail && !downloadImages && !downloadAttachments && !downloadGdrive {
 		return
@@ -81,7 +83,7 @@ func PixivFanboxDownloadProcess(
 	if len(urlsToDownload) > 0 {
 		request.DownloadURLsParallel(
 			urlsToDownload, utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
-			cookies, pixiv_fanbox.GetPixivFanboxHeaders(), nil,
+			cookies, pixiv_fanbox.GetPixivFanboxHeaders(), nil, overwriteExistingFiles,
 		)
 	}
 	if gdriveApiKey != "" && len(gdriveUrlsToDownload) > 0 {
@@ -93,7 +95,7 @@ func PixivFanboxDownloadProcess(
 func PixivDownloadProcess(
 	artworkIds, illustratorIds, tagNames, pageNums []string,
 	sortOrder, searchMode, ratingMode, artworkType, ugoiraOutputFormat, ffmpegPath, pixivRefreshToken string,
-	deleteUgoiraZip bool, ugoiraQuality int, cookies []http.Cookie, pixivMobile *pixiv.PixivMobile,
+	deleteUgoiraZip, overwriteExistingFiles bool, ugoiraQuality int, cookies []http.Cookie, pixivMobile *pixiv.PixivMobile,
 ) {
 	// check if FFmpeg is installed
 	cmd := exec.Command(ffmpegPath, "-version")
@@ -170,10 +172,16 @@ func PixivDownloadProcess(
 	}
 
 	if len(artworksToDownload) > 0 {
-		request.DownloadURLsParallel(artworksToDownload, utils.PIXIV_MAX_CONCURRENT_DOWNLOADS, cookies, pixiv.GetPixivRequestHeaders(), nil)
+		request.DownloadURLsParallel(
+			artworksToDownload, utils.PIXIV_MAX_CONCURRENT_DOWNLOADS, 
+			cookies, pixiv.GetPixivRequestHeaders(), nil, overwriteExistingFiles,
+		)
 	}
 	if len(ugoiraToDownload) > 0 {
-		pixiv.DownloadMultipleUgoira(ugoiraToDownload, ugoiraOutputFormat, ffmpegPath, deleteUgoiraZip, ugoiraQuality, cookies)
+		pixiv.DownloadMultipleUgoira(
+			ugoiraToDownload, ugoiraOutputFormat, ffmpegPath, 
+			deleteUgoiraZip, overwriteExistingFiles, ugoiraQuality, cookies,
+		)
 	}
 }
 
@@ -432,6 +440,11 @@ func main() {
 			},
 		),
 	)
+	overwriteExistingFiles := flag.Bool(
+		"overwrite",
+		false,
+		"When the Content-Length header is not in the response, overwrite any existing files when downloading.",
+	)
 	downloadPath := flag.String(
 		"download_path",
 		"",
@@ -546,15 +559,15 @@ func main() {
 	fmt.Println()
 	FantiaDownloadProcess(
 		fantiaPostIds, fanclubIds, cookies,
-		*downloadThumbnail, *downloadImages, *downloadAttachments,
+		*downloadThumbnail, *downloadImages, *downloadAttachments, *overwriteExistingFiles,
 	)
 	PixivFanboxDownloadProcess(
 		pixivFanboxPostIds, creatorIds, cookies, *gdriveApiKey, gdriveObj,
-		*downloadThumbnail, *downloadImages, *downloadAttachments, *downloadGdrive,
+		*downloadThumbnail, *downloadImages, *downloadAttachments, *downloadGdrive, *overwriteExistingFiles,
 	)
 	PixivDownloadProcess(
 		artworkIds, illustratorIds, tagNames, pageNums,
 		*sortOrder, *searchMode, *ratingMode, *artworkType, *ugoiraOutputFormat, *ffmpegPath,
-		*pixivRefreshToken, *deleteUgoiraZip, *ugoiraQuality, cookies, pixivMobile,
+		*pixivRefreshToken, *deleteUgoiraZip, *overwriteExistingFiles, *ugoiraQuality, cookies, pixivMobile,
 	)
 }
