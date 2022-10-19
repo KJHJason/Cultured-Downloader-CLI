@@ -14,11 +14,16 @@ import (
 )
 
 // send the request to the target URL and retries if the request was not successful
-func sendRequest(reqUrl string, req *http.Request, timeout int, checkStatus bool) (*http.Response, error) {
+func sendRequest(reqUrl string, req *http.Request, timeout int, checkStatus, disableCompression bool) (*http.Response, error) {
 	var err error
 	var res *http.Response
 
-	client := &http.Client{}
+	transport := &http.Transport{
+		DisableCompression: disableCompression,
+	}
+	client := &http.Client{
+		Transport: transport,
+	}
 	client.Timeout = time.Duration(timeout) * time.Second
 	for i := 1; i <= utils.RETRY_COUNTER; i++ {
 		res, err = client.Do(req)
@@ -84,7 +89,7 @@ func CallRequest(
 	AddCookies(reqUrl, cookies, req)
 	AddHeaders(additionalHeaders, req)
 	AddParams(params, req)
-	return sendRequest(reqUrl, req, timeout, checkStatus)
+	return sendRequest(reqUrl, req, timeout, checkStatus, false)
 }
 
 // Sends a request with the given data
@@ -108,13 +113,41 @@ func CallRequestWithData(
 	AddCookies(reqUrl, cookies, req)
 	AddHeaders(additionalHeaders, req)
 	AddParams(params, req)
-	return sendRequest(reqUrl, req, timeout, checkStatus)
+	return sendRequest(reqUrl, req, timeout, checkStatus, false)
+}
+
+// Sends a request to the given URL but disables golang's HTTP client compression
+//
+// Useful for calling a HEAD request to obtain the actual uncompressed file's file size
+func CallRequestNoCompression(
+	method, reqUrl string, timeout int, cookies []http.Cookie, 
+	additionalHeaders, params map[string]string, checkStatus bool,
+) (*http.Response, error) {
+	req, err := http.NewRequest(method, reqUrl, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	AddCookies(reqUrl, cookies, req)
+	AddHeaders(additionalHeaders, req)
+	AddParams(params, req)
+	return sendRequest(reqUrl, req, timeout, checkStatus, true)
 }
 
 // DownloadURL is used to download a file from a URL
 //
 // Note: If the file already exists, the download process will be skipped
 func DownloadURL(fileURL, filePath string, cookies []http.Cookie, headers, params map[string]string) error {
+	// Send a HEAD request first to get the expected file size from the Content-Length header.
+	// A GET request might work but most of the time 
+	// as the Content-Length header may not present due to chunked encoding.
+	headRes, err := CallRequestNoCompression("HEAD", fileURL, 10, cookies, headers, params, true)
+	if err != nil {
+		return err
+	}
+	fileReqContentLength := headRes.ContentLength
+	headRes.Body.Close()
+
 	downloadTimeout := 25 * 60  // 25 minutes in seconds as downloads 
 								// can take quite a while for large files (especially for Pixiv)
 								// However, the average max file size on these platforms is around 300MB.
@@ -142,9 +175,26 @@ func DownloadURL(fileURL, filePath string, cookies []http.Cookie, headers, param
 		filePath = filePathWithoutExt + strings.ToLower(filepath.Ext(filePath))
 	}
 
-	// check if the file already exists
-	if empty, _ := utils.CheckIfFileIsEmpty(filePath); !empty {
-		return nil
+	// check if the file size matches the content length
+	// if not, then the file does not exist or is corrupted and should be re-downloaded
+	fileSize, err := utils.GetFileSize(filePath)
+	if err != nil {
+		panic(err)
+	}
+	if fileReqContentLength != -1 {
+		if fileSize == fileReqContentLength {
+			// If the file already exists and the file size
+			// matches the expected file size in the Content-Length header,
+			// then skip the download process.
+			return nil
+		}
+	} else {
+		if fileSize > 0 {
+			// If the file already exists and have more than 0 bytes
+			// but the Content-Length header does not exist in the response,
+			// we will assume that the file is already downloaded and skip the download process.
+			return nil
+		}
 	}
 
 	// create the file
