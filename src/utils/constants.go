@@ -47,6 +47,10 @@ var (
 	)
 	GDRIVE_REGEX_ID_INDEX = GDRIVE_URL_REGEX.SubexpIndex("id")
 	GDRIVE_REGEX_TYPE_INDEX = GDRIVE_URL_REGEX.SubexpIndex("type")
+	FANTIA_IMAGE_URL_REGEX = regexp.MustCompile(
+		`original_url\":\"(?P<url>/posts/\d+/album_image\?query=[\w%-]*)\"`,
+	)
+	FANTIA_REGEX_URL_INDEX = FANTIA_IMAGE_URL_REGEX.SubexpIndex("url")
 
 	// For Pixiv Fanbox
 	PASSWORD_TEXTS = []string {"パス", "Pass", "pass", "密码"}
@@ -66,7 +70,7 @@ var (
 )
 
 const (
-	VERSION = "1.0.3"
+	VERSION = "1.0.4"
 	MAX_RETRY_DELAY = 2.45
 	MIN_RETRY_DELAY = 0.95
 	RETRY_COUNTER = 4

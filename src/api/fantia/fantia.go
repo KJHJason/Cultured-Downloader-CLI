@@ -13,6 +13,8 @@ import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 )
 
+const FantiaUrl = "https://fantia.jp"
+
 type FantiaPost struct {
 	Post struct {
 		ID    int    `json:"id"`
@@ -27,13 +29,23 @@ type FantiaPost struct {
 		} `json:"fanclub"`
 		Status string `json:"status"`
 		PostContents []struct {
+			// Any attachments such as pdfs that are on their dedicated section
 			AttachmentURI string `json:"attachment_uri"`
+
+			// For images that are uploaded to their own section
 			PostContentPhotos []struct {
 				ID int `json:"id"`
 				URL struct {
 					Original string `json:"original"`
 				} `json:"url"`
 			} `json:"post_content_photos"`
+
+			// For images that are embedded in the post content
+			Comment string `json:"comment"`
+
+			// for attachments such as pdfs that are embedded in the post content
+			DownloadUri string `json:"download_uri"`
+			Filename string `json:"filename"`
 		} `json:"post_contents"`
 	} `json:"post"`
 }
@@ -75,9 +87,21 @@ func ProcessFantiaPost(
 	}
 	for _, content := range postContent{
 		if downloadImages {
+			// download images that are uploaded to their own section
 			postContentPhotos := content.PostContentPhotos
 			for _, image := range postContentPhotos {
 				imageUrl := image.URL.Original
+				urlsMap = append(urlsMap, map[string]string{
+					"url":      imageUrl,
+					"filepath": filepath.Join(postFolderPath, api.ImagesFolder),
+				})
+			}
+
+			// for images that are embedded in the post content
+			comment := content.Comment
+			matchedStr := utils.FANTIA_IMAGE_URL_REGEX.FindAllStringSubmatch(comment, -1)
+			for _, matched := range matchedStr {
+				imageUrl := FantiaUrl + matched[utils.FANTIA_REGEX_URL_INDEX]
 				urlsMap = append(urlsMap, map[string]string{
 					"url":      imageUrl,
 					"filepath": filepath.Join(postFolderPath, api.ImagesFolder),
@@ -89,10 +113,19 @@ func ProcessFantiaPost(
 			// get the attachment url string if it exists
 			attachmentUrl := content.AttachmentURI
 			if attachmentUrl != "" {
-				attachmentUrlStr := "https://fantia.jp" + attachmentUrl
+				attachmentUrlStr := FantiaUrl + attachmentUrl
 				urlsMap = append(urlsMap, map[string]string{
 					"url":      attachmentUrlStr,
 					"filepath": filepath.Join(postFolderPath, api.AttachmentFolder),
+				})
+			} else if content.DownloadUri != "" {
+				// if the attachment url string does not exist, 
+				// then get the download url for the file
+				downloadUrl := FantiaUrl + content.DownloadUri
+				filename := content.Filename
+				urlsMap = append(urlsMap, map[string]string{
+					"url":      downloadUrl,
+					"filepath": filepath.Join(postFolderPath, api.AttachmentFolder, filename),
 				})
 			}
 		}
@@ -118,14 +151,14 @@ func GetPostDetails(
 		"Getting Fantia post details...",
 		utils.GetCompletionFunc(fmt.Sprintf("Finished getting %d Fantia post details!", len(postIds))),
 	)
-	url := "https://fantia.jp/api/v1/posts/" 
+	url := FantiaUrl + "/api/v1/posts/" 
 	for _, postId := range postIds {
 		wg.Add(1)
 		queue <- struct{}{}
 		go func(postId string) {
 			defer wg.Done()
 
-			header := map[string]string{"Referer": "https://fantia.jp/posts/" + postId}
+			header := map[string]string{"Referer": FantiaUrl + "/posts/" + postId}
 			res, err := request.CallRequest("GET", url + postId, 30, cookies, header, nil, false)
 			if err != nil || res.StatusCode != 200 {
 				utils.LogError(err, fmt.Sprintf("failed to get post details for %s", url), false)
@@ -163,7 +196,7 @@ func GetFantiaPosts(creatorId string, cookies []http.Cookie) []string {
 	var postIds []string
 	pageNum := 1
 	for {
-		url := fmt.Sprintf("https://fantia.jp/fanclubs/%s/posts", creatorId)
+		url := fmt.Sprintf(FantiaUrl + "/fanclubs/%s/posts", creatorId)
 		params := map[string]string{
 			"page":   fmt.Sprintf("%d", pageNum),
 			"q[s]":   "newer",
