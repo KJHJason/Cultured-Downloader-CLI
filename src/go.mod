@@ -6,7 +6,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.8.0
 	github.com/fatih/color v1.13.0
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
-	github.com/schollz/progressbar/v3 v3.11.0
+	github.com/schollz/progressbar/v3 v3.12.0
 )
 
 require (
@@ -17,6 +17,6 @@ require (
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
 	github.com/rivo/uniseg v0.4.2 // indirect
 	golang.org/x/net v0.0.0-20221004154528-8021a29435af // indirect
-	golang.org/x/sys v0.0.0-20221006211917-84dc82d7e875 // indirect
-	golang.org/x/term v0.0.0-20220919170432-7a66f970e087 // indirect
+	golang.org/x/sys v0.1.0 // indirect
+	golang.org/x/term v0.1.0 // indirect
 )
