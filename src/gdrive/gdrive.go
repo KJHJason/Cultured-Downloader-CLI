@@ -378,8 +378,10 @@ func (gdrive GDrive) DownloadGdriveUrls(gdriveUrls []map[string]string) {
 	for _, gdriveId := range gdriveIds {
 		if gdriveId["type"] == "file" {
 			fileInfo := gdrive.GetFileDetails(gdriveId["id"], gdriveId["filepath"])
-			fileInfo["filepath"] = gdriveId["filepath"]
-			gdriveFilesInfo = append(gdriveFilesInfo, fileInfo)
+			if fileInfo != nil {
+				fileInfo["filepath"] = gdriveId["filepath"]
+				gdriveFilesInfo = append(gdriveFilesInfo, fileInfo)
+			}
 		} else if gdriveId["type"] == "folder" {
 			filesInfo := gdrive.GetNestedFolderContents(gdriveId["id"], gdriveId["filepath"])
 			for _, fileInfo := range filesInfo {
