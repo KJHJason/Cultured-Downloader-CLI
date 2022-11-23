@@ -147,7 +147,8 @@ func GetArtworkDetails(artworkId, downloadPath string, cookies []http.Cookie) (s
 		utils.LogError(nil, errorMsg, false)
 		return "", nil, -1
 	}
-	return artworkPostDir, utils.LoadJsonFromResponse(artworkUrlsRes), artworkType
+	artworkJson, _ := utils.LoadJsonFromResponse(artworkUrlsRes)
+	return artworkPostDir, artworkJson, artworkType
 }
 
 // Retrieves multiple artwork details based on the given slice of artwork IDs
@@ -201,7 +202,8 @@ func GetIllustratorPosts(illustratorId, artworkType string, cookies []http.Cooki
 		utils.LogError(nil, errorMsg, false)
 		return nil
 	}
-	jsonBody := utils.LoadJsonFromResponse(res).(map[string]interface{})["body"]
+	jsonBody, _ := utils.LoadJsonFromResponse(res)
+	jsonBody = jsonBody.(map[string]interface{})["body"]
 
 	var artworkIds []string
 	if artworkType == "all" || artworkType == "illust_and_ugoira" {

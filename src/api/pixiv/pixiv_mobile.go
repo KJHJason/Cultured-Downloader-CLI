@@ -136,8 +136,8 @@ func (pixiv *PixivMobile) RefreshAccessToken() {
 		os.Exit(1)
 	}
 
-	resJson := utils.LoadJsonFromResponse(res).(map[string]interface{})
-	pixiv.accessToken = resJson["access_token"].(string)
+	resJson, _ := utils.LoadJsonFromResponse(res)
+	pixiv.accessToken = resJson.(map[string]interface{})["access_token"].(string)
 }
 
 // Reads the response JSON and checks if the access token has expired, 
@@ -181,7 +181,7 @@ func (pixiv *PixivMobile) SendRequest(
 	for i := 1; i <= utils.RETRY_COUNTER; i++ {
 		res, err = client.Do(req)
 		if err == nil {
-			jsonRes := utils.LoadJsonFromResponse(res)
+			jsonRes, _ := utils.LoadJsonFromResponse(res)
 			if pixiv.RefreshTokenIfReq(jsonRes, res.StatusCode) {
 				continue
 			} else if !checkStatus {
@@ -259,8 +259,8 @@ func (pixiv *PixivMobile) StartOauthFlow() {
 			continue
 		} 
 
-		resJson := utils.LoadJsonFromResponse(res).(map[string]interface{})
-		refreshToken := resJson["refresh_token"].(string)
+		resJson, _ := utils.LoadJsonFromResponse(res)
+		refreshToken := resJson.(map[string]interface{})["refresh_token"].(string)
 		color.Green("Your Pixiv Refresh Token: " + refreshToken)
 		color.Yellow("Please save your refresh token somewhere SECURE and do NOT share it with anyone!")
 		return

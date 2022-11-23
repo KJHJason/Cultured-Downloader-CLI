@@ -26,6 +26,44 @@ func GetPixivFanboxHeaders() map[string]string {
 	}
 }
 
+// Process and detects for any external download links from the post's text content
+func ProcessPixivFanboxText(postBody interface{}, postFolderPath string, downloadGdrive bool) []map[string]string {
+	if postBody == nil {
+		return nil
+	}
+
+	// split the text by newlines
+	postBodyArr := strings.FieldsFunc(
+		postBody.(string),
+		func(c rune) bool { return c == '\n' },
+	)
+	loggedPassword := false
+	var detectedGdriveLinks []map[string]string
+	for _, text := range postBodyArr {
+		if utils.DetectPasswordInText(text) && !loggedPassword {
+			// Log the entire post text if it contains a password
+			filePath := filepath.Join(postFolderPath, api.PasswordFilename)
+			if !utils.PathExists(filePath) {
+				loggedPassword = true
+				postBodyStr := strings.Join(postBodyArr, "\n")
+				utils.LogMessageToPath(
+					"Found potential password in the post:\n\n" + postBodyStr,
+					filePath,
+				)
+			}
+		}
+
+		utils.DetectOtherExtDLLink(text, postFolderPath)
+		if utils.DetectGDriveLinks(text, postFolderPath, false) && downloadGdrive {
+			detectedGdriveLinks = append(detectedGdriveLinks, map[string]string{
+				"url":      text,
+				"filepath": filepath.Join(postFolderPath, api.GdriveFolder),
+			})
+		}
+	}
+	return detectedGdriveLinks
+}
+
 // Process the JSON response from Pixiv Fanbox's API and 
 // returns a map of urls and a map of GDrive urls to download from
 func ProcessFanboxPost(
@@ -33,8 +71,9 @@ func ProcessFanboxPost(
 	downloadThumbnail, downloadImages, downloadAttachments, downloadGdrive bool,
 ) ([]map[string]string, []map[string]string) {
 	var post interface{}
+	var postJsonBody []byte
 	if postJsonArg == nil {
-		post = utils.LoadJsonFromResponse(res)
+		post, postJsonBody = utils.LoadJsonFromResponse(res)
 		if post == nil {
 			return nil, nil
 		}
@@ -75,34 +114,9 @@ func ProcessFanboxPost(
 	case "file", "image":
 		// process the text in the post
 		postBody := postContent["text"]
-		if postBody != nil {
-			postBodyArr := strings.FieldsFunc(
-				postBody.(string),
-				func(c rune) bool { return c == '\n' },
-			)
-			loggedPassword := false
-			for _, text := range postBodyArr {
-				if utils.DetectPasswordInText(text) && !loggedPassword {
-					// Log the entire post text if it contains a password
-					filePath := filepath.Join(postFolderPath, api.PasswordFilename)
-					if !utils.PathExists(filePath) {
-						loggedPassword = true
-						postBodyStr := strings.Join(postBodyArr, "\n")
-						utils.LogMessageToPath(
-							"Found potential password in the post:\n\n" + postBodyStr,
-							filePath,
-						)
-					}
-				}
-
-				utils.DetectOtherExtDLLink(text, postFolderPath)
-				if utils.DetectGDriveLinks(text, postFolderPath, false) && downloadGdrive {
-					gdriveLinks = append(gdriveLinks, map[string]string{
-						"url":      text,
-						"filepath": filepath.Join(postFolderPath, api.GdriveFolder),
-					})
-				}
-			}
+		detectedGdriveLinks := ProcessPixivFanboxText(postBody, postFolderPath, downloadGdrive)
+		if detectedGdriveLinks != nil {
+			gdriveLinks = append(gdriveLinks, detectedGdriveLinks...)
 		}
 
 		// retrieve images and attachments url(s)
@@ -219,8 +233,22 @@ func ProcessFanboxPost(
 				})
 			}
 		}
+	case "text": // text post 
+		// Usually has no content but try to detect for any external download links
+		detectedGdriveLinks := ProcessPixivFanboxText(
+			postContent["text"], 
+			postFolderPath, 
+			downloadGdrive,
+		)
+		if detectedGdriveLinks != nil {
+			gdriveLinks = append(gdriveLinks, detectedGdriveLinks...)
+		}
 	default: // unknown post type
-		panic(fmt.Sprintf("Unknown post type: %s\nPlease report it as a bug!", postType))
+		utils.LogError(
+			nil,
+			fmt.Sprintf("Unknown post type: %s\nPlease report it as a bug!\n\nPost content:\n%s", postType, postJsonBody),
+			true,
+		)
 	}
 	return urlsMap, gdriveLinks
 }

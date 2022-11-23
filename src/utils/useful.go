@@ -249,13 +249,13 @@ func JsonPanic(res *http.Response, err error) {
 }
 
 // Read the response body and unmarshal it into a interface and returns it
-func LoadJsonFromResponse(res *http.Response) interface{} {
+func LoadJsonFromResponse(res *http.Response) (interface{}, []byte) {
 	body := ReadResBody(res)
 	var post interface{}
 	if err := json.Unmarshal(body, &post); err != nil {
 		JsonPanic(res, err)
 	}
-	return post
+	return post, body
 }
 
 // Detects if the given string contains any passwords
