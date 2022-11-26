@@ -36,7 +36,7 @@ This program has only been tested on Windows 10. Hence, if you encounter any iss
 - File access denied error when downloading with the `overwrite=true` flag...
   - This is caused by the antivirus program on your PC, flagging the program as a malware and stopping it from executing normally.
     - This is due to how the programs works, it will try to check the image file size by doing a HEAD request first before doing a GET request for downloading.
-      - In the event that the file size is not in the header or does not match with the locally downloaded image's file size, it will re-download the file if the overwrite flag is set to true or if the file does not exist.
+      - In the event that the file size is not in the header or does not match with the locally downloaded image's file size, it will re-download the file if the overwrite flag is set to true or if the existing file had 0 bytes for some reason.
       - Usually, this is not a problem for Fantia and Pixiv, but for Pixiv Fanbox, it will not return the file size in the header, which is why the program will try to re-download all the image files and overwrite any existing files. Hence, the antivirus program will flag the program as a ransomware and stop it from executing normally.
   - `go run .` will also NOT work as it will be blocked by the antivirus program. Hence, you will need to build the program first and then run it.
     - By running `go build .` in the src directory of the project, it will build the program and create an executable file.
