@@ -24,7 +24,7 @@ func PathExists(filepath string) bool {
 // there was an error opening the file at the given file path string, -1 is returned
 func GetFileSize(filePath string) (int64, error) {
 	if PathExists(filePath) {
-		file, err := os.Open(filePath)
+		file, err := os.OpenFile(filePath, os.O_RDONLY, 0666)
 		if err != nil {
 			return -1, err
 		}
@@ -44,18 +44,13 @@ func LogMessageToPath(message, filePath string) {
 	defer logToPathMutex.Unlock()
 
 	os.MkdirAll(filepath.Dir(filePath), 0755)
-	var err error
-	var logFile *os.File
-	if !PathExists(filePath) {
-		logFile, err = os.Create(filePath)
-		if err != nil {
-			panic(err)
-		}
-	} else {
-		logFile, err = os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, 0644)
-		if err != nil {
-			panic(err)
-		}
+	logFile, err := os.OpenFile(
+		filePath, 
+		os.O_WRONLY|os.O_CREATE|os.O_APPEND, 
+		0666,
+	)
+	if err != nil {
+		panic(err)
 	}
 	defer logFile.Close()
 
@@ -162,7 +157,7 @@ func SetDefaultDownloadPath(newDownloadPath string) {
 			panic(err)
 		}
 
-		err = os.WriteFile(configFilePath, configFile, 0644)
+		err = os.WriteFile(configFilePath, configFile, 0666)
 		if err != nil {
 			panic(err)
 		}
@@ -196,7 +191,7 @@ func SetDefaultDownloadPath(newDownloadPath string) {
 			panic(err)
 		}
 
-		err = os.WriteFile(configFilePath, configFile, 0644)
+		err = os.WriteFile(configFilePath, configFile, 0666)
 		if err != nil {
 			panic(err)
 		}

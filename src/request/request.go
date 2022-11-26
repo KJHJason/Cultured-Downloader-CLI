@@ -180,10 +180,7 @@ func DownloadURL(
 
 	// check if the file size matches the content length
 	// if not, then the file does not exist or is corrupted and should be re-downloaded
-	fileSize, err := utils.GetFileSize(filePath)
-	if err != nil {
-		panic(err)
-	}
+	fileSize, _ := utils.GetFileSize(filePath)
 	if fileReqContentLength != -1 {
 		if fileSize == fileReqContentLength {
 			// If the file already exists and the file size
@@ -201,8 +198,7 @@ func DownloadURL(
 		}
 	}
 
-	// create the file
-	file, err := os.Create(filePath)
+	file, err := os.Create(filePath) // create the file
 	if err != nil {
 		panic(err)
 	}

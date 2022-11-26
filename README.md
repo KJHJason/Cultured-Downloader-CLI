@@ -31,6 +31,14 @@ The CLI version of the program is currently only available for Windows, Linux an
 
 This program has only been tested on Windows 10. Hence, if you encounter any issues on other operating systems, I may not be able to help you.
 
+## Known Issue
+
+- File access denied error when downloading...
+  - This is caused by the antivirus program on your PC, blocking the program from executing normally.
+  - `go run .` will not work as it will be blocked by the antivirus program. Hence, you will need to build the program first and then run it.
+    - By running `go build .` in the src directory of the project, it will build the program and create an executable file.
+    - Please exclude `Cultured-Downloader-CLI.exe` or the compiled version of the program from your antivirus software as it can be flagged as a malware or ransomware.
+
 ## Disclaimers
 
 - Cultured Downloader is not liable for any damages caused.

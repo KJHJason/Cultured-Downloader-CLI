@@ -106,7 +106,11 @@ func LogFailedGdriveAPICalls(res *http.Response, downloadPath string) {
 	} else {
 		logFilePath = filepath.Join(downloadPath, logFilename)
 	}
-	file, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(
+		logFilePath, 
+		os.O_WRONLY|os.O_CREATE|os.O_APPEND, 
+		0666,
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -218,7 +222,7 @@ func (gdrive GDrive) GetFileDetails(fileId, logPath string) map[string]string {
 func (gdrive GDrive) DownloadFile(fileInfo map[string]string, filePath string) error {
 	if utils.PathExists(filePath) {
 		// check the md5 checksum and the file size
-		file, err := os.Open(filePath)
+		file, err := os.OpenFile(filePath, os.O_RDONLY, 0666)
 		if err != nil {
 			panic(err)
 		}
