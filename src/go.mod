@@ -6,7 +6,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.8.1
 	github.com/fatih/color v1.14.1
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
-	github.com/schollz/progressbar/v3 v3.12.2
+	github.com/schollz/progressbar/v3 v3.13.0
 )
 
 require (
