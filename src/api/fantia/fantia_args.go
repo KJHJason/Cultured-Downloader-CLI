@@ -18,7 +18,13 @@ type FantiaDlOptions struct {
 
 	SessionCookieId string
 	SessionCookies  []http.Cookie
+
+	CsrfToken       string
 }
+
+func (f *FantiaDlOptions) GetCsrfToken() {
+	// wip
+} 
 
 func (f *FantiaDlOptions) ValidateArgs() {
 	if f.SessionCookieId != "" {
@@ -26,4 +32,6 @@ func (f *FantiaDlOptions) ValidateArgs() {
 			api.VerifyAndGetCookie(api.Fantia, api.FantiaTitle, f.SessionCookieId),
 		}
 	}
+
+	f.GetCsrfToken()
 }

@@ -52,18 +52,6 @@ var (
 	// For Pixiv Fanbox
 	PASSWORD_TEXTS              = []string{"パス", "Pass", "pass", "密码"}
 	EXTERNAL_DOWNLOAD_PLATFORMS = []string{"mega", "gigafile", "dropbox", "mediafire"}
-
-	// For Pixiv
-	UGOIRA_ACCEPTED_EXT = []string{".gif", ".apng", ".webp", ".webm", ".mp4"}
-	ACCEPTED_SORT_ORDER = []string{
-		"date", "date_d",
-		"popular", "popular_d",
-		"popular_male", "popular_male_d",
-		"popular_female", "popular_female_d",
-	}
-	ACCEPTED_SEARCH_MODE  = []string{"s_tag", "s_tag_full", "s_tc"}
-	ACCEPTED_RATING_MODE  = []string{"safe", "r18", "all"}
-	ACCEPTED_ARTWORK_TYPE = []string{"illust_and_ugoira", "manga", "all"}
 )
 
 const (

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/fatih/color"
 	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
@@ -24,7 +25,7 @@ func FantiaDownloadProcess(config *configs.Config, fantiaDl *fantia.FantiaDl, fa
 	var urlsToDownload []map[string]string
 	if len(fantiaDl.PostIds) > 0 {
 		urlsArr := fantia.GetPostDetails(
-			fantiaPostIds,
+			fantiaDl.PostIds,
 			fantiaDlOptions,
 		)
 		urlsToDownload = append(urlsToDownload, urlsArr...)
@@ -206,23 +207,16 @@ func PixivDownloadProcess(config *configs.Config, pixivDl *pixiv.PixivDl, pixivD
 }
 
 var (
-	config         configs.Config
-	gdriveApiKey   string
 	downloadPath   string
-	ffmpegPath     string
-	OverwriteFiles bool
 	rootCmd = &cobra.Command{
 		Use: "cultured_dl",
 		Short: "Download images, videos, etc. from various websites like Fantia.",
 		Long: "cultured_dl is a command-line tool for downloading images, videos, etc. from various websites like Pixiv, Pixiv Fanbox, and Fantia.",
 		Run: func(cmd *cobra.Command, args []string) {
-			config = configs.Config{
-				DownloadPath: downloadPath,
-				FfmpegPath: ffmpegPath,
-				OverwriteFiles: OverwriteFiles,
-			}
-			if gdriveApiKey != "" {
-				config.GDriveClient = gdrive.GetNewGDrive(gdriveApiKey, utils.MAX_CONCURRENT_DOWNLOADS)
+			if downloadPath != "" {
+				utils.SetDefaultDownloadPath(downloadPath)
+				color.Green("Download path set to: %s", downloadPath)
+				return
 			}
 		},
 	}
@@ -244,12 +238,15 @@ var (
 	fantiaDlThumbnails  bool
 	fantiaDlImages      bool
 	fantiaDlAttachments bool
-	fantiaDlGdrive      bool
+	fantiaOverwrite     bool
 	fantiaCmd = &cobra.Command{
 		Use:   "fantia",
 		Short: "Download from Fantia",
 		Long:  "Supports downloading from Fantia Fanclubs and individual posts.",
 		Run: func(cmd *cobra.Command, args []string) {
+			fantiaConfig := configs.Config{
+				OverwriteFiles: fantiaOverwrite,
+			}
 			fantiaDl := fantia.FantiaDl{
 				FanclubIds:    fantiaFanclubIds,
 				PostIds:       fantiaPostIds,
@@ -263,25 +260,34 @@ var (
 			fantiaDlOptions.ValidateArgs()
 
 			FantiaDownloadProcess(
-				&config,
+				&fantiaConfig,
 				&fantiaDl,
 				&fantiaDlOptions,
 			)
 		},
 	}
 
-	fanboxSession       string
-	fanboxCreatorIds    []string
-	fanboxPostIds       []string
-	fanboxDlThumbnails  bool
-	fanboxDlImages      bool
-	fanboxDlAttachments bool
-	fanboxDlGdrive      bool
+	fanboxSession        string
+	fanboxCreatorIds     []string
+	fanboxPostIds        []string
+	fanboxDlThumbnails   bool
+	fanboxDlImages       bool
+	fanboxDlAttachments  bool
+	fanboxDlGdrive       bool
+	fanboxGdriveApiKey   string
+	fanboxOverwriteFiles bool
 	pixivFanboxCmd = &cobra.Command{
 		Use:   "pixiv_fanbox",
 		Short: "Download from Pixiv Fanbox",
 		Long:  "Supports downloading from Pixiv by artwork ID, illustrator ID, tag name, and more.",
 		Run: func(cmd *cobra.Command, args []string) {
+			pixivFanboxConfig := configs.Config{
+				OverwriteFiles: fanboxOverwriteFiles,
+			}
+			if fanboxGdriveApiKey != "" {
+				pixivFanboxConfig.GDriveClient = gdrive.GetNewGDrive(fanboxGdriveApiKey, utils.MAX_CONCURRENT_DOWNLOADS)
+			}
+
 			pixivFanboxDl := pixiv_fanbox.PixivFanboxDl{
 				CreatorIds:    fanboxCreatorIds,
 				PostIds:       fanboxPostIds,
@@ -296,13 +302,14 @@ var (
 			pixivFanboxDlOptions.ValidateArgs()
 
 			PixivFanboxDownloadProcess(
-				&config,
+				&pixivFanboxConfig,
 				&pixivFanboxDl,
 				&pixivFanboxDlOptions,
 			)
 		},
 	}
 
+	pixivFfmpegPath     string
 	pixivStartOauth     bool
 	pixivRefreshToken   string
 	pixivSession        string
@@ -317,6 +324,7 @@ var (
 	pixivSearchMode     string
 	pixivRatingMode     string
 	pixivArtworkType    string
+	pixivOverwrite      bool
 	pixivCmd = &cobra.Command{
 		Use:   "pixiv",
 		Short: "Download from Pixiv",
@@ -327,7 +335,12 @@ var (
 				return
 			}
 
-			config.ValidateFfmpeg()
+			pixivConfig := configs.Config{
+				FfmpegPath: pixivFfmpegPath,
+				OverwriteFiles: pixivOverwrite,
+			}
+			pixivConfig.ValidateFfmpeg()
+
 			utils.ValidatePageNumInput(
 				len(pixivTagNames), 
 				pixivPageNums,
@@ -360,7 +373,7 @@ var (
 			}
 			pixivDlOptions.ValidateArgs()
 			PixivDownloadProcess(
-				&config,
+				&pixivConfig,
 				&pixivDl, 
 				&pixivDlOptions,
 				&pixivUgoiraOptions, 
@@ -372,15 +385,17 @@ var (
 func init() {
 	mutlipleIdsMsg := "For multiple IDs, separate them with a space.\nExample: \"12345 67891\""
 
+	// ------------------------------ Fantia ------------------------------ //
+
 	fantiaCmd.Flags().StringVar(
 		&fantiaSession,
-		"fantia_session",
+		"session",
 		"",
 		"Your _session_id cookie value to use for the requests to Fantia.",
 	)
 	fantiaCmd.Flags().StringSliceVar(
 		&fantiaFanclubIds,
-		"fantia_fanclub_id",
+		"fanclub_id",
 		[]string{},
 		utils.CombineStringsWithNewline(
 			[]string{
@@ -391,7 +406,7 @@ func init() {
 	)
 	fantiaCmd.Flags().StringSliceVar(
 		&fantiaPostIds,
-		"fantia_post_id",
+		"post_id",
 		[]string{},
 		utils.CombineStringsWithNewline(
 			[]string{
@@ -402,38 +417,34 @@ func init() {
 	)
 	fantiaCmd.Flags().BoolVar(
 		&fantiaDlThumbnails,
-		"fantia_dl_thumbnails",
-		false,
+		"dl_thumbnails",
+		true,
 		"Whether to download the thumbnail of a Fantia post.",
 	)
 	fantiaCmd.Flags().BoolVar(
 		&fantiaDlImages,
-		"fantia_dl_images",
-		false,
+		"dl_images",
+		true,
 		"Whether to download the images of a Fantia post.",
 	)
 	fantiaCmd.Flags().BoolVar(
 		&fantiaDlAttachments,
-		"fantia_dl_attachments",
-		false,
+		"dl_attachments",
+		true,
 		"Whether to download the attachments of a Fantia post.",
 	)
-	fantiaCmd.Flags().BoolVar(
-		&fantiaDlGdrive,
-		"fantia_dl_gdrive",
-		false,
-		"Whether to download the Google Drive links of a Fantia post.",
-	)
+
+	// ------------------------------ Pixiv Fanbox ------------------------------ //
 
 	pixivFanboxCmd.Flags().StringVar(
 		&fanboxSession,
-		"pixiv_fanbox_session",
+		"session",
 		"",
 		"Your FANBOXSESSID cookie value to use for the requests to Pixiv Fanbox.",
 	)
 	pixivFanboxCmd.Flags().StringSliceVar(
 		&fanboxCreatorIds,
-		"pixiv_fanbox_creator_id",
+		"creator_id",
 		[]string{},
 		utils.CombineStringsWithNewline(
 			[]string{
@@ -444,7 +455,7 @@ func init() {
 	)
 	pixivFanboxCmd.Flags().StringSliceVar(
 		&fanboxPostIds,
-		"pixiv_fanbox_post_id",
+		"post_id",
 		[]string{},
 		utils.CombineStringsWithNewline(
 			[]string{
@@ -455,55 +466,77 @@ func init() {
 	)
 	pixivFanboxCmd.Flags().BoolVar(
 		&fanboxDlThumbnails,
-		"pixiv_fanbox_dl_thumbnails",
-		false,
+		"dl_thumbnails",
+		true,
 		"Whether to download the thumbnail of a Pixiv Fanbox post.",
 	)
 	pixivFanboxCmd.Flags().BoolVar(
 		&fanboxDlImages,
-		"pixiv_fanbox_dl_images",
-		false,
+		"dl_images",
+		true,
 		"Whether to download the images of a Pixiv Fanbox post.",
 	)
 	pixivFanboxCmd.Flags().BoolVar(
 		&fanboxDlAttachments,
-		"pixiv_fanbox_dl_attachments",
-		false,
+		"dl_attachments",
+		true,
 		"Whether to download the attachments of a Pixiv Fanbox post.",
 	)
 	pixivFanboxCmd.Flags().BoolVar(
 		&fanboxDlGdrive,
-		"pixiv_fanbox_dl_gdrive",
-		false,
+		"dl_gdrive",
+		true,
 		"Whether to download the Google Drive links of a Pixiv Fanbox post.",
 	)
+	pixivFanboxCmd.Flags().StringVar(
+		&fanboxGdriveApiKey,
+		"gdrive_api_key",
+		"",
+		utils.CombineStringsWithNewline(
+			[]string{
+				"Google Drive API key to use for downloading gdrive files.",
+				"Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_key_guide.md",
+			},
+		),
+	)
 
+	// ------------------------------ Pixiv ------------------------------ //
+
+	pixivCmd.Flags().StringVar(
+		&pixivFfmpegPath,
+		"ffmpeg_path",
+		"ffmpeg",
+		utils.CombineStringsWithNewline(
+			[]string{
+				"Configure the path to the FFmpeg executable.",
+				"Download Link: https://ffmpeg.org/download.html",
+			},
+		),
+	)
 	pixivCmd.Flags().BoolVar(
 		&pixivStartOauth,
-		"pixiv_start_oauth",
+		"start_oauth",
 		false,
 		"Whether to start the Pixiv OAuth process to get one's refresh token.",
 	)
 	pixivCmd.Flags().StringVar(
 		&pixivRefreshToken,
-		"pixiv_refresh_token",
+		"refresh_token",
 		"",
 		utils.CombineStringsWithNewline(
 			[]string{
 				"Your Pixiv refresh token to use for the requests to Pixiv.",
-				"",
 				"If you're downloading from Pixiv, it is recommended to use this flag",
 				"instead of the \"-pixiv_session\" flag as there will be significantly lesser API calls to Pixiv.",
 				"However, if you prefer more flexibility with your Pixiv downloads, you can use",
 				"the \"-pixiv_session\" flag instead at the expense of longer API call time due to Pixiv's rate limiting.",
-				"",
 				"Note that you can get your refresh token by running the program with the \"-pixiv_start_oauth\" flag.",
 			},
 		),
 	)
 	pixivCmd.Flags().StringVar(
 		&pixivSession,
-		"pixiv_session",
+		"session",
 		"",
 		"Your PHPSESSID cookie value to use for the requests to Pixiv.",
 	)
@@ -525,10 +558,9 @@ func init() {
 				"Accepted values:",
 				"- mp4: 0-51",
 				"- webm: 0-63",
-				"",
 				"For more information, see:",
 				"- mp4: https://trac.ffmpeg.org/wiki/Encode/H.264#crf",
-				"- webm: https://trac.ffmpeg.org/wiki/Encode/VP9#constantq\n",
+				"- webm: https://trac.ffmpeg.org/wiki/Encode/VP9#constantq",
 			},
 		),
 	)
@@ -541,14 +573,14 @@ func init() {
 				"Output format for the ugoira conversion using FFmpeg.",
 				fmt.Sprintf(
 					"Accepted Extensions: %s\n",
-					strings.TrimSpace(strings.Join(utils.UGOIRA_ACCEPTED_EXT, ", ")),
+					strings.TrimSpace(strings.Join(pixiv.UGOIRA_ACCEPTED_EXT, ", ")),
 				),
 			},
 		),
 	)
 	pixivCmd.Flags().StringSliceVar(
 		&pixivArtworkIds,
-		"pixiv_artwork_id",
+		"artwork_id",
 		[]string{},
 		utils.CombineStringsWithNewline(
 			[]string{
@@ -559,7 +591,7 @@ func init() {
 	)
 	pixivCmd.Flags().StringSliceVar(
 		&pixivIllustratorIds,
-		"pixiv_illustrator_id",
+		"illustrator_id",
 		[]string{},
 		utils.CombineStringsWithNewline(
 			[]string{
@@ -570,7 +602,7 @@ func init() {
 	)
 	pixivCmd.Flags().StringSliceVar(
 		&pixivTagNames,
-		"pixiv_tag_name",
+		"tag_name",
 		[]string{},
 		utils.CombineStringsWithNewline(
 			[]string{
@@ -582,7 +614,7 @@ func init() {
 	)
 	pixivCmd.Flags().StringSliceVar(
 		&pixivPageNums,
-		"pixiv_page_num",
+		"tag_name_page_num",
 		[]string{},
 		utils.CombineStringsWithNewline(
 			[]string{
@@ -594,7 +626,7 @@ func init() {
 	)
 	pixivCmd.Flags().StringVar(
 		&pixivSortOrder,
-		"pixiv_sort_order",
+		"sort_order",
 		"date_d",
 		utils.CombineStringsWithNewline(
 			[]string{
@@ -610,7 +642,7 @@ func init() {
 	)
 	pixivCmd.Flags().StringVar(
 		&pixivSearchMode,
-		"pixiv_search_mode",
+		"search_mode",
 		"s_tag_full",
 		utils.CombineStringsWithNewline(
 			[]string{
@@ -618,13 +650,13 @@ func init() {
 				"- s_tag: Match any post with SIMILAR tag name",
 				"- s_tag_full: Match any post with the SAME tag name",
 				"- s_tc: Match any post related by its title or caption",
-				"Note that you can only specify ONE search mode per run!\n",
+				"Note that you can only specify ONE search mode per run!",
 			},
 		),
 	)
 	pixivCmd.Flags().StringVar(
 		&pixivRatingMode,
-		"pixiv_rating_mode",
+		"rating_mode",
 		"all",
 		utils.CombineStringsWithNewline(
 			[]string{
@@ -635,13 +667,12 @@ func init() {
 				"Notes:",
 				"- You can only specify ONE rating mode per run!",
 				"- If you're using the \"-pixiv_refresh_token\" flag, only \"all\" is supported.",
-				"",
 			},
 		),
 	)
 	pixivCmd.Flags().StringVar(
 		&pixivArtworkType,
-		"pixiv_artwork_type",
+		"artwork_type",
 		"all",
 		utils.CombineStringsWithNewline(
 			[]string{
@@ -656,49 +687,56 @@ func init() {
 		),
 	)
 
-	rootCmd.Flags().StringVar(
-		&gdriveApiKey,
-		"gdrive_api_key",
-		"",
-		utils.CombineStringsWithNewline(
-			[]string{
-				"Google Drive API key to use for downloading gdrive files.",
-				"Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_key_guide.md",
-			},
-		),
-	)
-	rootCmd.Flags().BoolVarP(
-		&OverwriteFiles,
-		"overwrite",
-		"o",
-		false,
-		"When the Content-Length header is not in the response, overwrite any existing files when downloading.",
-	)
+	// ------------------------------ Common Flags ------------------------------ //
+
+	cmds := []*cobra.Command{
+		fantiaCmd,
+		pixivFanboxCmd,
+		pixivCmd,
+	}
+	overwriteVar := []*bool{
+		&fantiaOverwrite,
+		&pixivOverwrite,
+	}
+
+	overwriteIdx := 0
+	for _, cmd := range cmds {
+		if cmd != pixivFanboxCmd {
+			cmd.Flags().BoolVarP(
+				overwriteVar[overwriteIdx],
+				"overwrite",
+				"o",
+				false,
+				utils.CombineStringsWithNewline(
+					[]string{
+						"Use this flag to overwrite any existing but incomplete downloaded files when downloading.",
+						"Does this by verifying against the Content-Length header response,",
+						"if the size of locally downloaded file does not match with the header response, overwrite the existing file.",
+						"However, do note that if you many incomplete downloads and have an anti-virus program running,",
+						"it might detect this program as a ransomware due as it is overwriting multiple files at once.",
+						"Thus, it is recommended to not use this flag if you have an anti-virus program unless the anti-virus software has been disabled.",
+					},
+				),
+			)
+			overwriteIdx++
+		}
+	}
+
+	// ------------------------------ Root CMD ------------------------------ //
+
 	rootCmd.Flags().StringVar(
 		&downloadPath,
 		"download_path",
 		"",
 		utils.CombineStringsWithNewline(
 			[]string{
-				"Configure the path to download the files to and save it for future runs.",
+				"Configure the path to download the files to and save it for future runs. Otherwise, the program will use the current working directory.",
 				"Note:",
 				"If you had used the \"-download_path\" flag before or",
-				"had used the Cultured Downloader software, you can leave this argument empty.",
+				"had used the Cultured Downloader Python program, the program will automatically use the path you had set.",
 			},
 		),
 	)
-	rootCmd.Flags().StringVar(
-		&ffmpegPath,
-		"ffmpeg_path",
-		"ffmpeg",
-		utils.CombineStringsWithNewline(
-			[]string{
-				"Configure the path to the FFmpeg executable.",
-				"Download Link: https://ffmpeg.org/download.html\n",
-			},
-		),
-	)
-
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true
 	rootCmd.AddCommand(
 		fantiaCmd,

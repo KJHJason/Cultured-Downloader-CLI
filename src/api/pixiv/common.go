@@ -49,7 +49,7 @@ func MapDelaysToFilename(ugoiraFramesJson map[string]interface{}) map[string]int
 // Converts the Ugoira to the desired output path using FFmpeg
 func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpegPath string, ugoiraQuality int) {
 	outputExt := filepath.Ext(outputPath)
-	if !utils.ArrContains(utils.UGOIRA_ACCEPTED_EXT, outputExt) {
+	if !utils.ArrContains(UGOIRA_ACCEPTED_EXT, outputExt) {
 		panic(fmt.Sprintf("Pixiv: Output extension %v is not allowed for ugoira conversion", outputExt))
 	}
 

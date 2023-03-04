@@ -1,17 +1,17 @@
 package fantia
 
 import (
-	"fmt"
-	"sync"
-	"strconv"
-	"net/http"
 	"encoding/json"
+	"fmt"
+	"net/http"
 	"path/filepath"
+	"strconv"
+	"sync"
 
-	"github.com/PuerkitoBio/goquery"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api"
-	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
+	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/PuerkitoBio/goquery"
 )
 
 const FantiaUrl = "https://fantia.jp"
@@ -28,14 +28,14 @@ type FantiaPost struct {
 				Name string `json:"name"`
 			} `json:"user"`
 		} `json:"fanclub"`
-		Status string `json:"status"`
+		Status       string `json:"status"`
 		PostContents []struct {
 			// Any attachments such as pdfs that are on their dedicated section
 			AttachmentURI string `json:"attachment_uri"`
 
 			// For images that are uploaded to their own section
 			PostContentPhotos []struct {
-				ID int `json:"id"`
+				ID  int `json:"id"`
 				URL struct {
 					Original string `json:"original"`
 				} `json:"url"`
@@ -46,14 +46,14 @@ type FantiaPost struct {
 
 			// for attachments such as pdfs that are embedded in the post content
 			DownloadUri string `json:"download_uri"`
-			Filename string `json:"filename"`
+			Filename    string `json:"filename"`
 		} `json:"post_contents"`
 	} `json:"post"`
 }
 
-// Process the JSON response from Fantia's API and 
+// Process the JSON response from Fantia's API and
 // returns a map of urls to download from
-func ProcessFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions *FantiaDlOptions,) []map[string]string {
+func ProcessFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions *FantiaDlOptions) []map[string]string {
 	// processes a fantia post
 	// returns a map containing the post id and the url to download the file from
 	var postJson FantiaPost
@@ -83,7 +83,7 @@ func ProcessFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 	if postContent == nil {
 		return urlsMap
 	}
-	for _, content := range postContent{
+	for _, content := range postContent {
 		if fantiaDlOptions.DlImages {
 			// download images that are uploaded to their own section
 			postContentPhotos := content.PostContentPhotos
@@ -117,7 +117,7 @@ func ProcessFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 					"filepath": filepath.Join(postFolderPath, api.AttachmentFolder),
 				})
 			} else if content.DownloadUri != "" {
-				// if the attachment url string does not exist, 
+				// if the attachment url string does not exist,
 				// then get the download url for the file
 				downloadUrl := FantiaUrl + content.DownloadUri
 				filename := content.Filename
@@ -142,31 +142,35 @@ func GetPostDetails(postIds []string, fantiaDlOptions *FantiaDlOptions) []map[st
 	resChan := make(chan *http.Response, len(postIds))
 
 	bar := utils.GetProgressBar(
-		len(postIds), 
+		len(postIds),
 		"Getting Fantia post details...",
 		utils.GetCompletionFunc(fmt.Sprintf("Finished getting %d Fantia post details!", len(postIds))),
 	)
-	url := FantiaUrl + "/api/v1/posts/" 
+	url := FantiaUrl + "/api/v1/posts/"
 	for _, postId := range postIds {
 		wg.Add(1)
 		queue <- struct{}{}
 		go func(postId string) {
 			defer wg.Done()
 
-			header := map[string]string{"Referer": fmt.Sprintf("%s/posts/%s", FantiaUrl, postId)}
+			postApiUrl := url + postId
+			header := map[string]string{
+				"Referer": fmt.Sprintf("%s/posts/%s", FantiaUrl, postId),
+				"x-csrf-token": "",
+			}
 			res, err := request.CallRequest(
-				"GET", 
-				url + postId, 
-				30, 
-				fantiaDlOptions.SessionCookies, 
-				header, 
-				nil, 
+				"GET",
+				postApiUrl,
+				30,
+				fantiaDlOptions.SessionCookies,
+				header,
+				nil,
 				false,
 			)
 			if err != nil || res.StatusCode != 200 {
-				utils.LogError(err, fmt.Sprintf("failed to get post details for %s", url), false)
+				utils.LogError(err, fmt.Sprintf("failed to get post details for %s", postApiUrl), false)
 			} else {
-				resChan <-res
+				resChan <- res
 			}
 			bar.Add(1)
 			<-queue
@@ -178,14 +182,14 @@ func GetPostDetails(postIds []string, fantiaDlOptions *FantiaDlOptions) []map[st
 
 	// parse the responses
 	bar = utils.GetProgressBar(
-		len(resChan), 
+		len(resChan),
 		"Processing received JSON(s)...",
 		utils.GetCompletionFunc(fmt.Sprintf("Finished processing %d JSON(s)!", len(resChan))),
 	)
 	var urlsMap []map[string]string
 	for res := range resChan {
 		urlsArr := ProcessFantiaPost(
-			res, utils.DOWNLOAD_PATH, 
+			res, utils.DOWNLOAD_PATH,
 			fantiaDlOptions,
 		)
 		urlsMap = append(urlsMap, urlsArr...)
@@ -199,7 +203,7 @@ func GetFantiaPosts(creatorId string, cookies []http.Cookie) []string {
 	var postIds []string
 	pageNum := 1
 	for {
-		url := fmt.Sprintf(FantiaUrl + "/fanclubs/%s/posts", creatorId)
+		url := fmt.Sprintf(FantiaUrl+"/fanclubs/%s/posts", creatorId)
 		params := map[string]string{
 			"page":   fmt.Sprintf("%d", pageNum),
 			"q[s]":   "newer",
@@ -245,7 +249,7 @@ func GetFantiaPosts(creatorId string, cookies []http.Cookie) []string {
 // Retrieves all the posts based on the slice of creator IDs and returns a slice of post IDs
 func GetCreatorsPosts(creatorIds []string, cookies []http.Cookie) []string {
 	bar := utils.GetProgressBar(
-		len(creatorIds), 
+		len(creatorIds),
 		"Getting post IDs from creator(s)...",
 		utils.GetCompletionFunc(fmt.Sprintf("Finished getting post IDs from %d creator(s)!", len(creatorIds))),
 	)
