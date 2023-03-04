@@ -1,18 +1,14 @@
 package main
 
 import (
-	"flag"
 	"fmt"
-	"net/http"
-	"os"
-	"os/exec"
-	"regexp"
 	"strconv"
 	"strings"
-	"github.com/fatih/color"
+
+	"github.com/spf13/cobra"
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
-	"github.com/KJHJason/Cultured-Downloader-CLI/api"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/fantia"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv_fanbox"
@@ -20,59 +16,66 @@ import (
 )
 
 // Start the download process for Fantia
-func FantiaDownloadProcess(
-	fantiaPostIds, fanclubIds []string, cookies []http.Cookie,
-	downloadThumbnail, downloadImages, downloadAttachments bool,
-) {
-	if !downloadThumbnail && !downloadImages && !downloadAttachments {
+func FantiaDownloadProcess(config *configs.Config, fantiaDl *fantia.FantiaDl, fantiaDlOptions *fantia.FantiaDlOptions) {
+	if !fantiaDlOptions.DlThumbnails && !fantiaDlOptions.DlImages && !fantiaDlOptions.DlAttachments {
 		return
 	}
 
 	var urlsToDownload []map[string]string
-	if len(fantiaPostIds) > 0 {
+	if len(fantiaDl.PostIds) > 0 {
 		urlsArr := fantia.GetPostDetails(
-			fantiaPostIds, cookies, 
-			downloadThumbnail, downloadImages, downloadAttachments,
+			fantiaPostIds,
+			fantiaDlOptions,
 		)
 		urlsToDownload = append(urlsToDownload, urlsArr...)
 	}
-	if len(fanclubIds) > 0 {
-		fantiaPostIds := fantia.GetCreatorsPosts(fanclubIds, cookies)
+	if len(fantiaDl.FanclubIds) > 0 {
+		fantiaPostIds := fantia.GetCreatorsPosts(
+			fantiaDl.FanclubIds, 
+			fantiaDlOptions.SessionCookies,
+		)
 		urlsArr := fantia.GetPostDetails(
-			fantiaPostIds, cookies,
-			downloadThumbnail, downloadImages, downloadAttachments,
+			fantiaPostIds,
+			fantiaDlOptions,
 		)
 		urlsToDownload = append(urlsToDownload, urlsArr...)
 	}
 
 	if len(urlsToDownload) > 0 {
-		request.DownloadURLsParallel(urlsToDownload, utils.MAX_CONCURRENT_DOWNLOADS, cookies, nil, nil)
+		request.DownloadURLsParallel(
+			urlsToDownload, 
+			utils.MAX_CONCURRENT_DOWNLOADS,
+			fantiaDlOptions.SessionCookies, 
+			nil, 
+			nil,
+			config.OverwriteFiles,
+		)
 	}
 }
 
 // Start the download process for Pixiv Fanbox
-func PixivFanboxDownloadProcess(
-	pixivFanboxPostIds, creatorIds []string, cookies []http.Cookie, gdriveApiKey string, gdrive *gdrive.GDrive,
-	downloadThumbnail, downloadImages, downloadAttachments, downloadGdrive bool,
-) {
-	if !downloadThumbnail && !downloadImages && !downloadAttachments && !downloadGdrive {
+func PixivFanboxDownloadProcess(config *configs.Config, pixivFanboxDl *pixiv_fanbox.PixivFanboxDl, pixivFanboxDlOptions *pixiv_fanbox.PixivFanboxDlOptions) {
+	if !pixivFanboxDlOptions.DlThumbnails && !pixivFanboxDlOptions.DlImages && !pixivFanboxDlOptions.DlAttachments && !pixivFanboxDlOptions.DlGdrive {
 		return
 	}
 
 	var urlsToDownload, gdriveUrlsToDownload []map[string]string
-	if len(pixivFanboxPostIds) > 0 {
+	if len(pixivFanboxDl.PostIds) > 0 {
 		urlsArr, gdriveArr := pixiv_fanbox.GetPostDetails(
-			pixivFanboxPostIds, cookies,
-			downloadThumbnail, downloadImages, downloadAttachments, downloadGdrive,
+			pixivFanboxDl.PostIds,
+			pixivFanboxDlOptions,
 		)
 		urlsToDownload = append(urlsToDownload, urlsArr...)
 		gdriveUrlsToDownload = append(gdriveUrlsToDownload, gdriveArr...)
 	}
-	if len(creatorIds) > 0 {
-		fanboxIds := pixiv_fanbox.GetCreatorsPosts(creatorIds, cookies)
+	if len(pixivFanboxDl.CreatorIds) > 0 {
+		fanboxIds := pixiv_fanbox.GetCreatorsPosts(
+			pixivFanboxDl.CreatorIds, 
+			pixivFanboxDlOptions.SessionCookies,
+		)
 		urlsArr, gdriveArr := pixiv_fanbox.GetPostDetails(
-			fanboxIds, cookies,
-			downloadThumbnail, downloadImages, downloadAttachments, downloadGdrive,
+			fanboxIds,
+			pixivFanboxDlOptions,
 		)
 		urlsToDownload = append(urlsToDownload, urlsArr...)
 		gdriveUrlsToDownload = append(gdriveUrlsToDownload, gdriveArr...)
@@ -80,87 +83,100 @@ func PixivFanboxDownloadProcess(
 
 	if len(urlsToDownload) > 0 {
 		request.DownloadURLsParallel(
-			urlsToDownload, utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
-			cookies, pixiv_fanbox.GetPixivFanboxHeaders(), nil,
+			urlsToDownload, 
+			utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
+			pixivFanboxDlOptions.SessionCookies,
+			pixiv_fanbox.GetPixivFanboxHeaders(), 
+			nil, 
+			config.OverwriteFiles,
 		)
 	}
-	if gdriveApiKey != "" && len(gdriveUrlsToDownload) > 0 {
-		gdrive.DownloadGdriveUrls(gdriveUrlsToDownload)
+	if config.GDriveClient != nil && len(gdriveUrlsToDownload) > 0 {
+		config.GDriveClient.DownloadGdriveUrls(gdriveUrlsToDownload)
 	}
 }
 
 // Start the download process for Pixiv
-func PixivDownloadProcess(
-	artworkIds, illustratorIds, tagNames, pageNums []string,
-	sortOrder, searchMode, ratingMode, artworkType, ugoiraOutputFormat, ffmpegPath, pixivRefreshToken string,
-	deleteUgoiraZip bool, ugoiraQuality int, cookies []http.Cookie, pixivMobile *pixiv.PixivMobile,
-) {
-	// check if FFmpeg is installed
-	cmd := exec.Command(ffmpegPath, "-version")
-	err := cmd.Run()
-	if err != nil {
-		color.Red("FFmpeg is not installed. Please install FFmpeg and use the ffmpeg_path flag or add it to your PATH.")
-		os.Exit(1)
-	}
-
+func PixivDownloadProcess(config *configs.Config, pixivDl *pixiv.PixivDl, pixivDlOptions *pixiv.PixivDlOptions, pixivUgoiraOptions *pixiv.UgoiraDlOptions) {
 	var ugoiraToDownload []pixiv.Ugoira
 	var artworksToDownload []map[string]string
-	if len(artworkIds) > 0 {
+	if len(pixivDl.ArtworkIds) > 0 {
 		var artworksArr []map[string]string
 		var ugoiraArr []pixiv.Ugoira
-		if pixivRefreshToken == "" {
+		if pixivDlOptions.MobileClient == nil {
 			artworksArr, ugoiraArr = pixiv.GetMultipleArtworkDetails(
-				artworkIds, utils.DOWNLOAD_PATH, cookies,
+				pixivDl.ArtworkIds, 
+				utils.DOWNLOAD_PATH, 
+				pixivDlOptions.SessionCookies,
 			)
 		} else {
-			artworksArr, ugoiraArr = pixivMobile.GetMultipleArtworkDetails(
-				artworkIds, utils.DOWNLOAD_PATH,
+			artworksArr, ugoiraArr = pixivDlOptions.MobileClient.GetMultipleArtworkDetails(
+				pixivDl.ArtworkIds, 
+				utils.DOWNLOAD_PATH,
 			)
 		}
 		artworksToDownload = append(artworksToDownload, artworksArr...)
 		ugoiraToDownload = append(ugoiraToDownload, ugoiraArr...)
 	}
-	if len(illustratorIds) > 0 {
+
+	if len(pixivDl.IllustratorIds) > 0 {
 		var artworksArr []map[string]string
 		var ugoiraArr []pixiv.Ugoira
-		if pixivRefreshToken == "" {
+		if pixivDlOptions.MobileClient == nil {
 			artworksArr, ugoiraArr = pixiv.GetMultipleIllustratorPosts(
-				illustratorIds, utils.DOWNLOAD_PATH, artworkType, cookies,
+				pixivDl.IllustratorIds, 
+				utils.DOWNLOAD_PATH, 
+				pixivDlOptions.ArtworkType, 
+				pixivDlOptions.SessionCookies,
 			)
 		} else {
-			artworksArr, ugoiraArr = pixivMobile.GetMultipleIllustratorPosts(
-				illustratorIds, utils.DOWNLOAD_PATH, artworkType,
+			artworksArr, ugoiraArr = pixivDlOptions.MobileClient.GetMultipleIllustratorPosts(
+				pixivDl.IllustratorIds,
+				utils.DOWNLOAD_PATH,
+				pixivDlOptions.ArtworkType,
 			)
 		}
 		artworksToDownload = append(artworksToDownload, artworksArr...)
 		ugoiraToDownload = append(ugoiraToDownload, ugoiraArr...)
 	}
-	if len(tagNames) > 0 {
+
+	if len(pixivDl.TagNames) > 0 {
 		// loop through each tag and page number
 		bar := utils.GetProgressBar(
-			len(tagNames), 
+			len(pixivDl.TagNames), 
 			"Searching for artworks based on tag names...",
-			utils.GetCompletionFunc(fmt.Sprintf("Finished searching for artworks based on %d tag names!", len(tagNames))),
+			utils.GetCompletionFunc(fmt.Sprintf("Finished searching for artworks based on %d tag names!", len(pixivDl.TagNames))),
 		)
-		for idx, tagName := range tagNames {
+		for idx, tagName := range pixivDl.TagNames {
 			var minPage, maxPage int
-			if strings.Contains(pageNums[idx], "-") {
-				tagPageNums := strings.SplitN(pageNums[idx], "-", 2)
+			pageNum := pixivDl.TagNamesPageNums[idx]
+			if strings.Contains(pageNum, "-") {
+				tagPageNums := strings.SplitN(pageNum, "-", 2)
 				minPage, _ = strconv.Atoi(tagPageNums[0])
 				maxPage, _ = strconv.Atoi(tagPageNums[1])
 			} else {
-				minPage, _ = strconv.Atoi(pageNums[idx])
+				minPage, _ = strconv.Atoi(pageNum)
 				maxPage = minPage
 			}
+
 			var artworksArr []map[string]string
 			var ugoiraArr []pixiv.Ugoira
-			if pixivRefreshToken == "" {
+			if pixivDlOptions.MobileClient == nil {
 				artworksArr, ugoiraArr = pixiv.TagSearch(
-					tagName, utils.DOWNLOAD_PATH, sortOrder, searchMode, ratingMode, artworkType, minPage, maxPage, cookies,
+					tagName, 
+					utils.DOWNLOAD_PATH, 
+					pixivDlOptions,
+					minPage, 
+					maxPage, 
+					pixivDlOptions.SessionCookies,
 				)
 			} else {
-				artworksArr, ugoiraArr = pixivMobile.TagSearch(
-					tagName, searchMode, sortOrder, utils.DOWNLOAD_PATH, minPage, maxPage,
+				artworksArr, ugoiraArr = pixivDlOptions.MobileClient.TagSearch(
+					tagName, 
+					utils.DOWNLOAD_PATH, 
+					pixivDlOptions, 
+					minPage, 
+					maxPage,
 				)
 			}
 			artworksToDownload = append(artworksToDownload, artworksArr...)
@@ -170,25 +186,202 @@ func PixivDownloadProcess(
 	}
 
 	if len(artworksToDownload) > 0 {
-		request.DownloadURLsParallel(artworksToDownload, utils.PIXIV_MAX_CONCURRENT_DOWNLOADS, cookies, pixiv.GetPixivRequestHeaders(), nil)
+		request.DownloadURLsParallel(
+			artworksToDownload, 
+			utils.PIXIV_MAX_CONCURRENT_DOWNLOADS, 
+			pixivDlOptions.SessionCookies, 
+			pixiv.GetPixivRequestHeaders(), 
+			nil, 
+			config.OverwriteFiles,
+		)
 	}
 	if len(ugoiraToDownload) > 0 {
-		pixiv.DownloadMultipleUgoira(ugoiraToDownload, ugoiraOutputFormat, ffmpegPath, deleteUgoiraZip, ugoiraQuality, cookies)
+		pixiv.DownloadMultipleUgoira(
+			ugoiraToDownload, 
+			config, 
+			pixivUgoiraOptions, 
+			pixivDlOptions.SessionCookies,
+		)
 	}
 }
 
-// Main program
-func main() {
+var (
+	config         configs.Config
+	gdriveApiKey   string
+	downloadPath   string
+	ffmpegPath     string
+	OverwriteFiles bool
+	rootCmd = &cobra.Command{
+		Use: "cultured_dl",
+		Short: "Download images, videos, etc. from various websites like Fantia.",
+		Long: "cultured_dl is a command-line tool for downloading images, videos, etc. from various websites like Pixiv, Pixiv Fanbox, and Fantia.",
+		Run: func(cmd *cobra.Command, args []string) {
+			config = configs.Config{
+				DownloadPath: downloadPath,
+				FfmpegPath: ffmpegPath,
+				OverwriteFiles: OverwriteFiles,
+			}
+			if gdriveApiKey != "" {
+				config.GDriveClient = gdrive.GetNewGDrive(gdriveApiKey, utils.MAX_CONCURRENT_DOWNLOADS)
+			}
+		},
+	}
+
+	versionCmd = &cobra.Command{
+		Use:   "version",
+		Args:  cobra.NoArgs,
+		Short: "Print the program version",
+		Long:  "Display the current version of the Cultured Downloader CLI software.",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("Cultured Downloader CLI v%s by KJHJason\n", utils.VERSION)
+			fmt.Println("GitHub Repo: https://github.com/KJHJason/Cultured-Downloader-CLI")
+		},
+	}
+
+	fantiaSession       string
+	fantiaFanclubIds    []string
+	fantiaPostIds       []string
+	fantiaDlThumbnails  bool
+	fantiaDlImages      bool
+	fantiaDlAttachments bool
+	fantiaDlGdrive      bool
+	fantiaCmd = &cobra.Command{
+		Use:   "fantia",
+		Short: "Download from Fantia",
+		Long:  "Supports downloading from Fantia Fanclubs and individual posts.",
+		Run: func(cmd *cobra.Command, args []string) {
+			fantiaDl := fantia.FantiaDl{
+				FanclubIds:    fantiaFanclubIds,
+				PostIds:       fantiaPostIds,
+			}
+			fantiaDlOptions := fantia.FantiaDlOptions{
+				DlThumbnails:    fantiaDlThumbnails,
+				DlImages:        fantiaDlImages,
+				DlAttachments:   fantiaDlAttachments,
+				SessionCookieId: fantiaSession,
+			}
+			fantiaDlOptions.ValidateArgs()
+
+			FantiaDownloadProcess(
+				&config,
+				&fantiaDl,
+				&fantiaDlOptions,
+			)
+		},
+	}
+
+	fanboxSession       string
+	fanboxCreatorIds    []string
+	fanboxPostIds       []string
+	fanboxDlThumbnails  bool
+	fanboxDlImages      bool
+	fanboxDlAttachments bool
+	fanboxDlGdrive      bool
+	pixivFanboxCmd = &cobra.Command{
+		Use:   "pixiv_fanbox",
+		Short: "Download from Pixiv Fanbox",
+		Long:  "Supports downloading from Pixiv by artwork ID, illustrator ID, tag name, and more.",
+		Run: func(cmd *cobra.Command, args []string) {
+			pixivFanboxDl := pixiv_fanbox.PixivFanboxDl{
+				CreatorIds:    fanboxCreatorIds,
+				PostIds:       fanboxPostIds,
+			}
+			pixivFanboxDlOptions := pixiv_fanbox.PixivFanboxDlOptions{
+				DlThumbnails:    fanboxDlThumbnails,
+				DlImages:        fanboxDlImages,
+				DlAttachments:   fanboxDlAttachments,
+				DlGdrive:        fanboxDlGdrive,
+				SessionCookieId: fanboxSession,
+			}
+			pixivFanboxDlOptions.ValidateArgs()
+
+			PixivFanboxDownloadProcess(
+				&config,
+				&pixivFanboxDl,
+				&pixivFanboxDlOptions,
+			)
+		},
+	}
+
+	pixivStartOauth     bool
+	pixivRefreshToken   string
+	pixivSession        string
+	deleteUgoiraZip     bool
+	ugoiraQuality       int
+	ugoiraOutputFormat  string
+	pixivArtworkIds     []string
+	pixivIllustratorIds []string
+	pixivTagNames       []string
+	pixivPageNums       []string
+	pixivSortOrder      string
+	pixivSearchMode     string
+	pixivRatingMode     string
+	pixivArtworkType    string
+	pixivCmd = &cobra.Command{
+		Use:   "pixiv",
+		Short: "Download from Pixiv",
+		Long:  "Supports downloading from Pixiv by artwork ID, illustrator ID, tag name, and more.",
+		Run: func(cmd *cobra.Command, args []string) {
+			if pixivStartOauth {
+				pixiv.NewPixivMobile("", 10).StartOauthFlow()
+				return
+			}
+
+			config.ValidateFfmpeg()
+			utils.ValidatePageNumInput(
+				len(pixivTagNames), 
+				pixivPageNums,
+				[]string{
+					"Number of tag names and page numbers must be equal.",
+				},
+			)
+			pixivDl := pixiv.PixivDl{
+				ArtworkIds:       pixivArtworkIds,
+				IllustratorIds:   pixivIllustratorIds,
+				TagNames:         pixivTagNames,
+				TagNamesPageNums: pixivPageNums,
+			}
+			pixivDl.ValidateArgs()
+
+			pixivUgoiraOptions := pixiv.UgoiraDlOptions{
+				DeleteZip:    deleteUgoiraZip,
+				Quality:      ugoiraQuality,
+				OutputFormat: ugoiraOutputFormat,
+			}
+			pixivUgoiraOptions.ValidateArgs()
+
+			pixivDlOptions := pixiv.PixivDlOptions{
+				SortOrder:       pixivSortOrder,
+				SearchMode:      pixivSearchMode,
+				RatingMode:      pixivRatingMode,
+				ArtworkType:     pixivArtworkType,
+				RefreshToken:    pixivRefreshToken,
+				SessionCookieId: pixivSession,
+			}
+			pixivDlOptions.ValidateArgs()
+			PixivDownloadProcess(
+				&config,
+				&pixivDl, 
+				&pixivDlOptions,
+				&pixivUgoiraOptions, 
+			)
+		},
+	}
+)
+
+func init() {
 	mutlipleIdsMsg := "For multiple IDs, separate them with a space.\nExample: \"12345 67891\""
-	// Fantia args
-	fantiaSession := flag.String(
+
+	fantiaCmd.Flags().StringVar(
+		&fantiaSession,
 		"fantia_session",
 		"",
 		"Your _session_id cookie value to use for the requests to Fantia.",
 	)
-	fanclub := flag.String(
-		"fanclub_id",
-		"",
+	fantiaCmd.Flags().StringSliceVar(
+		&fantiaFanclubIds,
+		"fantia_fanclub_id",
+		[]string{},
 		utils.CombineStringsWithNewline(
 			[]string{
 				"Fantia Fanclub ID(s) to download from.",
@@ -196,9 +389,10 @@ func main() {
 			},
 		),
 	)
-	fantiaPost := flag.String(
-		"fantia_post",
-		"",
+	fantiaCmd.Flags().StringSliceVar(
+		&fantiaPostIds,
+		"fantia_post_id",
+		[]string{},
 		utils.CombineStringsWithNewline(
 			[]string{
 				"Fantia post ID(s) to download.",
@@ -206,16 +400,41 @@ func main() {
 			},
 		),
 	)
+	fantiaCmd.Flags().BoolVar(
+		&fantiaDlThumbnails,
+		"fantia_dl_thumbnails",
+		false,
+		"Whether to download the thumbnail of a Fantia post.",
+	)
+	fantiaCmd.Flags().BoolVar(
+		&fantiaDlImages,
+		"fantia_dl_images",
+		false,
+		"Whether to download the images of a Fantia post.",
+	)
+	fantiaCmd.Flags().BoolVar(
+		&fantiaDlAttachments,
+		"fantia_dl_attachments",
+		false,
+		"Whether to download the attachments of a Fantia post.",
+	)
+	fantiaCmd.Flags().BoolVar(
+		&fantiaDlGdrive,
+		"fantia_dl_gdrive",
+		false,
+		"Whether to download the Google Drive links of a Fantia post.",
+	)
 
-	// Pixiv Fanbox args
-	pixivFanboxSession := flag.String(
-		"fanbox_session",
+	pixivFanboxCmd.Flags().StringVar(
+		&fanboxSession,
+		"pixiv_fanbox_session",
 		"",
 		"Your FANBOXSESSID cookie value to use for the requests to Pixiv Fanbox.",
 	)
-	creator := flag.String(
-		"creator_id",
-		"",
+	pixivFanboxCmd.Flags().StringSliceVar(
+		&fanboxCreatorIds,
+		"pixiv_fanbox_creator_id",
+		[]string{},
 		utils.CombineStringsWithNewline(
 			[]string{
 				"Pixiv Fanbox Creator ID(s) to download from.",
@@ -223,9 +442,10 @@ func main() {
 			},
 		),
 	)
-	pixivFanboxPost := flag.String(
-		"fanbox_post",
-		"",
+	pixivFanboxCmd.Flags().StringSliceVar(
+		&fanboxPostIds,
+		"pixiv_fanbox_post_id",
+		[]string{},
 		utils.CombineStringsWithNewline(
 			[]string{
 				"Pixiv Fanbox post ID(s) to download.",
@@ -233,36 +453,39 @@ func main() {
 			},
 		),
 	)
-
-	// Fantia and Pixiv Fanbox args
-	downloadThumbnail := flag.Bool(
-		"download_thumbnail",
-		true,
-		"Whether to download the thumbnail of a post.",
+	pixivFanboxCmd.Flags().BoolVar(
+		&fanboxDlThumbnails,
+		"pixiv_fanbox_dl_thumbnails",
+		false,
+		"Whether to download the thumbnail of a Pixiv Fanbox post.",
 	)
-	downloadImages := flag.Bool(
-		"download_images",
-		true,
-		"Whether to download the images of a post.",
+	pixivFanboxCmd.Flags().BoolVar(
+		&fanboxDlImages,
+		"pixiv_fanbox_dl_images",
+		false,
+		"Whether to download the images of a Pixiv Fanbox post.",
 	)
-	downloadAttachments := flag.Bool(
-		"download_attachments",
-		true,
-		"Whether to download the attachments of a post.",
+	pixivFanboxCmd.Flags().BoolVar(
+		&fanboxDlAttachments,
+		"pixiv_fanbox_dl_attachments",
+		false,
+		"Whether to download the attachments of a Pixiv Fanbox post.",
 	)
-	downloadGdrive := flag.Bool(
-		"download_gdrive",
-		true,
+	pixivFanboxCmd.Flags().BoolVar(
+		&fanboxDlGdrive,
+		"pixiv_fanbox_dl_gdrive",
+		false,
 		"Whether to download the Google Drive links of a Pixiv Fanbox post.",
 	)
 
-	// Pixiv args
-	pixivStartOauth := flag.Bool(
+	pixivCmd.Flags().BoolVar(
+		&pixivStartOauth,
 		"pixiv_start_oauth",
 		false,
 		"Whether to start the Pixiv OAuth process to get one's refresh token.",
 	)
-	pixivRefreshToken := flag.String(
+	pixivCmd.Flags().StringVar(
+		&pixivRefreshToken,
 		"pixiv_refresh_token",
 		"",
 		utils.CombineStringsWithNewline(
@@ -278,17 +501,20 @@ func main() {
 			},
 		),
 	)
-	pixivSession := flag.String(
+	pixivCmd.Flags().StringVar(
+		&pixivSession,
 		"pixiv_session",
 		"",
 		"Your PHPSESSID cookie value to use for the requests to Pixiv.",
 	)
-	deleteUgoiraZip := flag.Bool(
+	pixivCmd.Flags().BoolVar(
+		&deleteUgoiraZip,
 		"delete_ugoira_zip",
 		true,
 		"Whether to delete the downloaded ugoira zip file after conversion.",
 	)
-	ugoiraQuality := flag.Int(
+	pixivCmd.Flags().IntVar(
+		&ugoiraQuality,
 		"ugoira_quality",
 		10,
 		utils.CombineStringsWithNewline(
@@ -306,7 +532,8 @@ func main() {
 			},
 		),
 	)
-	ugoiraOutputFormat := flag.String(
+	pixivCmd.Flags().StringVar(
+		&ugoiraOutputFormat,
 		"ugoira_output_format",
 		".gif",
 		utils.CombineStringsWithNewline(
@@ -319,9 +546,10 @@ func main() {
 			},
 		),
 	)
-	artworkId := flag.String(
-		"artwork_id",
-		"",
+	pixivCmd.Flags().StringSliceVar(
+		&pixivArtworkIds,
+		"pixiv_artwork_id",
+		[]string{},
 		utils.CombineStringsWithNewline(
 			[]string{
 				"Artwork ID(s) to download.",
@@ -329,9 +557,10 @@ func main() {
 			},
 		),
 	)
-	illustratorId := flag.String(
-		"illustrator_id",
-		"",
+	pixivCmd.Flags().StringSliceVar(
+		&pixivIllustratorIds,
+		"pixiv_illustrator_id",
+		[]string{},
 		utils.CombineStringsWithNewline(
 			[]string{
 				"Illustrator ID(s) to download.",
@@ -339,9 +568,10 @@ func main() {
 			},
 		),
 	)
-	tagName := flag.String(
-		"tag_name",
-		"",
+	pixivCmd.Flags().StringSliceVar(
+		&pixivTagNames,
+		"pixiv_tag_name",
+		[]string{},
 		utils.CombineStringsWithNewline(
 			[]string{
 				"Tag names to search for and download related artworks.",
@@ -350,9 +580,10 @@ func main() {
 			},
 		),
 	)
-	pageNum := flag.String(
-		"page_num",
-		"",
+	pixivCmd.Flags().StringSliceVar(
+		&pixivPageNums,
+		"pixiv_page_num",
+		[]string{},
 		utils.CombineStringsWithNewline(
 			[]string{
 				"Min and max page numbers to search for corresponding to the order of the supplied tag names.",
@@ -361,8 +592,9 @@ func main() {
 			},
 		),
 	)
-	sortOrder := flag.String(
-		"sort_order",
+	pixivCmd.Flags().StringVar(
+		&pixivSortOrder,
+		"pixiv_sort_order",
 		"date_d",
 		utils.CombineStringsWithNewline(
 			[]string{
@@ -376,8 +608,9 @@ func main() {
 			},
 		),
 	)
-	searchMode := flag.String(
-		"search_mode",
+	pixivCmd.Flags().StringVar(
+		&pixivSearchMode,
+		"pixiv_search_mode",
 		"s_tag_full",
 		utils.CombineStringsWithNewline(
 			[]string{
@@ -389,8 +622,9 @@ func main() {
 			},
 		),
 	)
-	ratingMode := flag.String(
-		"rating_mode",
+	pixivCmd.Flags().StringVar(
+		&pixivRatingMode,
+		"pixiv_rating_mode",
 		"all",
 		utils.CombineStringsWithNewline(
 			[]string{
@@ -405,8 +639,9 @@ func main() {
 			},
 		),
 	)
-	artworkType := flag.String(
-		"artwork_type",
+	pixivCmd.Flags().StringVar(
+		&pixivArtworkType,
+		"pixiv_artwork_type",
 		"all",
 		utils.CombineStringsWithNewline(
 			[]string{
@@ -421,8 +656,8 @@ func main() {
 		),
 	)
 
-	// Other args
-	gdriveApiKey := flag.String(
+	rootCmd.Flags().StringVar(
+		&gdriveApiKey,
 		"gdrive_api_key",
 		"",
 		utils.CombineStringsWithNewline(
@@ -432,7 +667,15 @@ func main() {
 			},
 		),
 	)
-	downloadPath := flag.String(
+	rootCmd.Flags().BoolVarP(
+		&OverwriteFiles,
+		"overwrite",
+		"o",
+		false,
+		"When the Content-Length header is not in the response, overwrite any existing files when downloading.",
+	)
+	rootCmd.Flags().StringVar(
+		&downloadPath,
 		"download_path",
 		"",
 		utils.CombineStringsWithNewline(
@@ -444,7 +687,8 @@ func main() {
 			},
 		),
 	)
-	ffmpegPath := flag.String(
+	rootCmd.Flags().StringVar(
+		&ffmpegPath,
 		"ffmpeg_path",
 		"ffmpeg",
 		utils.CombineStringsWithNewline(
@@ -454,106 +698,17 @@ func main() {
 			},
 		),
 	)
-	version := flag.Bool(
-		"version",
-		false,
-		"Display the current version of the Cultured Downloader CLI software.",
+
+	rootCmd.CompletionOptions.HiddenDefaultCmd = true
+	rootCmd.AddCommand(
+		fantiaCmd,
+		pixivFanboxCmd,
+		pixivCmd,
+		versionCmd,
 	)
-	help := flag.Bool(
-		"help",
-		false,
-		"Show the list of arguments with its description.",
-	)
-	flag.Parse()
+}
 
-	if *help || len(os.Args) == 1 {
-		flag.PrintDefaults()
-		return
-	}
-	if *version {
-		fmt.Println("Cultured Downloader CLI v" + utils.VERSION)
-		return
-	}
-	if *pixivStartOauth {
-		pixiv.NewPixivMobile("", 10).StartOauthFlow()
-	}
-
-	// check Pixiv args
-	var pixivMobile *pixiv.PixivMobile
-	if *pixivRefreshToken != "" {
-		pixivMobile = pixiv.NewPixivMobile(*pixivRefreshToken, 10)
-	}
-	ugoiraOutputFormat = utils.CheckStrArgs(utils.UGOIRA_ACCEPTED_EXT, *ugoiraOutputFormat, "ugoira output format")
-	sortOrder = utils.CheckStrArgs(utils.ACCEPTED_SORT_ORDER, *sortOrder, "sort order")
-	searchMode = utils.CheckStrArgs(utils.ACCEPTED_SEARCH_MODE, *searchMode, "search mode")
-	ratingMode = utils.CheckStrArgs(utils.ACCEPTED_RATING_MODE, *ratingMode, "rating mode")
-	artworkType = utils.CheckStrArgs(utils.ACCEPTED_ARTWORK_TYPE, *artworkType, "artwork type")
-
-	// Get the GDrive object
-	var gdriveObj *gdrive.GDrive
-	if *gdriveApiKey != "" {
-		gdriveObj = gdrive.GetNewGDrive(*gdriveApiKey, utils.MAX_CONCURRENT_DOWNLOADS)
-	}
-
-	if *downloadPath != "" {
-		utils.SetDefaultDownloadPath(*downloadPath)
-		color.Green("Download path set to: %s", *downloadPath)
-		return
-	}
-	if utils.DOWNLOAD_PATH == "" {
-		color.Red(
-			"Default download setting not found or is invalid, " +
-				"please set up a default download path before continuing by pasing the -download_path flag.",
-		)
-		os.Exit(1)
-	}
-
-	// parse and verify the cookies
-	fantiaCookie := api.VerifyAndGetCookie(api.Fantia, api.FantiaTitle, *fantiaSession)
-	pixivFanboxCookie := api.VerifyAndGetCookie(api.PixivFanbox, api.PixivFanboxTitle, *pixivFanboxSession)
-	pixivCookie := api.VerifyAndGetCookie(api.Pixiv, api.Pixiv, *pixivSession)
-	cookies := []http.Cookie{fantiaCookie, pixivFanboxCookie, pixivCookie}
-
-	// parse the ID(s) to download from
-	fanclubIds := utils.SplitAndCheckIds(*fanclub)
-	fantiaPostIds := utils.SplitAndCheckIds(*fantiaPost)
-	creatorIds := utils.SplitArgs(*creator)
-	pixivFanboxPostIds := utils.SplitAndCheckIds(*pixivFanboxPost)
-	artworkIds := utils.SplitAndCheckIds(*artworkId)
-	illustratorIds := utils.SplitAndCheckIds(*illustratorId)
-	tagNames := utils.SplitArgsWithSep(*tagName, ",")
-	pageNums := utils.SplitArgs(*pageNum)
-
-	if len(tagNames) != len(pageNums) {
-		color.Red("Number of tag names and page numbers must be equal.")
-		os.Exit(1)
-	}
-	// check page nums if they are in the correct format
-	pageNumsRegex := regexp.MustCompile(`^[1-9]\d*(-[1-9]\d*)?$`)
-	for _, pageNum := range pageNums {
-		if !pageNumsRegex.MatchString(pageNum) {
-			color.Red("Invalid page number format: %s", pageNum)
-			color.Red("Please follow the format, \"1-10\", as an example.")
-			color.Red("Note that \"0\" are not accepted! E.g. \"0-9\" is invalid.")
-			os.Exit(1)
-		}
-	}
-
-	color.Yellow("CAUTION:")
-	color.Yellow("Please do NOT stop the program while it is downloading.")
-	color.Yellow("Doing so may result in incomplete downloads and corrupted files.")
-	fmt.Println()
-	FantiaDownloadProcess(
-		fantiaPostIds, fanclubIds, cookies,
-		*downloadThumbnail, *downloadImages, *downloadAttachments,
-	)
-	PixivFanboxDownloadProcess(
-		pixivFanboxPostIds, creatorIds, cookies, *gdriveApiKey, gdriveObj,
-		*downloadThumbnail, *downloadImages, *downloadAttachments, *downloadGdrive,
-	)
-	PixivDownloadProcess(
-		artworkIds, illustratorIds, tagNames, pageNums,
-		*sortOrder, *searchMode, *ratingMode, *artworkType, *ugoiraOutputFormat, *ffmpegPath,
-		*pixivRefreshToken, *deleteUgoiraZip, *ugoiraQuality, cookies, pixivMobile,
-	)
+// Main program
+func main() {
+	rootCmd.Execute()
 }

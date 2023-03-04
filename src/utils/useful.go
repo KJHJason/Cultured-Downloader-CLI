@@ -1,21 +1,59 @@
 package utils
 
 import (
-	"io"
-	"os"
-	"fmt"
-	"time"
-	"errors"
-	"strings"
-	"net/url"
-	"net/http"
-	"math/rand"
 	"archive/zip"
-	"path/filepath"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"math/rand"
+	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"time"
+
 	"github.com/fatih/color"
 	"github.com/schollz/progressbar/v3"
 )
+
+// Prints out a warning message to the user to not stop the program while it is downloading
+func PrintWarningMsg() {
+	color.Yellow("CAUTION:")
+	color.Yellow("Please do NOT stop the program while it is downloading.")
+	color.Yellow("Doing so may result in incomplete downloads and corrupted files.")
+	fmt.Println()
+}
+
+var pageNumsRegex = regexp.MustCompile(`^[1-9]\d*(-[1-9]\d*)?$`)
+// check page nums if they are in the correct format.
+//
+// E.g. "1-10" is valid, but "0-9" is not valid because "0" is not accepted
+// If the page nums are not in the correct format, os.Exit(1) is called
+func ValidatePageNumInput(baseArrLen int, pageNums, errMsgs []string) {
+	if baseArrLen != len(pageNums) {
+		if len(errMsgs) > 0 {
+			for _, errMsg := range errMsgs {
+				color.Red(errMsg)
+			}
+		} else {
+			color.Red("Error: %d URLs provided, but %d page numbers provided.", baseArrLen, len(pageNums))
+			color.Red("Please provide the same number of page numbers as the number of URLs.")
+		}
+		os.Exit(1)
+	}
+
+	for _, pageNum := range pageNums {
+		if !pageNumsRegex.MatchString(pageNum) {
+			color.Red("Invalid page number format: %s", pageNum)
+			color.Red("Please follow the format, \"1-10\", as an example.")
+			color.Red("Note that \"0\" are not accepted! E.g. \"0-9\" is invalid.")
+			os.Exit(1)
+		}
+	}
+}
 
 // Returns a function that will print out a success message in green with a checkmark
 //
@@ -46,8 +84,8 @@ func GetProgressBar(total int, desc string, completionFunc func()) *progressbar.
 // Returns a random time.Duration between the given min and max arguments
 func GetRandomTime(min, max float64) time.Duration {
 	rand.Seed(time.Now().UnixNano())
-	randomDelay := min + rand.Float64() * (max - min)
-	return time.Duration(randomDelay * 1000) * time.Millisecond 
+	randomDelay := min + rand.Float64()*(max-min)
+	return time.Duration(randomDelay*1000) * time.Millisecond
 }
 
 // Returns a random time.Duration between the defined min and max delay values in the contants.go file
@@ -63,6 +101,34 @@ func ArrContains(arr []string, str string) bool {
 		}
 	}
 	return false
+}
+
+// Checks if the slice of string contains the target str
+//
+// Otherwise, os.Exit(1) is called after printing error messages for the user to read
+func CheckStrArg(str string, arr, errMsg []string) string {
+	str = strings.ToLower(str)
+	if ArrContains(arr, str) {
+		return str
+	}
+
+	if len(errMsg) > 0 {
+		for _, msg := range errMsg {
+			color.Red(msg)
+		}
+	} else {
+		color.Red(
+			fmt.Sprintf("Input error, got: %s", str),
+		)
+	}
+	color.Red(
+		fmt.Sprintf(
+			"Expecting one of the following: %s", 
+			strings.TrimSpace(strings.Join(arr, ", ")),
+		),
+	)
+	os.Exit(1)
+	return ""
 }
 
 // Checks if the slice of string contains the target str
@@ -87,7 +153,7 @@ func CheckStrArgs(arr []string, str, argName string) *string {
 }
 
 // Since go's flags package doesn't have a way to pass in multiple values for a flag,
-// a workaround is to pass in the args like "arg1 arg2 arg3" and 
+// a workaround is to pass in the args like "arg1 arg2 arg3" and
 // then split them into a slice by the space delimiter
 //
 // This function will split based on the given delimiter and return the slice of strings
@@ -172,7 +238,7 @@ func UnzipFile(src, dest string, ignoreIfMissing bool) error {
 
 		path := filepath.Join(dest, f.Name)
 		// Check for ZipSlip (Directory traversal)
-		if !strings.HasPrefix(path, filepath.Clean(dest) + string(os.PathSeparator)) {
+		if !strings.HasPrefix(path, filepath.Clean(dest)+string(os.PathSeparator)) {
 			return fmt.Errorf("illegal file path: %s", path)
 		}
 
@@ -241,21 +307,21 @@ func ReadResBody(res *http.Response) []byte {
 // Prints out a defined error message and exits the program
 func JsonPanic(res *http.Response, err error) {
 	errorMsg := fmt.Sprintf(
-		"failed to parse json response from %s due to %v", 
-		res.Request.URL.String(), 
+		"failed to parse json response from %s due to %v",
+		res.Request.URL.String(),
 		err,
 	)
 	panic(errorMsg)
 }
 
 // Read the response body and unmarshal it into a interface and returns it
-func LoadJsonFromResponse(res *http.Response) interface{} {
+func LoadJsonFromResponse(res *http.Response) (interface{}, []byte) {
 	body := ReadResBody(res)
 	var post interface{}
 	if err := json.Unmarshal(body, &post); err != nil {
 		JsonPanic(res, err)
 	}
-	return post
+	return post, body
 }
 
 // Detects if the given string contains any passwords

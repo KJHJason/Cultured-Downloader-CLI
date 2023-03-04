@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"reflect"
+
 	"github.com/KJHJason/Cultured-Downloader-CLI/api"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
@@ -147,7 +148,8 @@ func GetArtworkDetails(artworkId, downloadPath string, cookies []http.Cookie) (s
 		utils.LogError(nil, errorMsg, false)
 		return "", nil, -1
 	}
-	return artworkPostDir, utils.LoadJsonFromResponse(artworkUrlsRes), artworkType
+	artworkJson, _ := utils.LoadJsonFromResponse(artworkUrlsRes)
+	return artworkPostDir, artworkJson, artworkType
 }
 
 // Retrieves multiple artwork details based on the given slice of artwork IDs
@@ -201,7 +203,8 @@ func GetIllustratorPosts(illustratorId, artworkType string, cookies []http.Cooki
 		utils.LogError(nil, errorMsg, false)
 		return nil
 	}
-	jsonBody := utils.LoadJsonFromResponse(res).(map[string]interface{})["body"]
+	jsonBody, _ := utils.LoadJsonFromResponse(res)
+	jsonBody = jsonBody.(map[string]interface{})["body"]
 
 	var artworkIds []string
 	if artworkType == "all" || artworkType == "illust_and_ugoira" {
@@ -269,20 +272,15 @@ func ProcessTagJsonResults(res *http.Response) []string {
 
 // Query Pixiv's API and search for posts based on the supplied tag name
 // which will return a map and a slice of Ugoira structures for downloads
-func TagSearch(tagName, downloadPath, sortOrder, searchMode, ratingMode, artworkType string, minPage, maxPage int, cookies []http.Cookie) ([]map[string]string, []Ugoira) {
-	searchMode = strings.ToLower(searchMode)
-	sortOrder = strings.ToLower(sortOrder)
-	ratingMode = strings.ToLower(ratingMode)
-	artworkType = strings.ToLower(artworkType)
-
+func TagSearch(tagName, downloadPath string, dlOptions *PixivDlOptions, minPage, maxPage int, cookies []http.Cookie) ([]map[string]string, []Ugoira) {
 	url := "https://www.pixiv.net/ajax/search/artworks/" + tagName
 	params := map[string]string{
-		"word": tagName,	  // search term
-		"s_mode": searchMode, // search mode: s_tag, s_tag_full, s_tc
-		"order": sortOrder,   // sort order: date, popular, popular_male, popular_female 
-							  // 			(add "_d" suffix for descending order, e.g. date_d)
-		"mode": ratingMode,	  //  r18, safe, or all for both
-		"type": artworkType,  // illust_and_ugoira, manga, all
+		"word": tagName,                // search term
+		"s_mode": dlOptions.SearchMode, // search mode: s_tag, s_tag_full, s_tc
+		"order": dlOptions.SortOrder,   // sort order: date, popular, popular_male, popular_female 
+							            // (add "_d" suffix for descending order, e.g. date_d)
+		"mode": dlOptions.RatingMode,   //  r18, safe, or all for both
+		"type": dlOptions.ArtworkType,  // illust_and_ugoira, manga, all
 	}
 
 	if minPage > maxPage {

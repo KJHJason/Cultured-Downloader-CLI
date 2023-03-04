@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 	"os"
+
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/fatih/color"

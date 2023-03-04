@@ -12,6 +12,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	CryptoRand "crypto/rand"
+
 	"github.com/fatih/color"
 	"github.com/pkg/browser"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
@@ -136,8 +137,8 @@ func (pixiv *PixivMobile) RefreshAccessToken() {
 		os.Exit(1)
 	}
 
-	resJson := utils.LoadJsonFromResponse(res).(map[string]interface{})
-	pixiv.accessToken = resJson["access_token"].(string)
+	resJson, _ := utils.LoadJsonFromResponse(res)
+	pixiv.accessToken = resJson.(map[string]interface{})["access_token"].(string)
 }
 
 // Reads the response JSON and checks if the access token has expired, 
@@ -181,7 +182,7 @@ func (pixiv *PixivMobile) SendRequest(
 	for i := 1; i <= utils.RETRY_COUNTER; i++ {
 		res, err = client.Do(req)
 		if err == nil {
-			jsonRes := utils.LoadJsonFromResponse(res)
+			jsonRes, _ := utils.LoadJsonFromResponse(res)
 			if pixiv.RefreshTokenIfReq(jsonRes, res.StatusCode) {
 				continue
 			} else if !checkStatus {
@@ -259,8 +260,8 @@ func (pixiv *PixivMobile) StartOauthFlow() {
 			continue
 		} 
 
-		resJson := utils.LoadJsonFromResponse(res).(map[string]interface{})
-		refreshToken := resJson["refresh_token"].(string)
+		resJson, _ := utils.LoadJsonFromResponse(res)
+		refreshToken := resJson.(map[string]interface{})["refresh_token"].(string)
 		color.Green("Your Pixiv Refresh Token: " + refreshToken)
 		color.Yellow("Please save your refresh token somewhere SECURE and do NOT share it with anyone!")
 		return
@@ -471,7 +472,7 @@ func (pixiv *PixivMobile) GetMultipleIllustratorPosts(userIds []string, download
 }
 
 // Query Pixiv's API (mobile) to get the JSON of a search query
-func (pixiv *PixivMobile) TagSearch(tagName, searchTarget, sortOrder, downloadPath string, minPage, maxPage int) ([]map[string]string, []Ugoira) {
+func (pixiv *PixivMobile) TagSearch(tagName, downloadPath string, dlOptions *PixivDlOptions, minPage, maxPage int) ([]map[string]string, []Ugoira) {
 	var artworksToDownload []map[string]string
 	nextUrl := pixiv.baseUrl + "/v1/search/illust"
 	minOffset, maxOffset := ConvertPageNumToOffset(minPage, maxPage)
@@ -483,20 +484,22 @@ func (pixiv *PixivMobile) TagSearch(tagName, searchTarget, sortOrder, downloadPa
 		"s_tag_full": "exact_match_for_tags",
 		"s_tc": "title_and_caption",
 	}
-	searchTarget, ok := searchTargetMap[searchTarget]
+	searchTarget, ok := searchTargetMap[dlOptions.SearchMode]
 	if !ok {
 		panic("Pixiv: Invalid search target")
 	}
 
 	// Convert sortOrder to the correct value
 	// based on the Pixiv's ajax web API
-	if strings.Contains(sortOrder, "popular") {
+	var sortOrder string
+	if strings.Contains(dlOptions.SortOrder, "popular") {
 		sortOrder = "popular_desc" // only supports popular_desc
-	} else if sortOrder == "date_d" {
+	} else if dlOptions.SortOrder == "date_d" {
 		sortOrder = "date_desc"
 	} else {
 		sortOrder = "date_asc"
 	}
+
 	params := map[string]string{
 		"word": tagName,
 		"search_target": searchTarget,

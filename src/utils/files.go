@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"encoding/json"
 	"path/filepath"
+
 	"github.com/fatih/color"
 )
 
@@ -18,25 +19,23 @@ func PathExists(filepath string) bool {
 	return !os.IsNotExist(err)
 }
 
-// check if the file exists and has more than 0 bytes
-// 
-// Returns false if the file exists and has more than 0 bytes
-func CheckIfFileIsEmpty(filepath string) (bool, error) {
-	if PathExists(filepath) {
-		file, err := os.Open(filepath)
+// Returns the file size based on the provided file path
+//
+// If the file does not exist or 
+// there was an error opening the file at the given file path string, -1 is returned
+func GetFileSize(filePath string) (int64, error) {
+	if PathExists(filePath) {
+		file, err := os.OpenFile(filePath, os.O_RDONLY, 0666)
 		if err != nil {
-			return true, err
+			return -1, err
 		}
 		fileInfo, err := file.Stat()
 		if err != nil {
-			return true, err
+			return -1, err
 		}
-
-		if fileInfo.Size() > 0 {
-			return false, nil
-		}
+		return fileInfo.Size(), nil
 	}
-	return true, nil
+	return -1, nil
 }
 
 // Thread-safe logging function that logs to the provided file path
@@ -45,18 +44,14 @@ func LogMessageToPath(message, filePath string) {
 	logToPathMutex.Lock()
 	defer logToPathMutex.Unlock()
 
-	var err error
-	var logFile *os.File
-	if !PathExists(filePath) {
-		logFile, err = os.Create(filePath)
-		if err != nil {
-			panic(err)
-		}
-	} else {
-		logFile, err = os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, 0644)
-		if err != nil {
-			panic(err)
-		}
+	os.MkdirAll(filepath.Dir(filePath), 0755)
+	logFile, err := os.OpenFile(
+		filePath, 
+		os.O_WRONLY|os.O_CREATE|os.O_APPEND, 
+		0666,
+	)
+	if err != nil {
+		panic(err)
 	}
 	defer logFile.Close()
 
@@ -70,15 +65,8 @@ func LogMessageToPath(message, filePath string) {
 // to prevent any error with file I/O using the path name
 func RemoveIllegalCharsInPathName(dirtyPathName string) string {
 	dirtyPathName = strings.TrimSpace(dirtyPathName)
-	partiallyCleanedPathName := strings.ReplaceAll(
-		strings.TrimSpace(dirtyPathName),
-		".",
-		" ",
-	)
-	return ILLEGAL_PATH_CHARS_REGEX.ReplaceAllString(
-		partiallyCleanedPathName,
-		"-",
-	)
+	partiallyCleanedPathName := strings.ReplaceAll(dirtyPathName, ".", " ")
+	return ILLEGAL_PATH_CHARS_REGEX.ReplaceAllString(partiallyCleanedPathName, "-")
 }
 
 // Returns a directory path for a post, artwork, etc. 
@@ -170,7 +158,7 @@ func SetDefaultDownloadPath(newDownloadPath string) {
 			panic(err)
 		}
 
-		err = os.WriteFile(configFilePath, configFile, 0644)
+		err = os.WriteFile(configFilePath, configFile, 0666)
 		if err != nil {
 			panic(err)
 		}
@@ -204,7 +192,7 @@ func SetDefaultDownloadPath(newDownloadPath string) {
 			panic(err)
 		}
 
-		err = os.WriteFile(configFilePath, configFile, 0644)
+		err = os.WriteFile(configFilePath, configFile, 0666)
 		if err != nil {
 			panic(err)
 		}
