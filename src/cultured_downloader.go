@@ -261,7 +261,6 @@ var (
 						true,
 					)
 				}
-				fmt.Println(cookies)
 				fantiaDlOptions.SessionCookies = cookies
 			}
 
