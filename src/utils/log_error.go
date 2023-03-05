@@ -66,3 +66,26 @@ func LogError(err error, errorMsg string, exit bool) {
 		os.Exit(1)
 	}
 }
+
+// Uses the thread-safe LogError() function to log a slice of errors or a channel of errors
+func LogErrors(exit bool, errChan *chan error, errs ...error) {
+	if errChan != nil && len(errs) > 0 {
+		color.Red(
+			fmt.Sprintf(
+				"error %d: cannot pass both an error channel and a slice of errors to LogErrors()",
+				DEV_ERROR,
+			),
+		)
+		os.Exit(1)
+	}
+
+	if errChan != nil {
+		for err := range *errChan {
+			LogError(err, "", exit)
+		}
+		return
+	}
+	for _, err := range errs {
+		LogError(err, "", exit)
+	}
+}

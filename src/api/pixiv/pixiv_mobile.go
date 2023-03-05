@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"sync"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/api"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
@@ -20,17 +21,22 @@ import (
 	"github.com/pkg/browser"
 )
 
+type accessTokenInfo struct {
+	accessToken string
+	expiresAt   time.Time
+}
+
 type PixivMobile struct {
-	baseUrl      string
-	clientId     string
-	clientSecret string
-	userAgent    string
-	authTokenUrl string
-	loginUrl     string
-	redirectUri  string
-	refreshToken string
-	accessToken  string
-	apiTimeout   int
+	baseUrl        string
+	clientId       string
+	clientSecret   string
+	userAgent      string
+	authTokenUrl   string
+	loginUrl       string
+	redirectUri    string
+	refreshToken   string
+	accessTokenMap accessTokenInfo
+	apiTimeout     int
 }
 
 // Get a new PixivMobile structure
@@ -44,7 +50,6 @@ func NewPixivMobile(refreshToken string, timeout int) *PixivMobile {
 		loginUrl:     "https://app-api.pixiv.net/web/v1/login",
 		redirectUri:  "https://app-api.pixiv.net/web/v1/users/auth/pixiv/callback",
 		refreshToken: refreshToken,
-		accessToken:  "",
 		apiTimeout:   timeout,
 	}
 	if refreshToken != "" {
@@ -102,7 +107,7 @@ func (pixiv *PixivMobile) GetHeaders(additional ...map[string]string) map[string
 		"User-Agent":     pixiv.userAgent,
 		"App-OS":         "ios",
 		"App-OS-Version": "14.6",
-		"Authorization":  "Bearer " + pixiv.accessToken,
+		"Authorization":  "Bearer " + pixiv.accessTokenMap.accessToken,
 	}
 	for _, header := range additional {
 		for k, v := range header {
@@ -118,8 +123,12 @@ func S256(bytes []byte) string {
 	return base64.RawURLEncoding.EncodeToString(hash[:])
 }
 
+var pixivRefreshMutex = sync.Mutex{}
 // Refresh the access token
 func (pixiv *PixivMobile) RefreshAccessToken() error {
+	pixivRefreshMutex.Lock()
+	defer pixivRefreshMutex.Unlock()
+
 	headers := map[string]string{"User-Agent": pixiv.userAgent}
 	data := map[string]string{
 		"client_id":      pixiv.clientId,
@@ -129,8 +138,14 @@ func (pixiv *PixivMobile) RefreshAccessToken() error {
 		"refresh_token":  pixiv.refreshToken,
 	}
 	res, err := request.CallRequestWithData(
-		pixiv.authTokenUrl, "POST",
-		pixiv.apiTimeout, nil, data, headers, nil, false,
+		pixiv.authTokenUrl, 
+		"POST",
+		pixiv.apiTimeout, 
+		nil, 
+		data, 
+		headers, 
+		nil, 
+		false,
 	)
 	if err != nil || res.StatusCode != 200 {
 		errCode := utils.CONNECTION_ERROR
@@ -140,8 +155,8 @@ func (pixiv *PixivMobile) RefreshAccessToken() error {
 			errCode = utils.RESPONSE_ERROR
 		}
 		err = fmt.Errorf(
-			"pixiv error %d: failed to refresh token due to %v\n"+
-				"Please check your refresh token and try again or use the \"-pixiv_start_oauth\" flag to get a new refresh token.",
+			"pixiv error %d: failed to refresh token due to %v\n" +
+				"Please check your refresh token and try again or use the \"-pixiv_start_oauth\" flag to get a new refresh token",
 			errCode,
 			err,
 		)
@@ -152,7 +167,10 @@ func (pixiv *PixivMobile) RefreshAccessToken() error {
 	if err != nil {
 		return err
 	}
-	pixiv.accessToken = resJson.(map[string]interface{})["access_token"].(string)
+
+	expiresIn := resJson.(map[string]interface{})["expires_in"].(float64) - 15 // usually 3600 but minus 15 seconds to be safe
+	pixiv.accessTokenMap.accessToken = resJson.(map[string]interface{})["access_token"].(string)
+	pixiv.accessTokenMap.expiresAt = time.Now().Add(time.Duration(expiresIn) * time.Second)
 	return nil
 }
 
@@ -160,14 +178,8 @@ func (pixiv *PixivMobile) RefreshAccessToken() error {
 // if so, refreshes the access token for future requests.
 //
 // Returns a boolean indicating if the access token was refreshed.
-func (pixiv *PixivMobile) RefreshTokenIfReq(resJson interface{}, statusCode int) (bool, error) {
-	if statusCode != 400 {
-		return false, nil
-	}
-
-	errJsonMap := resJson.(map[string]interface{})["error"].(map[string]interface{})
-	message := errJsonMap["message"].(string)
-	if !strings.Contains(message, "invalid_grant") {
+func (pixiv *PixivMobile) RefreshTokenIfReq() (bool, error) {
+	if pixiv.accessTokenMap.accessToken != "" && pixiv.accessTokenMap.expiresAt.After(time.Now()) {
 		return false, nil
 	}
 
@@ -187,6 +199,11 @@ func (pixiv *PixivMobile) SendRequest(reqUrl string, additionalHeaders, params m
 		return nil, err
 	}
 
+	refreshed, err := pixiv.RefreshTokenIfReq()
+	if err != nil {
+		return nil, err
+	}
+
 	for k, v := range pixiv.GetHeaders(additionalHeaders) {
 		req.Header.Set(k, v)
 	}
@@ -199,11 +216,6 @@ func (pixiv *PixivMobile) SendRequest(reqUrl string, additionalHeaders, params m
 		res, err = client.Do(req)
 		if err == nil {
 			jsonRes, _, err := utils.LoadJsonFromResponse(res)
-			if err != nil && i == utils.RETRY_COUNTER {
-				return nil, err
-			}
-
-			refreshed, err := pixiv.RefreshTokenIfReq(jsonRes, res.StatusCode)
 			if err != nil && i == utils.RETRY_COUNTER {
 				return nil, err
 			}

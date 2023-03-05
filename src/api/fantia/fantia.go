@@ -294,10 +294,7 @@ func GetCreatorsPosts(creatorIds []string, cookies []http.Cookie) []string {
 	close(resChan)
 	close(errChan)
 
-	for err := range errChan {
-		utils.LogError(err, "", false)
-	}
-
+	utils.LogErrors(false, &errChan)
 	var postIds []string
 	for postIdsRes := range resChan {
 		postIds = append(postIds, postIdsRes...)

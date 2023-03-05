@@ -219,9 +219,7 @@ func GetMultipleArtworkDetails(artworkIds []string, downloadPath string, cookies
 		}
 	}
 
-	for _, err := range errSlice {
-		utils.LogError(err, "", false)
-	}
+	utils.LogErrors(false, nil, errSlice...)
 	return artworkDetails, ugoiraDetails
 }
 
@@ -300,9 +298,7 @@ func GetMultipleIllustratorPosts(illustratorIds []string, downloadPath, artworkT
 		}
 		bar.Add(1)
 	}
-	for _, err := range errSlice {
-		utils.LogError(err, "", false)
-	}
+	utils.LogErrors(false, nil, errSlice...)
 
 	artworksSlice, ugoiraSlice := GetMultipleArtworkDetails(artworkIdsSlice, downloadPath, cookies)
 	return artworksSlice, ugoiraSlice
@@ -391,9 +387,7 @@ func TagSearch(tagName, downloadPath string, dlOptions *PixivDlOptions, minPage,
 		}
 	}
 
-	for _, err := range errSlice {
-		utils.LogError(err, "", false)
-	}
+	utils.LogErrors(false, nil, errSlice...)
 	artworkSlice, ugoiraSlice := GetMultipleArtworkDetails(artworkIds, downloadPath, cookies)
 	return artworkSlice, ugoiraSlice
 }

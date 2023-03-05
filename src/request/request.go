@@ -282,7 +282,7 @@ func DownloadURLsParallel(
 	)
 	var wg sync.WaitGroup
 	queue := make(chan struct{}, maxConcurrency)
-	errChan := make(chan map[string]string, len(urls))
+	errChan := make(chan error, len(urls))
 	for _, url := range urls {
 		wg.Add(1)
 		queue <- struct{}{}
@@ -290,11 +290,12 @@ func DownloadURLsParallel(
 			defer wg.Done()
 			err := DownloadURL(fileUrl, filePath, cookies, headers, params, overwriteExistingFiles)
 			if err != nil {
-				errChan <- map[string]string{
-					"url": fileUrl,
-					"err": err.Error(),
-					"filepath": filePath,
-				}
+				errChan <- fmt.Errorf(
+					"failed to download url, \"%s\", to \"%s\", please refer to the error details below:\n%v",
+					fileUrl,
+					filePath,
+					err,
+				)
 			}
 			bar.Add(1)
 			<-queue
@@ -303,15 +304,5 @@ func DownloadURLsParallel(
 	close(queue)
 	wg.Wait()
 	close(errChan)
-
-	// check if there are any errors
-	for err := range errChan {
-		errMsg := fmt.Errorf(
-			"failed to download url, \"%s\", to \"%s\", please refer to the error details below:\n%s",
-			err["url"],
-			err["filepath"],
-			err["err"],
-		)
-		utils.LogError(errMsg, "", false)
-	}
+	utils.LogErrors(false, &errChan)
 }

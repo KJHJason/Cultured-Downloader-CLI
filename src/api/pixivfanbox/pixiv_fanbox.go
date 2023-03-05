@@ -328,9 +328,7 @@ func GetPostDetails(postIds []string, pixivFanboxDlOptions *PixivFanboxDlOptions
 		bar.Add(1)
 	}
 
-	for _, err := range errSlice {
-		utils.LogError(err, "", false)
-	}
+	utils.LogErrors(false, nil, errSlice...)
 	return urlsMap, gdriveUrls
 }
 
@@ -455,9 +453,7 @@ func GetFanboxPosts(creatorId string, cookies []http.Cookie) ([]string, error) {
 		}
 	}
 
-	for _, err := range errSlice {
-		utils.LogError(err, "", false)
-	}
+	utils.LogErrors(false, nil, errSlice...)
 	return postIds, nil
 }
 
@@ -482,8 +478,6 @@ func GetCreatorsPosts(creatorIds []string, cookies []http.Cookie) []string {
 		bar.Add(1)
 	}
 
-	for _, err := range errSlice {
-		utils.LogError(err, "", false)
-	}
+	utils.LogErrors(false, nil, errSlice...)
 	return postIds
 }

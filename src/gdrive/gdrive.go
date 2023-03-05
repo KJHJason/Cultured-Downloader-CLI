@@ -57,7 +57,7 @@ func GetNewGDrive(apiKey string, maxDownloadWorkers int) *GDrive {
 // Checks if the given Google Drive API key is valid
 //
 // Will return true if the given Google Drive API key is valid
-func (gdrive GDrive) GDriveKeyIsValid() (bool, error) {
+func (gdrive *GDrive) GDriveKeyIsValid() (bool, error) {
 	match, _ := regexp.MatchString(`^AIza[\w-]{35}$`, gdrive.apiKey)
 	if !match {
 		return false, nil
@@ -146,7 +146,7 @@ func LogFailedGdriveAPICalls(res *http.Response, downloadPath string) {
 }
 
 // Returns the contents of the given GDrive folder
-func (gdrive GDrive) GetFolderContents(folderId, logPath string) ([]map[string]string, error) {
+func (gdrive *GDrive) GetFolderContents(folderId, logPath string) ([]map[string]string, error) {
 	params := map[string]string{
 		"key": gdrive.apiKey,
 		"q": fmt.Sprintf("'%s' in parents", folderId),
@@ -217,7 +217,7 @@ func (gdrive GDrive) GetFolderContents(folderId, logPath string) ([]map[string]s
 }
 
 // Retrieves the content of a GDrive folder and its subfolders recursively using GDrive API v3
-func (gdrive GDrive) GetNestedFolderContents(folderId, logPath string) ([]map[string]string, error) {
+func (gdrive *GDrive) GetNestedFolderContents(folderId, logPath string) ([]map[string]string, error) {
 	files := []map[string]string{}
 	folderContents, err := gdrive.GetFolderContents(folderId, logPath)
 	if err != nil {
@@ -239,7 +239,7 @@ func (gdrive GDrive) GetNestedFolderContents(folderId, logPath string) ([]map[st
 }
 
 // Retrieves the file details of the given GDrive file using GDrive API v3
-func (gdrive GDrive) GetFileDetails(fileId, logPath string) (map[string]string, error) {
+func (gdrive *GDrive) GetFileDetails(fileId, logPath string) (map[string]string, error) {
 	params := map[string]string{
 		"key": gdrive.apiKey,
 		"fields": GDRIVE_FILE_FIELDS,
@@ -289,7 +289,7 @@ func (gdrive GDrive) GetFileDetails(fileId, logPath string) (map[string]string, 
 // Downloads the given GDrive file using GDrive API v3
 //
 // If the md5Checksum has a mismatch, the file will be overwritten and downloaded again
-func (gdrive GDrive) DownloadFile(fileInfo map[string]string, filePath string) error {
+func (gdrive *GDrive) DownloadFile(fileInfo map[string]string, filePath string) error {
 	if utils.PathExists(filePath) {
 		// check the md5 checksum and the file size
 		file, err := os.OpenFile(filePath, os.O_RDONLY, 0666)
@@ -370,7 +370,7 @@ func (gdrive GDrive) DownloadFile(fileInfo map[string]string, filePath string) e
 }
 
 // Downloads the multiple GDrive file in parallel using GDrive API v3
-func (gdrive GDrive) DownloadMultipleFiles(files []map[string]string) {
+func (gdrive *GDrive) DownloadMultipleFiles(files []map[string]string) {
 	var allowedForDownload, notAllowedForDownload []map[string]string
 	for _, file := range files {
 		if strings.Contains(file["mimeType"], "application/vnd.google-apps") {
@@ -455,7 +455,7 @@ func GetFileIdAndTypeFromUrl(url string) (string, string) {
 }
 
 // Downloads multiple GDrive files based on a slice of GDrive URL strings in parallel
-func (gdrive GDrive) DownloadGdriveUrls(gdriveUrls []map[string]string) error {
+func (gdrive *GDrive) DownloadGdriveUrls(gdriveUrls []map[string]string) error {
 	if len(gdriveUrls) == 0 {
 		return nil
 	}
