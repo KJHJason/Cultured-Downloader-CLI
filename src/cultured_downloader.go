@@ -225,6 +225,7 @@ var (
 		},
 	}
 
+	fantiaCookieFile    string
 	fantiaSession       string
 	fantiaFanclubIds    []string
 	fantiaPostIds       []string
@@ -244,12 +245,26 @@ var (
 				FanclubIds: fantiaFanclubIds,
 				PostIds:    fantiaPostIds,
 			}
+
 			fantiaDlOptions := fantia.FantiaDlOptions{
 				DlThumbnails:    fantiaDlThumbnails,
 				DlImages:        fantiaDlImages,
 				DlAttachments:   fantiaDlAttachments,
 				SessionCookieId: fantiaSession,
 			}
+			if fantiaCookieFile != "" {
+				cookies, err := utils.ParseNetscapeCookieFile(fantiaCookieFile, fantiaSession)
+				if err != nil {
+					utils.LogError(
+						err,
+						"",
+						true,
+					)
+				}
+				fmt.Println(cookies)
+				fantiaDlOptions.SessionCookies = cookies
+			}
+
 			err := fantiaDlOptions.ValidateArgs()
 			if err != nil {
 				utils.LogError(
@@ -267,6 +282,7 @@ var (
 		},
 	}
 
+	fanboxCookieFile     string
 	fanboxSession        string
 	fanboxCreatorIds     []string
 	fanboxPostIds        []string
@@ -292,12 +308,24 @@ var (
 				CreatorIds: fanboxCreatorIds,
 				PostIds:    fanboxPostIds,
 			}
+
 			pixivFanboxDlOptions := pixivfanbox.PixivFanboxDlOptions{
 				DlThumbnails:    fanboxDlThumbnails,
 				DlImages:        fanboxDlImages,
 				DlAttachments:   fanboxDlAttachments,
 				DlGdrive:        fanboxDlGdrive,
 				SessionCookieId: fanboxSession,
+			}
+			if fanboxCookieFile != "" {
+				cookies, err := utils.ParseNetscapeCookieFile(fanboxCookieFile, fanboxSession)
+				if err != nil {
+					utils.LogError(
+						err,
+						"",
+						true,
+					)
+				}
+				pixivFanboxDlOptions.SessionCookies = cookies
 			}
 			pixivFanboxDlOptions.ValidateArgs()
 
@@ -309,6 +337,7 @@ var (
 		},
 	}
 
+	pixivCookieFile     string
 	pixivFfmpegPath     string
 	pixivStartOauth     bool
 	pixivRefreshToken   string
@@ -378,7 +407,19 @@ var (
 				RefreshToken:    pixivRefreshToken,
 				SessionCookieId: pixivSession,
 			}
+			if pixivCookieFile != "" {
+				cookies, err := utils.ParseNetscapeCookieFile(pixivCookieFile, pixivSession)
+				if err != nil {
+					utils.LogError(
+						err,
+						"",
+						true,
+					)
+				}
+				pixivDlOptions.SessionCookies = cookies
+			}
 			pixivDlOptions.ValidateArgs()
+
 			PixivDownloadProcess(
 				&pixivConfig,
 				&pixivDl,
@@ -705,9 +746,14 @@ func init() {
 		&fantiaOverwrite,
 		&pixivOverwrite,
 	}
+	cookieFileVar := []*string{
+		&fantiaCookieFile,
+		&fanboxCookieFile,
+		&pixivCookieFile,
+	}
 
 	overwriteIdx := 0
-	for _, cmd := range cmds {
+	for idx, cmd := range cmds {
 		if cmd != pixivFanboxCmd {
 			cmd.Flags().BoolVarP(
 				overwriteVar[overwriteIdx],
@@ -727,6 +773,18 @@ func init() {
 			)
 			overwriteIdx++
 		}
+
+		cmd.Flags().StringVar(
+			cookieFileVar[idx],
+			"cookie_file",
+			"",
+			utils.CombineStringsWithNewline(
+				[]string{
+					"Pass in a file path to your saved Netscape/Mozilla generated cookie file to use when downloading.",
+					"You can generate a cookie file by using the \"Get cookies.txt\" extension for your browser.",
+				},
+			),
+		)
 	}
 
 	// ------------------------------ Root CMD ------------------------------ //
