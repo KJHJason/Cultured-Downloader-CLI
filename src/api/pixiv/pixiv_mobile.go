@@ -198,12 +198,20 @@ func (pixiv *PixivMobile) SendRequest(
 	return nil, err
 }
 
+var pixivOauthCodeRegex = regexp.MustCompile(`^[\w-]{43}$`)
 // Start the OAuth flow to get the refresh token
-func (pixiv *PixivMobile) StartOauthFlow() {
+func (pixiv *PixivMobile) StartOauthFlow() error {
+	// create a random 32 bytes that is cryptographically secure
 	codeVerifierBytes := make([]byte, 32)
 	_, err := CryptoRand.Read(codeVerifierBytes)
 	if err != nil {
-		panic(err)
+		// should never happen but just in case
+		err = fmt.Errorf(
+			"pixiv error %d: failed to generate random bytes, more info => %s", 
+			utils.DEV_ERROR,
+			err.Error(),
+		)
+		return err
 	}
 	codeVerifier := base64.RawURLEncoding.EncodeToString(codeVerifierBytes)
 	codeChallenge := S256([]byte(codeVerifier))
@@ -226,7 +234,6 @@ func (pixiv *PixivMobile) StartOauthFlow() {
 
 	color.Yellow("If unsure, follow the guide below:")
 	color.Yellow("https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/pixiv_oauth_guide.md\n")
-	codeRegex := regexp.MustCompile(`^[\w-]{43}$`)
 	headers := map[string]string{"User-Agent": "PixivAndroidApp/5.0.234 (Android 11; Pixel 5)"}
 	for {
 		var code string
@@ -237,7 +244,7 @@ func (pixiv *PixivMobile) StartOauthFlow() {
 			color.Red("Failed to read inputted code: " + err.Error())
 			continue
 		}
-		if !codeRegex.MatchString(code) {
+		if !pixivOauthCodeRegex.MatchString(code) {
 			color.Red("Invalid code format...")
 			continue
 		}
@@ -264,7 +271,7 @@ func (pixiv *PixivMobile) StartOauthFlow() {
 		refreshToken := resJson.(map[string]interface{})["refresh_token"].(string)
 		color.Green("Your Pixiv Refresh Token: " + refreshToken)
 		color.Yellow("Please save your refresh token somewhere SECURE and do NOT share it with anyone!")
-		return
+		return nil
 	}
 }
 
@@ -471,6 +478,11 @@ func (pixiv *PixivMobile) GetMultipleIllustratorPosts(userIds []string, download
 	return artworksToDownload, ugoiraArr
 }
 
+var pixivMobileSearchTargetMap = map[string]string{
+	"s_tag": "partial_match_for_tags",
+	"s_tag_full": "exact_match_for_tags",
+	"s_tc": "title_and_caption",
+}
 // Query Pixiv's API (mobile) to get the JSON of a search query
 func (pixiv *PixivMobile) TagSearch(tagName, downloadPath string, dlOptions *PixivDlOptions, minPage, maxPage int) ([]map[string]string, []Ugoira) {
 	var artworksToDownload []map[string]string
@@ -479,14 +491,11 @@ func (pixiv *PixivMobile) TagSearch(tagName, downloadPath string, dlOptions *Pix
 
 	// Convert searchTarget to the correct value
 	// based on the Pixiv's ajax web API
-	searchTargetMap := map[string]string{
-		"s_tag": "partial_match_for_tags",
-		"s_tag_full": "exact_match_for_tags",
-		"s_tc": "title_and_caption",
-	}
-	searchTarget, ok := searchTargetMap[dlOptions.SearchMode]
+	searchTarget, ok := pixivMobileSearchTargetMap[dlOptions.SearchMode]
 	if !ok {
-		panic("Pixiv: Invalid search target")
+		panic(
+			fmt.Errorf("pixiv error %d: invalid search mode \"%s\"", utils.DEV_ERROR, dlOptions.SearchMode),
+		)
 	}
 
 	// Convert sortOrder to the correct value

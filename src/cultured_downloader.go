@@ -209,26 +209,19 @@ func PixivDownloadProcess(config *configs.Config, pixivDl *pixiv.PixivDl, pixivD
 var (
 	downloadPath   string
 	rootCmd = &cobra.Command{
-		Use: "cultured_dl",
+		Use: "cultured-downloader-cli",
+		Version: fmt.Sprintf("%s by KJHJason\n%s", utils.VERSION, "GitHub Repo: https://github.com/KJHJason/Cultured-Downloader-CLI"),
 		Short: "Download images, videos, etc. from various websites like Fantia.",
-		Long: "cultured_dl is a command-line tool for downloading images, videos, etc. from various websites like Pixiv, Pixiv Fanbox, and Fantia.",
+		Long: "Cultured Downloader CLI is a command-line tool for downloading images, videos, etc. from various websites like Pixiv, Pixiv Fanbox, and Fantia.",
 		Run: func(cmd *cobra.Command, args []string) {
 			if downloadPath != "" {
-				utils.SetDefaultDownloadPath(downloadPath)
-				color.Green("Download path set to: %s", downloadPath)
-				return
+				err := utils.SetDefaultDownloadPath(downloadPath)
+				if err != nil {
+					color.Red(err.Error())
+				} else {
+					color.Green("Download path set to: %s", downloadPath)
+				}
 			}
-		},
-	}
-
-	versionCmd = &cobra.Command{
-		Use:   "version",
-		Args:  cobra.NoArgs,
-		Short: "Print the program version",
-		Long:  "Display the current version of the Cultured Downloader CLI software.",
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("Cultured Downloader CLI v%s by KJHJason\n", utils.VERSION)
-			fmt.Println("GitHub Repo: https://github.com/KJHJason/Cultured-Downloader-CLI")
 		},
 	}
 
@@ -257,7 +250,14 @@ var (
 				DlAttachments:   fantiaDlAttachments,
 				SessionCookieId: fantiaSession,
 			}
-			fantiaDlOptions.ValidateArgs()
+			err := fantiaDlOptions.ValidateArgs()
+			if err != nil {
+				utils.LogError(
+					err,
+					"",
+					true,
+				)
+			}
 
 			FantiaDownloadProcess(
 				&fantiaConfig,
@@ -331,7 +331,11 @@ var (
 		Long:  "Supports downloading from Pixiv by artwork ID, illustrator ID, tag name, and more.",
 		Run: func(cmd *cobra.Command, args []string) {
 			if pixivStartOauth {
-				pixiv.NewPixivMobile("", 10).StartOauthFlow()
+				err := pixiv.NewPixivMobile("", 10).StartOauthFlow()
+				if err != nil {
+					// TODO: log error
+					return
+				}
 				return
 			}
 
@@ -742,7 +746,6 @@ func init() {
 		fantiaCmd,
 		pixivFanboxCmd,
 		pixivCmd,
-		versionCmd,
 	)
 }
 

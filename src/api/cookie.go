@@ -6,9 +6,9 @@ import (
 	"time"
 	"os"
 
+	"github.com/fatih/color"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
-	"github.com/fatih/color"
 )
 
 // Returns a cookie with given value and website to be used in requests
@@ -29,7 +29,10 @@ func GetCookie(sessionID, website string) http.Cookie {
 		cookieName = "PHPSESSID"
 		sameSite = http.SameSiteNoneMode
 	default:
-		panic("invalid website")
+		// Shouldn't happen but could happen during development
+		panic(
+			fmt.Errorf("error %d, invalid website, \"%s\", in GetCookie", utils.DEV_ERROR, website),
+		)
 	}
 
 	if sessionID == "" {
@@ -62,7 +65,10 @@ func VerifyCookie(cookie http.Cookie, website string) (bool, error) {
 	case Pixiv:
 		websiteURL = "https://www.pixiv.net/manage/requests"
 	default:
-		panic("invalid website")
+		// Shouldn't happen but could happen during development
+		panic(
+			fmt.Errorf("error %d, invalid website, \"%s\", in VerifyCookie", utils.DEV_ERROR, website),
+		)
 	}
 
 	if cookie.Value == "" {

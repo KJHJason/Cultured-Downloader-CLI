@@ -8,6 +8,20 @@ import (
 	"runtime"
 )
 
+const (
+	// Error codes
+	DEV_ERROR = iota + 1000
+	UNEXPECTED_ERROR
+	OS_ERROR
+	INPUT_ERROR
+	CMD_ERROR
+	CONNECTION_ERROR
+	DOWNLOAD_ERROR
+	RESPONSE_ERROR
+	JSON_ERROR
+	HTML_ERROR
+)
+
 // Returns the user agent based on the user's OS
 func GetUserAgent() string {
 	userAgent := map[string]string{
@@ -17,16 +31,20 @@ func GetUserAgent() string {
 	}
 	userAgentOS, ok := userAgent[runtime.GOOS]
 	if !ok {
-		panic(fmt.Sprintf("Failed to get user agent OS as your OS, \"%s\", is not supported", runtime.GOOS))
+		panic(
+			fmt.Sprintf("Error %d: Failed to get user agent OS as your OS, \"%s\", is not supported", OS_ERROR, runtime.GOOS),
+		)
 	}
-	return userAgentOS + " AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36"
+	return fmt.Sprintf("%s AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36", userAgentOS)
 }
 
 // Returns the path to the application's config directory
 func GetAppPath() string {
 	appPath, err := os.UserConfigDir()
 	if err != nil {
-		panic("failed to get user's config directory: " + err.Error())
+		panic(
+			fmt.Sprintf("Error %d, failed to get user's config directory: %s", OS_ERROR, err.Error()),
+		)
 	}
 	return filepath.Join(appPath, "Cultured-Downloader")
 }
@@ -55,7 +73,7 @@ var (
 )
 
 const (
-	VERSION                        = "1.0.5"
+	VERSION                        = "1.1.0"
 	MAX_RETRY_DELAY                = 2.45
 	MIN_RETRY_DELAY                = 0.95
 	RETRY_COUNTER                  = 4

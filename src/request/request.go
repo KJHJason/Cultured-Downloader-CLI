@@ -34,8 +34,12 @@ func sendRequest(reqUrl string, req *http.Request, timeout int, checkStatus, dis
 			} else if res.StatusCode == 200 {
 				return res, nil
 			}
+			res.Body.Close()
 		}
-		time.Sleep(utils.GetRandomDelay())
+
+		if i < utils.RETRY_COUNTER {
+			time.Sleep(utils.GetRandomDelay())
+		}
 	}
 	err = fmt.Errorf("request to %s failed after %d retries", reqUrl, utils.RETRY_COUNTER)
 	utils.LogError(nil, err.Error(), false)
@@ -79,8 +83,13 @@ func AddParams(params map[string]string, req *http.Request) {
 // If the request fails, it will retry the request again up 
 // to the defined max retries in the constants.go in utils package
 func CallRequest(
-	method, reqUrl string, timeout int, cookies []http.Cookie, 
-	additionalHeaders, params map[string]string, checkStatus bool,
+	method, 
+	reqUrl string, 
+	timeout int, 
+	cookies []http.Cookie, 
+	additionalHeaders, 
+	params map[string]string, 
+	checkStatus bool,
 ) (*http.Response, error) {
 	req, err := http.NewRequest(method, reqUrl, nil)
 	if err != nil {
@@ -95,8 +104,14 @@ func CallRequest(
 
 // Sends a request with the given data
 func CallRequestWithData(
-	reqUrl, method string, timeout int, cookies []http.Cookie, 
-	data, additionalHeaders, params map[string]string, checkStatus bool,
+	reqUrl, 
+	method string, 
+	timeout int, 
+	cookies []http.Cookie, 
+	data, 
+	additionalHeaders, 
+	params map[string]string, 
+	checkStatus bool,
 ) (*http.Response, error) {
 	form := url.Values{}
 	for key, value := range data {
@@ -139,8 +154,12 @@ func CallRequestNoCompression(
 //
 // Note: If the file already exists, the download process will be skipped
 func DownloadURL(
-	fileURL, filePath string, cookies []http.Cookie, 
-	headers, params map[string]string, overwriteExistingFiles bool,
+	fileURL, 
+	filePath string, 
+	cookies []http.Cookie, 
+	headers, 
+	params map[string]string, 
+	overwriteExistingFiles bool,
 ) error {
 	// Send a HEAD request first to get the expected file size from the Content-Length header.
 	// A GET request might work but most of the time 
@@ -158,6 +177,12 @@ func DownloadURL(
 								// Note: Fantia do have a max file size per post of 3GB if one paid extra for it.
 	res, err := CallRequest("GET", fileURL, downloadTimeout, cookies, headers, params, true)
 	if err != nil {
+		err = fmt.Errorf(
+			"error %d: failed to download file, more info => %v\nurl: %s",
+			utils.DOWNLOAD_ERROR,
+			err,
+			fileURL,
+		)
 		return err
 	}
 	defer res.Body.Close()
@@ -167,7 +192,14 @@ func DownloadURL(
 		os.MkdirAll(filePath, 0755)
 		filename, err := url.PathUnescape(res.Request.URL.String())
 		if err != nil {
-			panic(err)
+			// should never happen but just in case
+			err = fmt.Errorf(
+				"error %d: failed to unescape URL, more info => %v\nurl: %s", 
+				utils.UNEXPECTED_ERROR,
+				err,
+				res.Request.URL.String(),
+			)
+			return err
 		}
 		filename = utils.GetLastPartOfURL(filename)
 		filenameWithoutExt := utils.RemoveExtFromFilename(filename)
@@ -201,7 +233,13 @@ func DownloadURL(
 
 	file, err := os.Create(filePath) // create the file
 	if err != nil {
-		panic(err)
+		err = fmt.Errorf(
+			"error %d: failed to create file, more info => %v\nfile path: %s",
+			utils.OS_ERROR,
+			err,
+			filePath,
+		)
+		return err
 	}
 
 	// write the body to file
@@ -222,8 +260,12 @@ func DownloadURL(
 //
 // Note: If the file already exists, the download process will be skipped
 func DownloadURLsParallel(
-	urls []map[string]string, maxConcurrency int, cookies []http.Cookie, 
-	headers, params map[string]string, overwriteExistingFiles bool,
+	urls []map[string]string, 
+	maxConcurrency int, 
+	cookies []http.Cookie, 
+	headers, 
+	params map[string]string, 
+	overwriteExistingFiles bool,
 ) {
 	if len(urls) == 0 {
 		return
@@ -241,16 +283,36 @@ func DownloadURLsParallel(
 	)
 	var wg sync.WaitGroup
 	queue := make(chan struct{}, maxConcurrency)
+	errChan := make(chan map[string]string, len(urls))
 	for _, url := range urls {
 		wg.Add(1)
 		queue <- struct{}{}
 		go func(fileUrl, filePath string) {
 			defer wg.Done()
-			DownloadURL(fileUrl, filePath, cookies, headers, params, overwriteExistingFiles)
+			err := DownloadURL(fileUrl, filePath, cookies, headers, params, overwriteExistingFiles)
+			if err != nil {
+				errChan <- map[string]string{
+					"url": fileUrl,
+					"err": err.Error(),
+					"filepath": filePath,
+				}
+			}
 			bar.Add(1)
 			<-queue
 		}(url["url"], url["filepath"])
 	}
 	close(queue)
 	wg.Wait()
+	close(errChan)
+
+	// check if there are any errors
+	for err := range errChan {
+		errMsg := fmt.Errorf(
+			"failed to download url, \"%s\", to \"%s\", please refer to the error details below:\n%s",
+			err["url"],
+			err["filepath"],
+			err["err"],
+		)
+		utils.LogError(errMsg, "", false)
+	}
 }

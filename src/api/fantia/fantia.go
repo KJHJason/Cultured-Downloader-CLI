@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
-	"github.com/PuerkitoBio/goquery"
 )
 
 const FantiaUrl = "https://fantia.jp"
@@ -156,7 +156,7 @@ func GetPostDetails(postIds []string, fantiaDlOptions *FantiaDlOptions) []map[st
 			postApiUrl := url + postId
 			header := map[string]string{
 				"Referer": fmt.Sprintf("%s/posts/%s", FantiaUrl, postId),
-				"x-csrf-token": "",
+				"x-csrf-token": fantiaDlOptions.CsrfToken,
 			}
 			res, err := request.CallRequest(
 				"GET",
@@ -199,43 +199,49 @@ func GetPostDetails(postIds []string, fantiaDlOptions *FantiaDlOptions) []map[st
 }
 
 // Get all the creator's posts by using goquery to parse the HTML response to get the post IDs
-func GetFantiaPosts(creatorId string, cookies []http.Cookie) []string {
+func GetFantiaPosts(creatorId string, cookies []http.Cookie) ([]string, error) {
 	var postIds []string
 	pageNum := 1
 	for {
-		url := fmt.Sprintf(FantiaUrl+"/fanclubs/%s/posts", creatorId)
+		url := fmt.Sprintf("%s/fanclubs/%s/posts", FantiaUrl, creatorId)
 		params := map[string]string{
 			"page":   fmt.Sprintf("%d", pageNum),
 			"q[s]":   "newer",
 			"q[tag]": "",
 		}
-		res, err := request.CallRequest("GET", url, 30, cookies, nil, params, false)
-		if err != nil || res.StatusCode != 200 {
-			if err == nil {
-				res.Body.Close()
-			}
+		res, err := request.CallRequest("GET", url, 30, cookies, nil, params, true)
+		if err != nil {
 			utils.LogError(err, fmt.Sprintf("failed to get creator's pages for %s", url), false)
-			return []string{}
+			return []string{}, nil
 		}
 
 		// parse the response
 		doc, err := goquery.NewDocumentFromReader(res.Body)
+		res.Body.Close()
 		if err != nil {
-			res.Body.Close()
-			panic(err)
+			err = fmt.Errorf("error %d, failed to parse response body when getting CSRF token from Fantia: %w", utils.HTML_ERROR, err)
+			return nil, err
 		}
 
 		// get the post ids similar to using the xpath of //a[@class='link-block']
 		hasPosts := false
+		hasHtmlErr := false
 		doc.Find("a.link-block").Each(func(i int, s *goquery.Selection) {
 			if href, exists := s.Attr("href"); exists {
 				postIds = append(postIds, utils.GetLastPartOfURL(href))
 				hasPosts = true
 			} else {
-				panic("failed to get href attribute for fantia post, please report this issue!")
+				hasHtmlErr = true
 			}
 		})
-		res.Body.Close()
+
+		if hasHtmlErr {
+			return nil, fmt.Errorf(
+				"error %d, failed to get href attribute for Fantia Fanclub %s, please report this issue",
+				utils.HTML_ERROR,
+				creatorId,
+			)
+		}
 
 		pageNum++
 		// if there are no more posts, break
@@ -243,7 +249,7 @@ func GetFantiaPosts(creatorId string, cookies []http.Cookie) []string {
 			break
 		}
 	}
-	return postIds
+	return postIds, nil
 }
 
 // Retrieves all the posts based on the slice of creator IDs and returns a slice of post IDs
@@ -261,12 +267,19 @@ func GetCreatorsPosts(creatorIds []string, cookies []http.Cookie) []string {
 	}
 	queue := make(chan struct{}, maxConcurrency)
 	resChan := make(chan []string, len(creatorIds))
+	errChan := make(chan error, len(creatorIds))
 	for _, creatorId := range creatorIds {
 		wg.Add(1)
 		queue <- struct{}{}
 		go func(creatorId string) {
 			defer wg.Done()
-			resChan <- GetFantiaPosts(creatorId, cookies)
+			postIds, err := GetFantiaPosts(creatorId, cookies)
+			if err != nil {
+				errChan <- err
+			} else {
+				resChan <- postIds
+			}
+
 			bar.Add(1)
 			<-queue
 		}(creatorId)
@@ -274,6 +287,13 @@ func GetCreatorsPosts(creatorIds []string, cookies []http.Cookie) []string {
 	close(queue)
 	wg.Wait()
 	close(resChan)
+	close(errChan)
+
+	// log any errors
+	for err := range errChan {
+		// TODO: log the error
+		fmt.Println(err)
+	}
 
 	var postIds []string
 	for postIdsRes := range resChan {

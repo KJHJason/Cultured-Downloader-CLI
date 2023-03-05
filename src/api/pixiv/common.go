@@ -47,10 +47,10 @@ func MapDelaysToFilename(ugoiraFramesJson map[string]interface{}) map[string]int
 }
 
 // Converts the Ugoira to the desired output path using FFmpeg
-func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpegPath string, ugoiraQuality int) {
+func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpegPath string, ugoiraQuality int) error {
 	outputExt := filepath.Ext(outputPath)
 	if !utils.ArrContains(UGOIRA_ACCEPTED_EXT, outputExt) {
-		panic(fmt.Sprintf("Pixiv: Output extension %v is not allowed for ugoira conversion", outputExt))
+		return fmt.Errorf("pixiv error %d: Output extension %v is not allowed for ugoira conversion", utils.INPUT_ERROR, outputExt)
 	}
 
 	// sort the ugoira frames by their filename which are %6d.imageExt
@@ -83,13 +83,21 @@ func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpe
 	concatDelayFilePath := filepath.Join(imagesFolderPath, "delays.txt")
 	f, err := os.Create(concatDelayFilePath)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf(
+			"pixiv error %d: failed to create delays.txt, more info => %v", 
+			utils.OS_ERROR, 
+			err,
+		)
 	}
 
 	_, err = f.WriteString(delaysText)
 	if err != nil {
 		f.Close()
-		panic(err)
+		return fmt.Errorf(
+			"pixiv error %d: failed to write delay string to delays.txt, more info => %v", 
+			utils.OS_ERROR, 
+			err,
+		)
 	}
 	f.Close()
 
@@ -158,7 +166,12 @@ func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpe
 		// imagePaletteCmd.Stdout = os.Stdout
 		err = imagePaletteCmd.Run()
 		if err != nil {
-			panic("Pixiv: Failed to generate palette for ugoira gif")
+			err = fmt.Errorf(
+				"pixiv error %d: failed to generate palette for ugoira gif, more info => %s", 
+				utils.CMD_ERROR,
+				err.Error(),
+			)
+			return err
 		}
 		args = append(
 			args,
@@ -197,17 +210,19 @@ func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpe
 	err = cmd.Run()
 	if err != nil {
 		os.Remove(outputPath)
-		utils.LogError(
-			err, 
-			fmt.Sprintf("Pixiv: Failed to convert ugoira to %s", outputPath),
-			false,
+		err = fmt.Errorf(
+			"pixiv error %d: failed to convert ugoira to %s, more info => %s", 
+			utils.CMD_ERROR,
+			outputPath,
+			err.Error(),
 		)
-		return
+		return err
 	}
 
 	// delete unzipped folder which contains 
 	// the frames images and the delays text file
 	os.RemoveAll(imagesFolderPath)
+	return nil
 }
 
 // Returns the ugoira's zip file path and the ugoira's converted file path
@@ -264,14 +279,16 @@ func DownloadMultipleUgoira(
 			continue
 		}
 
-		ConvertUgoira(
+		err = ConvertUgoira(
 			ugoira, 
 			unzipFolderPath, 
 			outputPath, 
 			config.FfmpegPath, 
 			ugoiraDlOptions.Quality,
 		)
-		if ugoiraDlOptions.DeleteZip {
+		if err != nil {
+			// TODO: log the error
+		} else if ugoiraDlOptions.DeleteZip {
 			os.Remove(zipFilePath)
 		}
 		bar.Add(1)

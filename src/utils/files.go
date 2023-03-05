@@ -51,13 +51,28 @@ func LogMessageToPath(message, filePath string) {
 		0666,
 	)
 	if err != nil {
-		panic(err)
+		errMsg := fmt.Sprintf(
+			"error %d: failed to open log file, more info => %v\nfile path: %s\noriginal message: %s",
+			OS_ERROR,
+			err,
+			filePath,
+			message,
+		)
+		color.Red(errMsg)
+		return
 	}
 	defer logFile.Close()
 
 	_, err = logFile.WriteString(message)
 	if err != nil {
-		panic(err)
+		errMsg := fmt.Sprintf(
+			"error %d: failed to write to log file, more info => %v\nfile path: %s\noriginal message: %s",
+			OS_ERROR,
+			err,
+			filePath,
+			message,
+		)
+		color.Red(errMsg)
 	}
 } 
 
@@ -126,10 +141,9 @@ func PretifyJSON(jsonBytes []byte) ([]byte, error) {
 }
 
 // Configure and saves the config file with updated download path
-func SetDefaultDownloadPath(newDownloadPath string) {
+func SetDefaultDownloadPath(newDownloadPath string) error {
 	if !PathExists(newDownloadPath) {
-		color.Red("Download path does not exist. Please create the directory and try again.")
-		os.Exit(1)
+		return fmt.Errorf("error %d: download path does not exist, please create the directory and try again", INPUT_ERROR)
 	}
 
 	os.MkdirAll(APP_PATH, 0755)
@@ -150,51 +164,84 @@ func SetDefaultDownloadPath(newDownloadPath string) {
 
 		configFile, err := json.Marshal(config)
 		if err != nil {
-			panic(err)
+			return fmt.Errorf(
+				"error %d: failed to marshal config file, more info => %v", 
+				JSON_ERROR, 
+				err,
+			)
 		}
 
 		configFile, err = PretifyJSON(configFile)
 		if err != nil {
-			panic(err)
+			return fmt.Errorf(
+				"error %d: failed to pretify config file, more info => %v", 
+				JSON_ERROR, 
+				err,
+			)
 		}
 
 		err = os.WriteFile(configFilePath, configFile, 0666)
 		if err != nil {
-			panic(err)
+			return fmt.Errorf(
+				"error %d: failed to write config file, more info => %v", 
+				OS_ERROR,
+				err,
+			)
 		}
 	} else {
 		// read the file
 		configFile, err := os.ReadFile(configFilePath)
 		if err != nil {
-			panic(err)
+			return fmt.Errorf(
+				"error %d: failed to read config file, more info => %v", 
+				OS_ERROR, 
+				err,
+			)
 		}
 
 		var config ConfigFile
 		err = json.Unmarshal(configFile, &config)
 		if err != nil {
-			panic(err)
+			return fmt.Errorf(
+				"error %d: failed to unmarshal config file, more info => %v", 
+				JSON_ERROR, 
+				err,
+			)
 		}
 
 		// update the file if the download directory is different
 		if (config.DownloadDir == newDownloadPath) {
-			return
+			return nil
 		}
 
 		config.DownloadDir = newDownloadPath
 		configFile, err = json.Marshal(config)
 		if err != nil {
-			panic(err)
+			return fmt.Errorf(
+				"error %d: failed to marshal config file, more info => %v", 
+				JSON_ERROR, 
+				err,
+			)
 		}
 
 		// indent the file
 		configFile, err = PretifyJSON(configFile)
 		if err != nil {
-			panic(err)
+			return fmt.Errorf(
+				"error %d: failed to pretify config file, more info => %v", 
+				JSON_ERROR, 
+				err,
+			)
 		}
 
 		err = os.WriteFile(configFilePath, configFile, 0666)
 		if err != nil {
-			panic(err)
+			return fmt.Errorf(
+				"error %d: failed to write config file, more info => %v", 
+				OS_ERROR, 
+				err,
+			)
 		}
 	}
+	return nil
 }
