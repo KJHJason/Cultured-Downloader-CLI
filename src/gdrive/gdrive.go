@@ -181,7 +181,11 @@ func (gdrive GDrive) GetFolderContents(folderId, logPath string) ([]map[string]s
 			return nil, err 
 		}
 
-		gdriveRes := utils.ReadResBody(res)
+		gdriveRes, err := utils.ReadResBody(res)
+		if err != nil {
+			return nil, err
+		}
+
 		gdriveFolder := GDriveFolder{}
 		if err := json.Unmarshal(gdriveRes, &gdriveFolder); err != nil {
 			err = fmt.Errorf(
@@ -257,7 +261,11 @@ func (gdrive GDrive) GetFileDetails(fileId, logPath string) (map[string]string, 
 		return nil, nil
 	}
 
-	resBody := utils.ReadResBody(res)
+	resBody, err := utils.ReadResBody(res)
+	if err != nil {
+		return nil, err
+	}
+
 	gdriveFile := GDriveFile{}
 	if err := json.Unmarshal(resBody, &gdriveFile); err != nil {
 		err = fmt.Errorf(

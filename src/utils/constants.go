@@ -32,7 +32,7 @@ func GetUserAgent() string {
 	userAgentOS, ok := userAgent[runtime.GOOS]
 	if !ok {
 		panic(
-			fmt.Sprintf("Error %d: Failed to get user agent OS as your OS, \"%s\", is not supported", OS_ERROR, runtime.GOOS),
+			fmt.Errorf("error %d: Failed to get user agent OS as your OS, \"%s\", is not supported", OS_ERROR, runtime.GOOS),
 		)
 	}
 	return fmt.Sprintf("%s AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36", userAgentOS)
@@ -43,7 +43,7 @@ func GetAppPath() string {
 	appPath, err := os.UserConfigDir()
 	if err != nil {
 		panic(
-			fmt.Sprintf("Error %d, failed to get user's config directory: %s", OS_ERROR, err.Error()),
+			fmt.Errorf("error %d, failed to get user's config directory: %s", OS_ERROR, err.Error()),
 		)
 	}
 	return filepath.Join(appPath, "Cultured-Downloader")

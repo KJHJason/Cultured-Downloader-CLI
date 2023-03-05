@@ -1,4 +1,4 @@
-package pixiv_fanbox
+package pixivfanbox
 
 import (
 	"net/http"
@@ -12,10 +12,10 @@ type PixivFanboxDl struct {
 }
 
 type PixivFanboxDlOptions struct {
-	DlThumbnails    bool
-	DlImages        bool
-	DlAttachments   bool
-	DlGdrive        bool
+	DlThumbnails  bool
+	DlImages      bool
+	DlAttachments bool
+	DlGdrive      bool
 
 	SessionCookieId string
 	SessionCookies  []http.Cookie

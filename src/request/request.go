@@ -41,8 +41,7 @@ func sendRequest(reqUrl string, req *http.Request, timeout int, checkStatus, dis
 			time.Sleep(utils.GetRandomDelay())
 		}
 	}
-	err = fmt.Errorf("request to %s failed after %d retries", reqUrl, utils.RETRY_COUNTER)
-	utils.LogError(nil, err.Error(), false)
+	err = fmt.Errorf("the request to %s failed after %d retries", reqUrl, utils.RETRY_COUNTER)
 	return nil, err
 }
 

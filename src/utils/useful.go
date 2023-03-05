@@ -28,18 +28,19 @@ func PrintWarningMsg() {
 }
 
 var pageNumsRegex = regexp.MustCompile(`^[1-9]\d*(-[1-9]\d*)?$`)
+
 // check page nums if they are in the correct format.
 //
 // E.g. "1-10" is valid, but "0-9" is not valid because "0" is not accepted
 // If the page nums are not in the correct format, os.Exit(1) is called
-func ValidatePageNumInput(baseArrLen int, pageNums, errMsgs []string) {
-	if baseArrLen != len(pageNums) {
+func ValidatePageNumInput(baseSliceLen int, pageNums, errMsgs []string) {
+	if baseSliceLen != len(pageNums) {
 		if len(errMsgs) > 0 {
 			for _, errMsg := range errMsgs {
 				color.Red(errMsg)
 			}
 		} else {
-			color.Red("Error: %d URLs provided, but %d page numbers provided.", baseArrLen, len(pageNums))
+			color.Red("Error: %d URLs provided, but %d page numbers provided.", baseSliceLen, len(pageNums))
 			color.Red("Please provide the same number of page numbers as the number of URLs.")
 		}
 		os.Exit(1)
@@ -94,7 +95,7 @@ func GetRandomDelay() time.Duration {
 }
 
 // Checks if the given str is in the given arr and returns a boolean
-func ArrContains(arr []string, str string) bool {
+func SliceContains(arr []string, str string) bool {
 	for _, el := range arr {
 		if el == str {
 			return true
@@ -108,7 +109,7 @@ func ArrContains(arr []string, str string) bool {
 // Otherwise, os.Exit(1) is called after printing error messages for the user to read
 func CheckStrArg(str string, arr, errMsg []string) string {
 	str = strings.ToLower(str)
-	if ArrContains(arr, str) {
+	if SliceContains(arr, str) {
 		return str
 	}
 
@@ -123,7 +124,7 @@ func CheckStrArg(str string, arr, errMsg []string) string {
 	}
 	color.Red(
 		fmt.Sprintf(
-			"Expecting one of the following: %s", 
+			"Expecting one of the following: %s",
 			strings.TrimSpace(strings.Join(arr, ", ")),
 		),
 	)
@@ -136,7 +137,7 @@ func CheckStrArg(str string, arr, errMsg []string) string {
 // Otherwise, os.Exit(1) is called after printing error messages for the user to read
 func CheckStrArgs(arr []string, str, argName string) *string {
 	str = strings.ToLower(str)
-	if ArrContains(arr, str) {
+	if SliceContains(arr, str) {
 		return &str
 	} else {
 		color.Red("Invalid %s: %s", argName, str)
@@ -217,11 +218,7 @@ func UnzipFile(src, dest string, ignoreIfMissing bool) error {
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := r.Close(); err != nil {
-			panic(err)
-		}
-	}()
+	defer r.Close()
 
 	os.MkdirAll(dest, 0755)
 	// Closure to address file descriptors issue with all the deferred .Close() methods
@@ -230,11 +227,7 @@ func UnzipFile(src, dest string, ignoreIfMissing bool) error {
 		if err != nil {
 			return err
 		}
-		defer func() {
-			if err := rc.Close(); err != nil {
-				panic(err)
-			}
-		}()
+		defer rc.Close()
 
 		path := filepath.Join(dest, f.Name)
 		// Check for ZipSlip (Directory traversal)
@@ -250,11 +243,7 @@ func UnzipFile(src, dest string, ignoreIfMissing bool) error {
 			if err != nil {
 				return err
 			}
-			defer func() {
-				if err := f.Close(); err != nil {
-					panic(err)
-				}
-			}()
+			defer f.Close()
 
 			_, err = io.Copy(f, rc)
 			if err != nil {
@@ -295,33 +284,39 @@ func ParamsToString(params map[string]string) string {
 }
 
 // Reads and returns the response body in bytes and closes it
-func ReadResBody(res *http.Response) []byte {
+func ReadResBody(res *http.Response) ([]byte, error) {
 	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		panic(err)
+		err = fmt.Errorf(
+			"error %d: failed to read response body from %s due to %v",
+			RESPONSE_ERROR,
+			res.Request.URL.String(),
+			err,
+		)
+		return nil, err
 	}
-	return body
-}
-
-// Prints out a defined error message and exits the program
-func JsonPanic(res *http.Response, err error) {
-	errorMsg := fmt.Sprintf(
-		"failed to parse json response from %s due to %v",
-		res.Request.URL.String(),
-		err,
-	)
-	panic(errorMsg)
+	return body, nil
 }
 
 // Read the response body and unmarshal it into a interface and returns it
-func LoadJsonFromResponse(res *http.Response) (interface{}, []byte) {
-	body := ReadResBody(res)
-	var post interface{}
-	if err := json.Unmarshal(body, &post); err != nil {
-		JsonPanic(res, err)
+func LoadJsonFromResponse(res *http.Response) (interface{}, []byte, error) {
+	body, err := ReadResBody(res)
+	if err != nil {
+		return nil, nil, err
 	}
-	return post, body
+
+	var post interface{}
+	if err = json.Unmarshal(body, &post); err != nil {
+		err = fmt.Errorf(
+			"error %d: failed to unmarshal json response from %s due to %v",
+			RESPONSE_ERROR,
+			res.Request.URL.String(),
+			err,
+		)
+		return nil, nil, err
+	}
+	return post, body, nil
 }
 
 // Detects if the given string contains any passwords

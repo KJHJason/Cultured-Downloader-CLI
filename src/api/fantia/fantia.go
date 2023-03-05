@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/PuerkitoBio/goquery"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/PuerkitoBio/goquery"
 )
 
 const FantiaUrl = "https://fantia.jp"
@@ -57,8 +57,13 @@ func ProcessFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 	// processes a fantia post
 	// returns a map containing the post id and the url to download the file from
 	var postJson FantiaPost
-	resBody := utils.ReadResBody(res)
-	err := json.Unmarshal(resBody, &postJson)
+	resBody, err := utils.ReadResBody(res)
+	if err != nil {
+		utils.LogError(err, "failed to read response body for fantia post", false)
+		return nil
+	}
+
+	err = json.Unmarshal(resBody, &postJson)
 	if err != nil {
 		utils.LogError(err, fmt.Sprintf("failed to unmarshal json for fantia post\nJSON: %s", string(resBody)), false)
 		return nil
@@ -155,7 +160,7 @@ func GetPostDetails(postIds []string, fantiaDlOptions *FantiaDlOptions) []map[st
 
 			postApiUrl := url + postId
 			header := map[string]string{
-				"Referer": fmt.Sprintf("%s/posts/%s", FantiaUrl, postId),
+				"Referer":      fmt.Sprintf("%s/posts/%s", FantiaUrl, postId),
 				"x-csrf-token": fantiaDlOptions.CsrfToken,
 			}
 			res, err := request.CallRequest(
@@ -188,11 +193,11 @@ func GetPostDetails(postIds []string, fantiaDlOptions *FantiaDlOptions) []map[st
 	)
 	var urlsMap []map[string]string
 	for res := range resChan {
-		urlsArr := ProcessFantiaPost(
+		urlsSlice := ProcessFantiaPost(
 			res, utils.DOWNLOAD_PATH,
 			fantiaDlOptions,
 		)
-		urlsMap = append(urlsMap, urlsArr...)
+		urlsMap = append(urlsMap, urlsSlice...)
 		bar.Add(1)
 	}
 	return urlsMap
@@ -289,10 +294,8 @@ func GetCreatorsPosts(creatorIds []string, cookies []http.Cookie) []string {
 	close(resChan)
 	close(errChan)
 
-	// log any errors
 	for err := range errChan {
-		// TODO: log the error
-		fmt.Println(err)
+		utils.LogError(err, "", false)
 	}
 
 	var postIds []string

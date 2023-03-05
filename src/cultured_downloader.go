@@ -5,15 +5,15 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/spf13/cobra"
 	"github.com/fatih/color"
-	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
-	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
-	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
-	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv"
+	"github.com/spf13/cobra"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/fantia"
-	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv_fanbox"
+	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv"
+	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixivfanbox"
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
+	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
+	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
 
 // Start the download process for Fantia
@@ -24,30 +24,30 @@ func FantiaDownloadProcess(config *configs.Config, fantiaDl *fantia.FantiaDl, fa
 
 	var urlsToDownload []map[string]string
 	if len(fantiaDl.PostIds) > 0 {
-		urlsArr := fantia.GetPostDetails(
+		urlsSlice := fantia.GetPostDetails(
 			fantiaDl.PostIds,
 			fantiaDlOptions,
 		)
-		urlsToDownload = append(urlsToDownload, urlsArr...)
+		urlsToDownload = append(urlsToDownload, urlsSlice...)
 	}
 	if len(fantiaDl.FanclubIds) > 0 {
 		fantiaPostIds := fantia.GetCreatorsPosts(
-			fantiaDl.FanclubIds, 
+			fantiaDl.FanclubIds,
 			fantiaDlOptions.SessionCookies,
 		)
-		urlsArr := fantia.GetPostDetails(
+		urlsSlice := fantia.GetPostDetails(
 			fantiaPostIds,
 			fantiaDlOptions,
 		)
-		urlsToDownload = append(urlsToDownload, urlsArr...)
+		urlsToDownload = append(urlsToDownload, urlsSlice...)
 	}
 
 	if len(urlsToDownload) > 0 {
 		request.DownloadURLsParallel(
-			urlsToDownload, 
+			urlsToDownload,
 			utils.MAX_CONCURRENT_DOWNLOADS,
-			fantiaDlOptions.SessionCookies, 
-			nil, 
+			fantiaDlOptions.SessionCookies,
+			nil,
 			nil,
 			config.OverwriteFiles,
 		)
@@ -55,40 +55,40 @@ func FantiaDownloadProcess(config *configs.Config, fantiaDl *fantia.FantiaDl, fa
 }
 
 // Start the download process for Pixiv Fanbox
-func PixivFanboxDownloadProcess(config *configs.Config, pixivFanboxDl *pixiv_fanbox.PixivFanboxDl, pixivFanboxDlOptions *pixiv_fanbox.PixivFanboxDlOptions) {
+func PixivFanboxDownloadProcess(config *configs.Config, pixivFanboxDl *pixivfanbox.PixivFanboxDl, pixivFanboxDlOptions *pixivfanbox.PixivFanboxDlOptions) {
 	if !pixivFanboxDlOptions.DlThumbnails && !pixivFanboxDlOptions.DlImages && !pixivFanboxDlOptions.DlAttachments && !pixivFanboxDlOptions.DlGdrive {
 		return
 	}
 
 	var urlsToDownload, gdriveUrlsToDownload []map[string]string
 	if len(pixivFanboxDl.PostIds) > 0 {
-		urlsArr, gdriveArr := pixiv_fanbox.GetPostDetails(
+		urlsSlice, gdriveSlice := pixivfanbox.GetPostDetails(
 			pixivFanboxDl.PostIds,
 			pixivFanboxDlOptions,
 		)
-		urlsToDownload = append(urlsToDownload, urlsArr...)
-		gdriveUrlsToDownload = append(gdriveUrlsToDownload, gdriveArr...)
+		urlsToDownload = append(urlsToDownload, urlsSlice...)
+		gdriveUrlsToDownload = append(gdriveUrlsToDownload, gdriveSlice...)
 	}
 	if len(pixivFanboxDl.CreatorIds) > 0 {
-		fanboxIds := pixiv_fanbox.GetCreatorsPosts(
-			pixivFanboxDl.CreatorIds, 
+		fanboxIds := pixivfanbox.GetCreatorsPosts(
+			pixivFanboxDl.CreatorIds,
 			pixivFanboxDlOptions.SessionCookies,
 		)
-		urlsArr, gdriveArr := pixiv_fanbox.GetPostDetails(
+		urlsSlice, gdriveSlice := pixivfanbox.GetPostDetails(
 			fanboxIds,
 			pixivFanboxDlOptions,
 		)
-		urlsToDownload = append(urlsToDownload, urlsArr...)
-		gdriveUrlsToDownload = append(gdriveUrlsToDownload, gdriveArr...)
+		urlsToDownload = append(urlsToDownload, urlsSlice...)
+		gdriveUrlsToDownload = append(gdriveUrlsToDownload, gdriveSlice...)
 	}
 
 	if len(urlsToDownload) > 0 {
 		request.DownloadURLsParallel(
-			urlsToDownload, 
+			urlsToDownload,
 			utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
 			pixivFanboxDlOptions.SessionCookies,
-			pixiv_fanbox.GetPixivFanboxHeaders(), 
-			nil, 
+			pixivfanbox.GetPixivFanboxHeaders(),
+			nil,
 			config.OverwriteFiles,
 		)
 	}
@@ -102,49 +102,49 @@ func PixivDownloadProcess(config *configs.Config, pixivDl *pixiv.PixivDl, pixivD
 	var ugoiraToDownload []pixiv.Ugoira
 	var artworksToDownload []map[string]string
 	if len(pixivDl.ArtworkIds) > 0 {
-		var artworksArr []map[string]string
-		var ugoiraArr []pixiv.Ugoira
+		var artworksSlice []map[string]string
+		var ugoiraSlice []pixiv.Ugoira
 		if pixivDlOptions.MobileClient == nil {
-			artworksArr, ugoiraArr = pixiv.GetMultipleArtworkDetails(
-				pixivDl.ArtworkIds, 
-				utils.DOWNLOAD_PATH, 
+			artworksSlice, ugoiraSlice = pixiv.GetMultipleArtworkDetails(
+				pixivDl.ArtworkIds,
+				utils.DOWNLOAD_PATH,
 				pixivDlOptions.SessionCookies,
 			)
 		} else {
-			artworksArr, ugoiraArr = pixivDlOptions.MobileClient.GetMultipleArtworkDetails(
-				pixivDl.ArtworkIds, 
+			artworksSlice, ugoiraSlice = pixivDlOptions.MobileClient.GetMultipleArtworkDetails(
+				pixivDl.ArtworkIds,
 				utils.DOWNLOAD_PATH,
 			)
 		}
-		artworksToDownload = append(artworksToDownload, artworksArr...)
-		ugoiraToDownload = append(ugoiraToDownload, ugoiraArr...)
+		artworksToDownload = append(artworksToDownload, artworksSlice...)
+		ugoiraToDownload = append(ugoiraToDownload, ugoiraSlice...)
 	}
 
 	if len(pixivDl.IllustratorIds) > 0 {
-		var artworksArr []map[string]string
-		var ugoiraArr []pixiv.Ugoira
+		var artworksSlice []map[string]string
+		var ugoiraSlice []pixiv.Ugoira
 		if pixivDlOptions.MobileClient == nil {
-			artworksArr, ugoiraArr = pixiv.GetMultipleIllustratorPosts(
-				pixivDl.IllustratorIds, 
-				utils.DOWNLOAD_PATH, 
-				pixivDlOptions.ArtworkType, 
+			artworksSlice, ugoiraSlice = pixiv.GetMultipleIllustratorPosts(
+				pixivDl.IllustratorIds,
+				utils.DOWNLOAD_PATH,
+				pixivDlOptions.ArtworkType,
 				pixivDlOptions.SessionCookies,
 			)
 		} else {
-			artworksArr, ugoiraArr = pixivDlOptions.MobileClient.GetMultipleIllustratorPosts(
+			artworksSlice, ugoiraSlice = pixivDlOptions.MobileClient.GetMultipleIllustratorPosts(
 				pixivDl.IllustratorIds,
 				utils.DOWNLOAD_PATH,
 				pixivDlOptions.ArtworkType,
 			)
 		}
-		artworksToDownload = append(artworksToDownload, artworksArr...)
-		ugoiraToDownload = append(ugoiraToDownload, ugoiraArr...)
+		artworksToDownload = append(artworksToDownload, artworksSlice...)
+		ugoiraToDownload = append(ugoiraToDownload, ugoiraSlice...)
 	}
 
 	if len(pixivDl.TagNames) > 0 {
 		// loop through each tag and page number
 		bar := utils.GetProgressBar(
-			len(pixivDl.TagNames), 
+			len(pixivDl.TagNames),
 			"Searching for artworks based on tag names...",
 			utils.GetCompletionFunc(fmt.Sprintf("Finished searching for artworks based on %d tag names!", len(pixivDl.TagNames))),
 		)
@@ -160,59 +160,59 @@ func PixivDownloadProcess(config *configs.Config, pixivDl *pixiv.PixivDl, pixivD
 				maxPage = minPage
 			}
 
-			var artworksArr []map[string]string
-			var ugoiraArr []pixiv.Ugoira
+			var artworksSlice []map[string]string
+			var ugoiraSlice []pixiv.Ugoira
 			if pixivDlOptions.MobileClient == nil {
-				artworksArr, ugoiraArr = pixiv.TagSearch(
-					tagName, 
-					utils.DOWNLOAD_PATH, 
+				artworksSlice, ugoiraSlice = pixiv.TagSearch(
+					tagName,
+					utils.DOWNLOAD_PATH,
 					pixivDlOptions,
-					minPage, 
-					maxPage, 
+					minPage,
+					maxPage,
 					pixivDlOptions.SessionCookies,
 				)
 			} else {
-				artworksArr, ugoiraArr = pixivDlOptions.MobileClient.TagSearch(
-					tagName, 
-					utils.DOWNLOAD_PATH, 
-					pixivDlOptions, 
-					minPage, 
+				artworksSlice, ugoiraSlice = pixivDlOptions.MobileClient.TagSearch(
+					tagName,
+					utils.DOWNLOAD_PATH,
+					pixivDlOptions,
+					minPage,
 					maxPage,
 				)
 			}
-			artworksToDownload = append(artworksToDownload, artworksArr...)
-			ugoiraToDownload = append(ugoiraToDownload, ugoiraArr...)
+			artworksToDownload = append(artworksToDownload, artworksSlice...)
+			ugoiraToDownload = append(ugoiraToDownload, ugoiraSlice...)
 			bar.Add(1)
 		}
 	}
 
 	if len(artworksToDownload) > 0 {
 		request.DownloadURLsParallel(
-			artworksToDownload, 
-			utils.PIXIV_MAX_CONCURRENT_DOWNLOADS, 
-			pixivDlOptions.SessionCookies, 
-			pixiv.GetPixivRequestHeaders(), 
-			nil, 
+			artworksToDownload,
+			utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
+			pixivDlOptions.SessionCookies,
+			pixiv.GetPixivRequestHeaders(),
+			nil,
 			config.OverwriteFiles,
 		)
 	}
 	if len(ugoiraToDownload) > 0 {
 		pixiv.DownloadMultipleUgoira(
-			ugoiraToDownload, 
-			config, 
-			pixivUgoiraOptions, 
+			ugoiraToDownload,
+			config,
+			pixivUgoiraOptions,
 			pixivDlOptions.SessionCookies,
 		)
 	}
 }
 
 var (
-	downloadPath   string
-	rootCmd = &cobra.Command{
-		Use: "cultured-downloader-cli",
+	downloadPath string
+	rootCmd      = &cobra.Command{
+		Use:     "cultured-downloader-cli",
 		Version: fmt.Sprintf("%s by KJHJason\n%s", utils.VERSION, "GitHub Repo: https://github.com/KJHJason/Cultured-Downloader-CLI"),
-		Short: "Download images, videos, etc. from various websites like Fantia.",
-		Long: "Cultured Downloader CLI is a command-line tool for downloading images, videos, etc. from various websites like Pixiv, Pixiv Fanbox, and Fantia.",
+		Short:   "Download images, videos, etc. from various websites like Fantia.",
+		Long:    "Cultured Downloader CLI is a command-line tool for downloading images, videos, etc. from various websites like Pixiv, Pixiv Fanbox, and Fantia.",
 		Run: func(cmd *cobra.Command, args []string) {
 			if downloadPath != "" {
 				err := utils.SetDefaultDownloadPath(downloadPath)
@@ -232,7 +232,7 @@ var (
 	fantiaDlImages      bool
 	fantiaDlAttachments bool
 	fantiaOverwrite     bool
-	fantiaCmd = &cobra.Command{
+	fantiaCmd           = &cobra.Command{
 		Use:   "fantia",
 		Short: "Download from Fantia",
 		Long:  "Supports downloading from Fantia Fanclubs and individual posts.",
@@ -241,8 +241,8 @@ var (
 				OverwriteFiles: fantiaOverwrite,
 			}
 			fantiaDl := fantia.FantiaDl{
-				FanclubIds:    fantiaFanclubIds,
-				PostIds:       fantiaPostIds,
+				FanclubIds: fantiaFanclubIds,
+				PostIds:    fantiaPostIds,
 			}
 			fantiaDlOptions := fantia.FantiaDlOptions{
 				DlThumbnails:    fantiaDlThumbnails,
@@ -276,7 +276,7 @@ var (
 	fanboxDlGdrive       bool
 	fanboxGdriveApiKey   string
 	fanboxOverwriteFiles bool
-	pixivFanboxCmd = &cobra.Command{
+	pixivFanboxCmd       = &cobra.Command{
 		Use:   "pixiv_fanbox",
 		Short: "Download from Pixiv Fanbox",
 		Long:  "Supports downloading from Pixiv by artwork ID, illustrator ID, tag name, and more.",
@@ -288,11 +288,11 @@ var (
 				pixivFanboxConfig.GDriveClient = gdrive.GetNewGDrive(fanboxGdriveApiKey, utils.MAX_CONCURRENT_DOWNLOADS)
 			}
 
-			pixivFanboxDl := pixiv_fanbox.PixivFanboxDl{
-				CreatorIds:    fanboxCreatorIds,
-				PostIds:       fanboxPostIds,
+			pixivFanboxDl := pixivfanbox.PixivFanboxDl{
+				CreatorIds: fanboxCreatorIds,
+				PostIds:    fanboxPostIds,
 			}
-			pixivFanboxDlOptions := pixiv_fanbox.PixivFanboxDlOptions{
+			pixivFanboxDlOptions := pixivfanbox.PixivFanboxDlOptions{
 				DlThumbnails:    fanboxDlThumbnails,
 				DlImages:        fanboxDlImages,
 				DlAttachments:   fanboxDlAttachments,
@@ -325,7 +325,7 @@ var (
 	pixivRatingMode     string
 	pixivArtworkType    string
 	pixivOverwrite      bool
-	pixivCmd = &cobra.Command{
+	pixivCmd            = &cobra.Command{
 		Use:   "pixiv",
 		Short: "Download from Pixiv",
 		Long:  "Supports downloading from Pixiv by artwork ID, illustrator ID, tag name, and more.",
@@ -333,20 +333,23 @@ var (
 			if pixivStartOauth {
 				err := pixiv.NewPixivMobile("", 10).StartOauthFlow()
 				if err != nil {
-					// TODO: log error
-					return
+					utils.LogError(
+						err,
+						"",
+						true,
+					)
 				}
 				return
 			}
 
 			pixivConfig := configs.Config{
-				FfmpegPath: pixivFfmpegPath,
+				FfmpegPath:     pixivFfmpegPath,
 				OverwriteFiles: pixivOverwrite,
 			}
 			pixivConfig.ValidateFfmpeg()
 
 			utils.ValidatePageNumInput(
-				len(pixivTagNames), 
+				len(pixivTagNames),
 				pixivPageNums,
 				[]string{
 					"Number of tag names and page numbers must be equal.",
@@ -378,9 +381,9 @@ var (
 			pixivDlOptions.ValidateArgs()
 			PixivDownloadProcess(
 				&pixivConfig,
-				&pixivDl, 
+				&pixivDl,
 				&pixivDlOptions,
-				&pixivUgoiraOptions, 
+				&pixivUgoiraOptions,
 			)
 		},
 	}
