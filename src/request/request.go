@@ -12,18 +12,42 @@ import (
 	"time"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/quic-go/quic-go/http3"
 )
+
+var HTTP3_SUPPORT_ARR = [6]string{
+	"https://fantia.jp",
+	"https://c.fantia.jp",
+	"https://cc.fantia.jp",
+
+	"https://www.pixiv.net",
+	"https://app-api.pixiv.net",
+
+	"https://drive.google.com",
+}
 
 // send the request to the target URL and retries if the request was not successful
 func sendRequest(reqUrl string, req *http.Request, timeout int, checkStatus, disableCompression bool) (*http.Response, error) {
 	var err error
 	var res *http.Response
 
-	transport := &http.Transport{
-		DisableCompression: disableCompression,
+	var roundTripper http.RoundTripper
+	for _, domain := range HTTP3_SUPPORT_ARR {
+		if strings.HasPrefix(reqUrl, domain) {
+			roundTripper = &http3.RoundTripper{
+				DisableCompression: disableCompression,
+			}
+			break
+		}
 	}
+	if roundTripper == nil {
+		roundTripper = &http.Transport{
+			DisableCompression: disableCompression,
+		}
+	}
+
 	client := &http.Client{
-		Transport: transport,
+		Transport: roundTripper,
 	}
 	client.Timeout = time.Duration(timeout) * time.Second
 	for i := 1; i <= utils.RETRY_COUNTER; i++ {
@@ -35,6 +59,8 @@ func sendRequest(reqUrl string, req *http.Request, timeout int, checkStatus, dis
 				return res, nil
 			}
 			res.Body.Close()
+		} else {
+			fmt.Println(err.Error())
 		}
 
 		if i < utils.RETRY_COUNTER {
@@ -79,15 +105,15 @@ func AddParams(params map[string]string, req *http.Request) {
 
 // CallRequest is used to make a request to a URL and return the response
 //
-// If the request fails, it will retry the request again up 
+// If the request fails, it will retry the request again up
 // to the defined max retries in the constants.go in utils package
 func CallRequest(
-	method, 
-	reqUrl string, 
-	timeout int, 
-	cookies []http.Cookie, 
-	additionalHeaders, 
-	params map[string]string, 
+	method,
+	reqUrl string,
+	timeout int,
+	cookies []http.Cookie,
+	additionalHeaders,
+	params map[string]string,
 	checkStatus bool,
 ) (*http.Response, error) {
 	req, err := http.NewRequest(method, reqUrl, nil)
@@ -103,13 +129,13 @@ func CallRequest(
 
 // Sends a request with the given data
 func CallRequestWithData(
-	reqUrl, 
-	method string, 
-	timeout int, 
-	cookies []http.Cookie, 
-	data, 
-	additionalHeaders, 
-	params map[string]string, 
+	reqUrl,
+	method string,
+	timeout int,
+	cookies []http.Cookie,
+	data,
+	additionalHeaders,
+	params map[string]string,
 	checkStatus bool,
 ) (*http.Response, error) {
 	form := url.Values{}
@@ -135,7 +161,7 @@ func CallRequestWithData(
 //
 // Useful for calling a HEAD request to obtain the actual uncompressed file's file size
 func CallRequestNoCompression(
-	method, reqUrl string, timeout int, cookies []http.Cookie, 
+	method, reqUrl string, timeout int, cookies []http.Cookie,
 	additionalHeaders, params map[string]string, checkStatus bool,
 ) (*http.Response, error) {
 	req, err := http.NewRequest(method, reqUrl, nil)
@@ -153,15 +179,15 @@ func CallRequestNoCompression(
 //
 // Note: If the file already exists, the download process will be skipped
 func DownloadURL(
-	fileURL, 
-	filePath string, 
-	cookies []http.Cookie, 
-	headers, 
-	params map[string]string, 
+	fileURL,
+	filePath string,
+	cookies []http.Cookie,
+	headers,
+	params map[string]string,
 	overwriteExistingFiles bool,
 ) error {
 	// Send a HEAD request first to get the expected file size from the Content-Length header.
-	// A GET request might work but most of the time 
+	// A GET request might work but most of the time
 	// as the Content-Length header may not present due to chunked encoding.
 	headRes, err := CallRequestNoCompression("HEAD", fileURL, 10, cookies, headers, params, true)
 	if err != nil {
@@ -170,10 +196,10 @@ func DownloadURL(
 	fileReqContentLength := headRes.ContentLength
 	headRes.Body.Close()
 
-	downloadTimeout := 25 * 60  // 25 minutes in seconds as downloads 
-								// can take quite a while for large files (especially for Pixiv)
-								// However, the average max file size on these platforms is around 300MB.
-								// Note: Fantia do have a max file size per post of 3GB if one paid extra for it.
+	downloadTimeout := 25 * 60 // 25 minutes in seconds as downloads
+	// can take quite a while for large files (especially for Pixiv)
+	// However, the average max file size on these platforms is around 300MB.
+	// Note: Fantia do have a max file size per post of 3GB if one paid extra for it.
 	res, err := CallRequest("GET", fileURL, downloadTimeout, cookies, headers, params, true)
 	if err != nil {
 		err = fmt.Errorf(
@@ -188,12 +214,12 @@ func DownloadURL(
 
 	// check if filepath already have a filename attached
 	if filepath.Ext(filePath) == "" {
-		os.MkdirAll(filePath, 0755)
+		os.MkdirAll(filePath, 0666)
 		filename, err := url.PathUnescape(res.Request.URL.String())
 		if err != nil {
 			// should never happen but just in case
 			err = fmt.Errorf(
-				"error %d: failed to unescape URL, more info => %v\nurl: %s", 
+				"error %d: failed to unescape URL, more info => %v\nurl: %s",
 				utils.UNEXPECTED_ERROR,
 				err,
 				res.Request.URL.String(),
@@ -202,10 +228,10 @@ func DownloadURL(
 		}
 		filename = utils.GetLastPartOfURL(filename)
 		filenameWithoutExt := utils.RemoveExtFromFilename(filename)
-		filePath = filepath.Join(filePath, filenameWithoutExt + strings.ToLower(filepath.Ext(filename)))
+		filePath = filepath.Join(filePath, filenameWithoutExt+strings.ToLower(filepath.Ext(filename)))
 	} else {
 		filePathDir := filepath.Dir(filePath)
-		os.MkdirAll(filePathDir, 0755)
+		os.MkdirAll(filePathDir, 0666)
 		filePathWithoutExt := utils.RemoveExtFromFilename(filePath)
 		filePath = filePathWithoutExt + strings.ToLower(filepath.Ext(filePath))
 	}
@@ -224,7 +250,7 @@ func DownloadURL(
 		if !overwriteExistingFiles && fileSize > 0 {
 			// If the file already exists and have more than 0 bytes
 			// but the Content-Length header does not exist in the response,
-			// we will assume that the file is already downloaded 
+			// we will assume that the file is already downloaded
 			// and skip the download process if the overwrite flag is false.
 			return nil
 		}
@@ -259,11 +285,11 @@ func DownloadURL(
 //
 // Note: If the file already exists, the download process will be skipped
 func DownloadURLsParallel(
-	urls []map[string]string, 
-	maxConcurrency int, 
-	cookies []http.Cookie, 
-	headers, 
-	params map[string]string, 
+	urls []map[string]string,
+	maxConcurrency int,
+	cookies []http.Cookie,
+	headers,
+	params map[string]string,
 	overwriteExistingFiles bool,
 ) {
 	if len(urls) == 0 {

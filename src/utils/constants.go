@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"os"
+	"net/http"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -66,12 +67,12 @@ const (
 	PIXIV_MAX_CONCURRENT_DOWNLOADS = 3
 	MAX_API_CALLS                  = 10
 
-	FANTIA             = "fantia"
-	FANTIA_TITLE       = "Fantia"
-	PIXIV              = "pixiv"
-	PIXIV_TITLE        = "Pixiv"
-	PIXIV_FANBOX       = "fanbox"
-	PIXIV_FANBOX_TITLE = "Pixiv Fanbox"
+	FANTIA                    = "fantia"
+	FANTIA_TITLE              = "Fantia"
+	PIXIV                     = "pixiv"
+	PIXIV_TITLE               = "Pixiv"
+	PIXIV_FANBOX              = "fanbox"
+	PIXIV_FANBOX_TITLE        = "Pixiv Fanbox"
 
 	PASSWORD_FILENAME = "detected_passwords.txt"
 	ATTACHMENT_FOLDER = "attachments"
@@ -79,13 +80,38 @@ const (
 	GDRIVE_FOLDER 	  = "gdrive"
 )
 
+type cookieInfo struct {
+	Domain   string
+	Name     string
+	SameSite http.SameSite
+}
+
 // Although the variables below are not
 // constants, they are not supposed to be changed
 var (
 	USER_AGENT               = GetUserAgent()
 	APP_PATH                 = GetAppPath()
-	NUMBER_REGEX             = regexp.MustCompile(`^\d+$`)
 	DOWNLOAD_PATH            = GetDefaultDownloadPath()
+
+	SESSION_COOKIE_MAP = map[string]cookieInfo{
+		FANTIA: {
+			Domain:   "fantia.jp",
+			Name:     "_session_id",
+			SameSite: http.SameSiteLaxMode,
+		},
+		PIXIV_FANBOX: {
+			Domain:   ".fanbox.cc",
+			Name:     "FANBOXSESSID",
+			SameSite: http.SameSiteNoneMode,
+		},
+		PIXIV: {
+			Domain:   ".pixiv.net",
+			Name:     "PHPSESSID",
+			SameSite: http.SameSiteNoneMode,
+		},
+	}
+
+	NUMBER_REGEX             = regexp.MustCompile(`^\d+$`)
 	ILLEGAL_PATH_CHARS_REGEX = regexp.MustCompile(`[<>:"/\\|?*]`)
 	GDRIVE_URL_REGEX         = regexp.MustCompile(
 		`https://drive\.google\.com/(?P<type>file/d|drive/(u/\d+/)?folders)/(?P<id>[\w-]+)`,

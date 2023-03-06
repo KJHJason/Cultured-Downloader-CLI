@@ -167,9 +167,9 @@ func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpe
 		err = imagePaletteCmd.Run()
 		if err != nil {
 			err = fmt.Errorf(
-				"pixiv error %d: failed to generate palette for ugoira gif, more info => %s",
+				"pixiv error %d: failed to generate palette for ugoira gif, more info => %v",
 				utils.CMD_ERROR,
-				err.Error(),
+				err,
 			)
 			return err
 		}
@@ -211,10 +211,10 @@ func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpe
 	if err != nil {
 		os.Remove(outputPath)
 		err = fmt.Errorf(
-			"pixiv error %d: failed to convert ugoira to %s, more info => %s",
+			"pixiv error %d: failed to convert ugoira to %s, more info => %v",
 			utils.CMD_ERROR,
 			outputPath,
-			err.Error(),
+			err,
 		)
 		return err
 	}
@@ -271,7 +271,7 @@ func DownloadMultipleUgoira(
 			continue
 		}
 		unzipFolderPath := filepath.Join(filepath.Dir(zipFilePath), "unzipped")
-		err := utils.UnzipFile(zipFilePath, unzipFolderPath, true)
+		err := utils.ExtractFiles(zipFilePath, unzipFolderPath, true)
 		if err != nil {
 			errorMsg := fmt.Sprintf(
 				"pixiv error %d: failed to unzip file %v",

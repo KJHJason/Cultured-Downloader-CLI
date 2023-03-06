@@ -245,6 +245,7 @@ var (
 				FanclubIds: fantiaFanclubIds,
 				PostIds:    fantiaPostIds,
 			}
+			fantiaDl.ValidateArgs()
 
 			fantiaDlOptions := fantia.FantiaDlOptions{
 				DlThumbnails:    fantiaDlThumbnails,
@@ -307,6 +308,7 @@ var (
 				CreatorIds: fanboxCreatorIds,
 				PostIds:    fanboxPostIds,
 			}
+			pixivFanboxDl.ValidateArgs()
 
 			pixivFanboxDlOptions := pixivfanbox.PixivFanboxDlOptions{
 				DlThumbnails:    fanboxDlThumbnails,
@@ -811,5 +813,14 @@ func init() {
 
 // Main program
 func main() {
-	rootCmd.Execute()
+	err := rootCmd.Execute()
+	if err != nil {
+		panic(
+			fmt.Errorf(
+				"error %d: unable to execute root command, more info => %v",
+				utils.DEV_ERROR,
+				err,
+			),
+		)
+	}
 }

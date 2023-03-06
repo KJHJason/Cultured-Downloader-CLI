@@ -12,6 +12,11 @@ type PixivFanboxDl struct {
 	PostIds    []string
 }
 
+func (pf *PixivFanboxDl) ValidateArgs() {
+	utils.ValidateIds(&pf.CreatorIds)
+	utils.ValidateIds(&pf.PostIds)
+}
+
 type PixivFanboxDlOptions struct {
 	DlThumbnails  bool
 	DlImages      bool

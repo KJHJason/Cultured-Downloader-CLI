@@ -13,36 +13,27 @@ import (
 
 // Returns a cookie with given value and website to be used in requests
 func GetCookie(sessionID, website string) http.Cookie {
-	var domainName, cookieName string
+	if sessionID == "" {
+		return http.Cookie{}
+	}
+
+	var domain, cookieName string
 	var sameSite http.SameSite
-	switch website {
-	case utils.FANTIA:
-		domainName = "fantia.jp"
-		cookieName = "_session_id"
-		sameSite = http.SameSiteLaxMode
-	case utils.PIXIV_FANBOX:
-		domainName = ".fanbox.cc"
-		cookieName = "FANBOXSESSID"
-		sameSite = http.SameSiteNoneMode
-	case utils.PIXIV:
-		domainName = ".pixiv.net"
-		cookieName = "PHPSESSID"
-		sameSite = http.SameSiteNoneMode
-	default:
+	if sessionCookieInfo, ok := utils.SESSION_COOKIE_MAP[website]; !ok {
 		// Shouldn't happen but could happen during development
 		panic(
 			fmt.Errorf("error %d, invalid website, \"%s\", in GetCookie", utils.DEV_ERROR, website),
 		)
-	}
-
-	if sessionID == "" {
-		return http.Cookie{}
+	} else {
+		domain = sessionCookieInfo.Domain
+		cookieName = sessionCookieInfo.Name
+		sameSite = sessionCookieInfo.SameSite
 	}
 
 	cookie := http.Cookie{
 		Name:     cookieName,
 		Value:    sessionID,
-		Domain:   domainName,
+		Domain:   domain,
 		Expires:  time.Now().Add(365 * 24 * time.Hour),
 		Path:     "/",
 		SameSite: sameSite,

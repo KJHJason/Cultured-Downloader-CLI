@@ -55,7 +55,7 @@ func NewPixivMobile(refreshToken string, timeout int) *PixivMobile {
 		// refresh the access token and verify it
 		err := pixivMobile.RefreshAccessToken()
 		if err != nil {
-			color.Red("Error: %s", err)
+			color.Red(err.Error())
 			os.Exit(1)
 		}
 	}
@@ -147,18 +147,25 @@ func (pixiv *PixivMobile) RefreshAccessToken() error {
 		false,
 	)
 	if err != nil || res.StatusCode != 200 {
-		errCode := utils.CONNECTION_ERROR
+		const errPrefix = "pixiv error"
 		if err == nil {
 			res.Body.Close()
-			err = fmt.Errorf("status code %d", res.StatusCode)
-			errCode = utils.RESPONSE_ERROR
+			err = fmt.Errorf(
+				"%s %d: failed to refresh token due to %s response from Pixiv\n" +
+					"Please check your refresh token and try again or use the \"-pixiv_start_oauth\" flag to get a new refresh token",
+				errPrefix,
+				utils.RESPONSE_ERROR,
+				res.Status,
+			)
+		} else {
+			err = fmt.Errorf(
+				"%s %d: failed to refresh token due to %v\n" +
+					"Please check your internet connection and try again",
+				errPrefix,
+				utils.CONNECTION_ERROR,
+				err,
+			)
 		}
-		err = fmt.Errorf(
-			"pixiv error %d: failed to refresh token due to %v\n" +
-				"Please check your refresh token and try again or use the \"-pixiv_start_oauth\" flag to get a new refresh token",
-			errCode,
-			err,
-		)
 		return err
 	}
 

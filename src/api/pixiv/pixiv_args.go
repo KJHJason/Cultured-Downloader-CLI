@@ -1,14 +1,14 @@
 package pixiv
 
 import (
-	"os"
 	"fmt"
-	"strings"
 	"net/http"
+	"os"
+	"strings"
 
-	"github.com/fatih/color"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/fatih/color"
 )
 
 type PixivDl struct {
@@ -16,11 +16,14 @@ type PixivDl struct {
 	IllustratorIds []string
 
 	// Tag names download options
-	TagNames       []string
-	TagNamesPageNums       []string
+	TagNames         []string
+	TagNamesPageNums []string
 }
 
 func (p *PixivDl) ValidateArgs() {
+	utils.ValidateIds(&p.ArtworkIds)
+	utils.ValidateIds(&p.IllustratorIds)
+
 	utils.ValidatePageNumInput(
 		len(p.TagNames),
 		p.TagNamesPageNums,
@@ -53,7 +56,7 @@ func (u *UgoiraDlOptions) ValidateArgs() {
 		os.Exit(1)
 	}
 
-	utils.CheckStrArg(
+	utils.ValidateStrArgs(
 		u.OutputFormat,
 		UGOIRA_ACCEPTED_EXT,
 		[]string{
@@ -66,13 +69,13 @@ func (u *UgoiraDlOptions) ValidateArgs() {
 // PixivToDl is the struct that contains the arguments of Pixiv download options.
 type PixivDlOptions struct {
 	// Sort order of the results. Can be "date_desc" or "date_asc".
-	SortOrder       string
-	SearchMode      string
-	RatingMode      string
-	ArtworkType     string
+	SortOrder   string
+	SearchMode  string
+	RatingMode  string
+	ArtworkType string
 
-	MobileClient    *PixivMobile
-	RefreshToken	string
+	MobileClient *PixivMobile
+	RefreshToken string
 
 	SessionCookies  []http.Cookie
 	SessionCookieId string
@@ -103,7 +106,7 @@ var (
 )
 
 func (p *PixivDlOptions) ValidateArgs() {
-	utils.CheckStrArg(
+	utils.ValidateStrArgs(
 		p.SortOrder,
 		ACCEPTED_SORT_ORDER,
 		[]string{
@@ -112,7 +115,7 @@ func (p *PixivDlOptions) ValidateArgs() {
 	)
 	p.SortOrder = strings.ToLower(p.SortOrder)
 
-	utils.CheckStrArg(
+	utils.ValidateStrArgs(
 		p.SearchMode,
 		ACCEPTED_SEARCH_MODE,
 		[]string{
@@ -121,7 +124,7 @@ func (p *PixivDlOptions) ValidateArgs() {
 	)
 	p.SearchMode = strings.ToLower(p.SearchMode)
 
-	utils.CheckStrArg(
+	utils.ValidateStrArgs(
 		p.RatingMode,
 		ACCEPTED_RATING_MODE,
 		[]string{
@@ -130,7 +133,7 @@ func (p *PixivDlOptions) ValidateArgs() {
 	)
 	p.RatingMode = strings.ToLower(p.RatingMode)
 
-	utils.CheckStrArg(
+	utils.ValidateStrArgs(
 		p.ArtworkType,
 		ACCEPTED_ARTWORK_TYPE,
 		[]string{

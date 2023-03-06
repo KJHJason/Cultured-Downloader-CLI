@@ -11,7 +11,7 @@ import (
 	"github.com/fatih/color"
 )
 
-var mut sync.Mutex
+var logMut sync.Mutex
 var logFilePath = filepath.Join(
 	APP_PATH, 
 	"logs",
@@ -19,16 +19,11 @@ var logFilePath = filepath.Join(
 )
 // Thread-safe logging function that logs to "cultured_downloader.log" in the logs directory
 func LogError(err error, errorMsg string, exit bool) {
-	mut.Lock()
-	defer mut.Unlock()
+	logMut.Lock()
+	defer logMut.Unlock()
 
 	if err == nil && errorMsg == "" {
 		return
-	}
-
-	// log the error
-	if err != nil {
-		log.Println(color.RedString(err.Error()))
 	}
 
 	// write to log file
@@ -38,7 +33,11 @@ func LogError(err error, errorMsg string, exit bool) {
 		0666,
 	)
 	if fileErr != nil {
-		fileErr = fmt.Errorf("error opening log file: %s\nlog file path: %s", fileErr.Error(), logFilePath)
+		fileErr = fmt.Errorf(
+			"error opening log file: %v\nlog file path: %s", 
+			fileErr, 
+			logFilePath,
+		)
 		log.Println(color.RedString(fileErr.Error()))
 		return
 	}
@@ -70,13 +69,12 @@ func LogError(err error, errorMsg string, exit bool) {
 // Uses the thread-safe LogError() function to log a slice of errors or a channel of errors
 func LogErrors(exit bool, errChan *chan error, errs ...error) {
 	if errChan != nil && len(errs) > 0 {
-		color.Red(
+		panic(
 			fmt.Sprintf(
 				"error %d: cannot pass both an error channel and a slice of errors to LogErrors()",
 				DEV_ERROR,
 			),
 		)
-		os.Exit(1)
 	}
 
 	if errChan != nil {

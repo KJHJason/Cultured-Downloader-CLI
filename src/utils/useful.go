@@ -1,9 +1,8 @@
 package utils
 
 import (
-	"archive/zip"
+	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -12,13 +11,14 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
-	"bufio"
-	"strconv"
+	"context"
 
 	"github.com/fatih/color"
 	"github.com/schollz/progressbar/v3"
+	"github.com/mholt/archiver/v4"
 )
 
 // Prints out a warning message to the user to not stop the program while it is downloading
@@ -39,26 +39,23 @@ func ParseNetscapeCookieFile(filePath, sessionId, website string) ([]http.Cookie
 	}
 
 	var sessionCookieName string
-	switch website {
-	case FANTIA:
-		sessionCookieName = "_session_id"
-	case PIXIV_FANBOX:
-		sessionCookieName = "FANBOXSESSID"
-	case PIXIV:
-		sessionCookieName = "PHPSESSID"
-	default:
+	var sessionCookieSameSite http.SameSite
+	if sessionCookieInfo, ok := SESSION_COOKIE_MAP[website]; !ok {
 		return nil, fmt.Errorf(
 			"error %d: invalid website, \"%s\", in ParseNetscapeCookieFile",
 			DEV_ERROR,
 			website,
 		)
+	} else {
+		sessionCookieName = sessionCookieInfo.Name
+		sessionCookieSameSite = sessionCookieInfo.SameSite
 	}
 
 	f, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf(
-			"error %d: opening cookie file at %s, more info => %v", 
-			OS_ERROR, 
+			"error %d: opening cookie file at %s, more info => %v",
+			OS_ERROR,
 			filePath,
 			err,
 		)
@@ -74,7 +71,7 @@ func ParseNetscapeCookieFile(filePath, sessionId, website string) ([]http.Cookie
 			continue
 		}
 
-		// split the line 
+		// split the line
 		cookieInfos := strings.Split(line, "\t")
 		if len(cookieInfos) < 7 {
 			// too few values will be ignored
@@ -89,12 +86,13 @@ func ParseNetscapeCookieFile(filePath, sessionId, website string) ([]http.Cookie
 
 		// parse the values
 		cookie := http.Cookie{
-			Name: cookieName,
-			Value: cookieInfos[6],
-			Domain: cookieInfos[0],
-			Path: cookieInfos[2],
-			Secure: cookieInfos[3] == "TRUE",
+			Name:     cookieName,
+			Value:    cookieInfos[6],
+			Domain:   cookieInfos[0],
+			Path:     cookieInfos[2],
+			Secure:   cookieInfos[3] == "TRUE",
 			HttpOnly: true,
+			SameSite: sessionCookieSameSite,
 		}
 
 		expiresUnixStr := cookieInfos[4]
@@ -218,14 +216,14 @@ func SliceContains(arr []string, str string) bool {
 // Checks if the slice of string contains the target str
 //
 // Otherwise, os.Exit(1) is called after printing error messages for the user to read
-func CheckStrArg(str string, arr, errMsg []string) string {
+func ValidateStrArgs(str string, slice, errMsgs []string) string {
 	str = strings.ToLower(str)
-	if SliceContains(arr, str) {
+	if SliceContains(slice, str) {
 		return str
 	}
 
-	if len(errMsg) > 0 {
-		for _, msg := range errMsg {
+	if len(errMsgs) > 0 {
+		for _, msg := range errMsgs {
 			color.Red(msg)
 		}
 	} else {
@@ -236,76 +234,23 @@ func CheckStrArg(str string, arr, errMsg []string) string {
 	color.Red(
 		fmt.Sprintf(
 			"Expecting one of the following: %s",
-			strings.TrimSpace(strings.Join(arr, ", ")),
+			strings.TrimSpace(strings.Join(slice, ", ")),
 		),
 	)
 	os.Exit(1)
 	return ""
 }
 
-// Checks if the slice of string contains the target str
-//
+// Validates if the slice of strings contains only numbers
 // Otherwise, os.Exit(1) is called after printing error messages for the user to read
-func CheckStrArgs(arr []string, str, argName string) *string {
-	str = strings.ToLower(str)
-	if SliceContains(arr, str) {
-		return &str
-	} else {
-		color.Red("Invalid %s: %s", argName, str)
-		color.Red(
-			fmt.Sprintf(
-				"Valid %ss: %s",
-				argName,
-				strings.TrimSpace(strings.Join(arr, ", ")),
-			),
-		)
-		os.Exit(1)
-		return nil
-	}
-}
-
-// Since go's flags package doesn't have a way to pass in multiple values for a flag,
-// a workaround is to pass in the args like "arg1 arg2 arg3" and
-// then split them into a slice by the space delimiter
-//
-// This function will split based on the given delimiter and return the slice of strings
-func SplitArgsWithSep(args, sep string) []string {
-	if args == "" {
-		return []string{}
-	}
-
-	splittedArgs := strings.Split(args, sep)
-	seen := make(map[string]bool)
-	arr := []string{}
-	for _, el := range splittedArgs {
-		el = strings.TrimSpace(el)
-		if _, value := seen[el]; !value {
-			seen[el] = true
-			arr = append(arr, el)
-		}
-	}
-	return arr
-}
-
-// The same as SplitArgsWithSep, but with the default space delimiter
-func SplitArgs(args string) []string {
-	return SplitArgsWithSep(args, " ")
-}
-
-// Split the given string into a slice of strings with space as the delimiter
-// and checks if the slice of strings contains only numbers
-//
-// Otherwise, os.Exit(1) is called after printing error messages for the user to read
-func SplitAndCheckIds(args string) []string {
-	ids := SplitArgs(args)
-	for _, id := range ids {
+func ValidateIds(args *[]string) {
+	for _, id := range *args {
 		if !NUMBER_REGEX.MatchString(id) {
 			color.Red("Invalid ID: %s", id)
 			color.Red("IDs must be numbers!")
 			os.Exit(1)
 		}
 	}
-	return ids
 }
 
 // Same as strings.Join([]string, "\n")
@@ -313,64 +258,105 @@ func CombineStringsWithNewline(strs []string) string {
 	return strings.Join(strs, "\n")
 }
 
-// Unzips the given zip file to the given destination
+// Extract all files from the given archive file to the given destination
 //
 // Code based on https://stackoverflow.com/a/24792688/2737403
-func UnzipFile(src, dest string, ignoreIfMissing bool) error {
+func ExtractFiles(src, dest string, ignoreIfMissing bool) error {
 	if !PathExists(src) {
 		if ignoreIfMissing {
 			return nil
 		} else {
-			return errors.New("source zip file does not exist")
+			return fmt.Errorf(
+				"error %d: %s does not exist",
+				OS_ERROR,
+				src,
+			)	
 		}
 	}
 
-	r, err := zip.OpenReader(src)
+	f, err := os.Open(src)
 	if err != nil {
+		return fmt.Errorf(
+			"error %d: unable to open zip file %s",
+			OS_ERROR,
+			src,
+		)
+	}
+	defer f.Close()
+
+	format, archiveReader, err := archiver.Identify(
+		filepath.Base(src), 
+		f,
+	)
+	if err == archiver.ErrNoMatch {
+		return fmt.Errorf(
+			"error %d: %s is not a valid zip file",
+			OS_ERROR,
+			src,
+		)
+	} else if err != nil {
 		return err
 	}
-	defer r.Close()
 
-	os.MkdirAll(dest, 0755)
-	// Closure to address file descriptors issue with all the deferred .Close() methods
-	extractAndWriteFile := func(f *zip.File) error {
-		rc, err := f.Open()
+	var input io.Reader
+	if decom, ok := format.(archiver.Decompressor); ok {
+		rc, err := decom.OpenReader(archiveReader)
 		if err != nil {
 			return err
 		}
+		input = rc
 		defer rc.Close()
+	} else {
+		input = archiveReader
+	}
 
-		path := filepath.Join(dest, f.Name)
-		// Check for ZipSlip (Directory traversal)
-		if !strings.HasPrefix(path, filepath.Clean(dest)+string(os.PathSeparator)) {
-			return fmt.Errorf("illegal file path: %s", path)
+	if ex, ok := format.(archiver.Extractor); ok {
+		handler := func(ctx context.Context, file archiver.File) error {
+			extractedFilePath := filepath.Join(dest, file.NameInArchive)
+			os.MkdirAll(filepath.Dir(extractedFilePath), 0666)
+
+			af, err := file.Open()
+			if err != nil {
+				return err
+			}
+			defer af.Close()
+
+			out, err := os.OpenFile(
+				extractedFilePath,
+				os.O_WRONLY|os.O_CREATE|os.O_TRUNC,
+				file.Mode(),
+			)
+			if err != nil {
+				return err
+			}
+			defer out.Close()
+
+			_, err = io.Copy(out, af)
+			if err != nil {
+				return err
+			}
+			return nil
 		}
 
-		if f.FileInfo().IsDir() {
-			os.MkdirAll(path, f.Mode())
-		} else {
-			os.MkdirAll(filepath.Dir(path), f.Mode())
-			f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
-			if err != nil {
-				return err
-			}
-			defer f.Close()
-
-			_, err = io.Copy(f, rc)
-			if err != nil {
-				return err
-			}
+		err = ex.Extract(context.Background(), input, nil, handler)
+		if err != nil {
+			err = fmt.Errorf(
+				"error %d: unable to extract zip file %s, more info => %v",
+				OS_ERROR,
+				src,
+				err,
+			)
+			return err
 		}
 		return nil
 	}
 
-	for _, f := range r.File {
-		err := extractAndWriteFile(f)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return fmt.Errorf(
+		"error %d: unable to extract zip file %s, more info => %v",
+		UNEXPECTED_ERROR,
+		src,
+		err,
+	)
 }
 
 // Returns the last part of the given URL string

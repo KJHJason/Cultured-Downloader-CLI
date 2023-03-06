@@ -15,6 +15,11 @@ type FantiaDl struct {
 	PostIds    []string
 }
 
+func (f *FantiaDl) ValidateArgs() {
+	utils.ValidateIds(&f.FanclubIds)
+	utils.ValidateIds(&f.PostIds)
+}
+
 type FantiaDlOptions struct {
 	DlThumbnails    bool
 	DlImages        bool
