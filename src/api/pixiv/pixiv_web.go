@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/KJHJason/Cultured-Downloader-CLI/api"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
@@ -133,7 +132,7 @@ func GetArtworkDetails(artworkId, downloadPath string, cookies []http.Cookie) (s
 	artworkJsonBody := artworkDetailsJsonRes.Body
 	illustratorName := artworkJsonBody.UserName
 	artworkName := artworkJsonBody.Title
-	artworkPostDir := utils.GetPostFolder(filepath.Join(downloadPath, api.PixivTitle), illustratorName, artworkId, artworkName)
+	artworkPostDir := utils.GetPostFolder(filepath.Join(downloadPath, utils.PIXIV_TITLE), illustratorName, artworkId, artworkName)
 
 	artworkType := artworkJsonBody.IllustType
 	switch artworkType {

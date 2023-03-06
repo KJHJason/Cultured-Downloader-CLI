@@ -141,7 +141,7 @@ func (p *PixivDlOptions) ValidateArgs() {
 
 	if p.SessionCookieId != "" {
 		p.SessionCookies = []http.Cookie{
-			api.VerifyAndGetCookie(api.Pixiv, api.Pixiv, p.SessionCookieId),
+			api.VerifyAndGetCookie(utils.PIXIV, p.SessionCookieId),
 		}
 	}
 

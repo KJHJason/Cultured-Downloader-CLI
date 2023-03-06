@@ -253,7 +253,7 @@ var (
 				SessionCookieId: fantiaSession,
 			}
 			if fantiaCookieFile != "" {
-				cookies, err := utils.ParseNetscapeCookieFile(fantiaCookieFile, fantiaSession)
+				cookies, err := utils.ParseNetscapeCookieFile(fantiaCookieFile, utils.FANTIA, fantiaSession)
 				if err != nil {
 					utils.LogError(
 						err,
@@ -316,7 +316,7 @@ var (
 				SessionCookieId: fanboxSession,
 			}
 			if fanboxCookieFile != "" {
-				cookies, err := utils.ParseNetscapeCookieFile(fanboxCookieFile, fanboxSession)
+				cookies, err := utils.ParseNetscapeCookieFile(fanboxCookieFile, utils.PIXIV_FANBOX, fanboxSession)
 				if err != nil {
 					utils.LogError(
 						err,
@@ -407,7 +407,7 @@ var (
 				SessionCookieId: pixivSession,
 			}
 			if pixivCookieFile != "" {
-				cookies, err := utils.ParseNetscapeCookieFile(pixivCookieFile, pixivSession)
+				cookies, err := utils.ParseNetscapeCookieFile(pixivCookieFile, utils.PIXIV, pixivSession)
 				if err != nil {
 					utils.LogError(
 						err,

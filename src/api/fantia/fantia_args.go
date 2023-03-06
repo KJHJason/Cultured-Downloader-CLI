@@ -74,7 +74,7 @@ func (f *FantiaDlOptions) GetCsrfToken() error {
 func (f *FantiaDlOptions) ValidateArgs() error {
 	if f.SessionCookieId != "" {
 		f.SessionCookies = []http.Cookie{
-			api.VerifyAndGetCookie(api.Fantia, api.FantiaTitle, f.SessionCookieId),
+			api.VerifyAndGetCookie(utils.FANTIA, f.SessionCookieId),
 		}
 	}
 

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/api"
+	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
 
 type PixivFanboxDl struct {
@@ -24,7 +25,7 @@ type PixivFanboxDlOptions struct {
 func (pf *PixivFanboxDlOptions) ValidateArgs() {
 	if pf.SessionCookieId != "" {
 		pf.SessionCookies = []http.Cookie{
-			api.VerifyAndGetCookie(api.PixivFanbox, api.PixivFanboxTitle, pf.SessionCookieId),
+			api.VerifyAndGetCookie(utils.PIXIV_FANBOX, pf.SessionCookieId),
 		}
 	}
 }

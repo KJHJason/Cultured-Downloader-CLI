@@ -16,15 +16,15 @@ func GetCookie(sessionID, website string) http.Cookie {
 	var domainName, cookieName string
 	var sameSite http.SameSite
 	switch website {
-	case Fantia:
+	case utils.FANTIA:
 		domainName = "fantia.jp"
 		cookieName = "_session_id"
 		sameSite = http.SameSiteLaxMode
-	case PixivFanbox:
+	case utils.PIXIV_FANBOX:
 		domainName = ".fanbox.cc"
 		cookieName = "FANBOXSESSID"
 		sameSite = http.SameSiteNoneMode
-	case Pixiv:
+	case utils.PIXIV:
 		domainName = ".pixiv.net"
 		cookieName = "PHPSESSID"
 		sameSite = http.SameSiteNoneMode
@@ -58,11 +58,11 @@ func VerifyCookie(cookie http.Cookie, website string) (bool, error) {
 	// sends a request to the website to verify the cookie
 	var websiteURL string
 	switch website {
-	case Fantia:
+	case utils.FANTIA:
 		websiteURL = "https://fantia.jp/mypage/users/plans"
-	case PixivFanbox:
+	case utils.PIXIV_FANBOX:
 		websiteURL = "https://www.fanbox.cc/creators/supporting"
-	case Pixiv:
+	case utils.PIXIV:
 		websiteURL = "https://www.pixiv.net/manage/requests"
 	default:
 		// Shouldn't happen but could happen during development
@@ -90,9 +90,12 @@ func VerifyCookie(cookie http.Cookie, website string) (bool, error) {
 // If the cookie is valid, the cookie will be returned
 //
 // However, if the cookie is invalid, an error message will be printed out and the program will shutdown
-func VerifyAndGetCookie(website, title, cookieValue string) http.Cookie {
-	if title == "" {
-		title = website
+func VerifyAndGetCookie(website, cookieValue string) http.Cookie {
+	if _, ok := utils.API_TITLE_MAP[website]; !ok {
+		// Shouldn't happen but could happen during development
+		panic(
+			fmt.Errorf("error %d, invalid website, \"%s\", in VerifyAndGetCookie", utils.DEV_ERROR, website),
+		)
 	}
 
 	cookie := GetCookie(cookieValue, website)
@@ -101,7 +104,7 @@ func VerifyAndGetCookie(website, title, cookieValue string) http.Cookie {
 		utils.LogError(err, "Error occurred when trying to verify cookie.", true)
 	}
 	if cookieValue != "" && !cookieIsValid {
-		color.Red(fmt.Sprintf("%s cookie is invalid", title))
+		color.Red(fmt.Sprintf("%s cookie is invalid", utils.API_TITLE_MAP[website]))
 		os.Exit(1)
 	}
 	return cookie

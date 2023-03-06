@@ -14,7 +14,6 @@ import (
 	"time"
 	"sync"
 
-	"github.com/KJHJason/Cultured-Downloader-CLI/api"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/fatih/color"
@@ -352,7 +351,7 @@ func (pixiv *PixivMobile) ProcessArtworkJson(artworkJson map[string]interface{},
 	illustratorJson := artworkJson["user"].(map[string]interface{})
 	illustratorName := illustratorJson["name"].(string)
 	artworkFolderPath := utils.GetPostFolder(
-		filepath.Join(downloadPath, api.PixivTitle), illustratorName, artworkId, artworkTitle,
+		filepath.Join(downloadPath, utils.PIXIV_TITLE), illustratorName, artworkId, artworkTitle,
 	)
 
 	if artworkType == "ugoira" {

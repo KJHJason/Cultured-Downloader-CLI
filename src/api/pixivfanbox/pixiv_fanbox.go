@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/KJHJason/Cultured-Downloader-CLI/api"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
@@ -39,7 +38,7 @@ func ProcessPixivFanboxText(postBody interface{}, postFolderPath string, downloa
 	for _, text := range postBodySlice {
 		if utils.DetectPasswordInText(text) && !loggedPassword {
 			// Log the entire post text if it contains a password
-			filePath := filepath.Join(postFolderPath, api.PasswordFilename)
+			filePath := filepath.Join(postFolderPath, utils.PASSWORD_FILENAME)
 			if !utils.PathExists(filePath) {
 				loggedPassword = true
 				postBodyStr := strings.Join(postBodySlice, "\n")
@@ -54,7 +53,7 @@ func ProcessPixivFanboxText(postBody interface{}, postFolderPath string, downloa
 		if utils.DetectGDriveLinks(text, postFolderPath, false) && downloadGdrive {
 			detectedGdriveLinks = append(detectedGdriveLinks, map[string]string{
 				"url":      text,
-				"filepath": filepath.Join(postFolderPath, api.GdriveFolder),
+				"filepath": filepath.Join(postFolderPath, utils.GDRIVE_FOLDER),
 			})
 		}
 	}
@@ -141,9 +140,9 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 				var filePath string
 				isImage := utils.SliceContains(pixivFanboxAllowedImageExt, extension)
 				if isImage {
-					filePath = filepath.Join(postFolderPath, api.ImagesFolder, filename)
+					filePath = filepath.Join(postFolderPath, utils.IMAGES_FOLDER, filename)
 				} else {
-					filePath = filepath.Join(postFolderPath, api.AttachmentFolder, filename)
+					filePath = filepath.Join(postFolderPath, utils.ATTACHMENT_FOLDER, filename)
 				}
 
 				if (isImage && pixivFanboxDlOptions.DlImages) || (!isImage && pixivFanboxDlOptions.DlAttachments) {
@@ -166,7 +165,7 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 					textStr := text.(string)
 					if utils.DetectPasswordInText(textStr) && !loggedPassword {
 						// Log the entire post text if it contains a password
-						filePath := filepath.Join(postFolderPath, api.PasswordFilename)
+						filePath := filepath.Join(postFolderPath, utils.PASSWORD_FILENAME)
 						if !utils.PathExists(filePath) {
 							loggedPassword = true
 							postBodyStr := "Found potential password in the post:\n\n"
@@ -187,7 +186,7 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 					if utils.DetectGDriveLinks(textStr, postFolderPath, false) && pixivFanboxDlOptions.DlGdrive {
 						gdriveLinks = append(gdriveLinks, map[string]string{
 							"url":      textStr,
-							"filepath": filepath.Join(postFolderPath, api.GdriveFolder),
+							"filepath": filepath.Join(postFolderPath, utils.GDRIVE_FOLDER),
 						})
 					}
 				}
@@ -200,7 +199,7 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 						if utils.DetectGDriveLinks(linkUrl, postFolderPath, true) && pixivFanboxDlOptions.DlGdrive {
 							gdriveLinks = append(gdriveLinks, map[string]string{
 								"url":      linkUrl,
-								"filepath": filepath.Join(postFolderPath, api.GdriveFolder),
+								"filepath": filepath.Join(postFolderPath, utils.GDRIVE_FOLDER),
 							})
 							continue
 						}
@@ -217,7 +216,7 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 				imageUrl := imageInfo.(map[string]interface{})["originalUrl"].(string)
 				urlsMap = append(urlsMap, map[string]string{
 					"url":      imageUrl,
-					"filepath": filepath.Join(postFolderPath, api.ImagesFolder),
+					"filepath": filepath.Join(postFolderPath, utils.IMAGES_FOLDER),
 				})
 			}
 		}
@@ -231,7 +230,7 @@ func ProcessFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 				filename := attachmentInfoMap["name"].(string) + "." + attachmentInfoMap["extension"].(string)
 				urlsMap = append(urlsMap, map[string]string{
 					"url":      attachmentUrl,
-					"filepath": filepath.Join(postFolderPath, api.AttachmentFolder, filename),
+					"filepath": filepath.Join(postFolderPath, utils.ATTACHMENT_FOLDER, filename),
 				})
 			}
 		}

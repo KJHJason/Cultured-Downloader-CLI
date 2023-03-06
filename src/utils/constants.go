@@ -32,7 +32,11 @@ func GetUserAgent() string {
 	userAgentOS, ok := userAgent[runtime.GOOS]
 	if !ok {
 		panic(
-			fmt.Errorf("error %d: Failed to get user agent OS as your OS, \"%s\", is not supported", OS_ERROR, runtime.GOOS),
+			fmt.Errorf(
+				"error %d: Failed to get user agent OS as your OS, \"%s\", is not supported", 
+				OS_ERROR, 
+				runtime.GOOS,
+			),
 		)
 	}
 	return fmt.Sprintf("%s AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36", userAgentOS)
@@ -43,11 +47,37 @@ func GetAppPath() string {
 	appPath, err := os.UserConfigDir()
 	if err != nil {
 		panic(
-			fmt.Errorf("error %d, failed to get user's config directory: %s", OS_ERROR, err.Error()),
+			fmt.Errorf(
+				"error %d, failed to get user's config directory: %v", 
+				OS_ERROR, 
+				err,
+			),
 		)
 	}
 	return filepath.Join(appPath, "Cultured-Downloader")
 }
+
+const (
+	VERSION                        = "1.1.0"
+	MAX_RETRY_DELAY                = 2.45
+	MIN_RETRY_DELAY                = 0.95
+	RETRY_COUNTER                  = 4
+	MAX_CONCURRENT_DOWNLOADS       = 5
+	PIXIV_MAX_CONCURRENT_DOWNLOADS = 3
+	MAX_API_CALLS                  = 10
+
+	FANTIA             = "fantia"
+	FANTIA_TITLE       = "Fantia"
+	PIXIV              = "pixiv"
+	PIXIV_TITLE        = "Pixiv"
+	PIXIV_FANBOX       = "fanbox"
+	PIXIV_FANBOX_TITLE = "Pixiv Fanbox"
+
+	PASSWORD_FILENAME = "detected_passwords.txt"
+	ATTACHMENT_FOLDER = "attachments"
+	IMAGES_FOLDER 	  = "images"
+	GDRIVE_FOLDER 	  = "gdrive"
+)
 
 // Although the variables below are not
 // constants, they are not supposed to be changed
@@ -70,14 +100,11 @@ var (
 	// For Pixiv Fanbox
 	PASSWORD_TEXTS              = []string{"パス", "Pass", "pass", "密码"}
 	EXTERNAL_DOWNLOAD_PLATFORMS = []string{"mega", "gigafile", "dropbox", "mediafire"}
-)
 
-const (
-	VERSION                        = "1.1.0"
-	MAX_RETRY_DELAY                = 2.45
-	MIN_RETRY_DELAY                = 0.95
-	RETRY_COUNTER                  = 4
-	MAX_CONCURRENT_DOWNLOADS       = 5
-	PIXIV_MAX_CONCURRENT_DOWNLOADS = 3
-	MAX_API_CALLS                  = 10
+	// For readability for the user
+	API_TITLE_MAP = map[string]string{
+		FANTIA:       FANTIA_TITLE,
+		PIXIV_FANBOX: PIXIV_FANBOX_TITLE,
+		PIXIV:        PIXIV_TITLE,
+	}
 )

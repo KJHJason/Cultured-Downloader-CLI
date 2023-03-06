@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/KJHJason/Cultured-Downloader-CLI/api"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/PuerkitoBio/goquery"
@@ -73,7 +72,7 @@ func ProcessFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 	postId := strconv.Itoa(postStruct.ID)
 	postTitle := postStruct.Title
 	creatorName := postStruct.Fanclub.User.Name
-	postFolderPath := utils.GetPostFolder(filepath.Join(downloadPath, api.FantiaTitle), creatorName, postId, postTitle)
+	postFolderPath := utils.GetPostFolder(filepath.Join(downloadPath, utils.FANTIA_TITLE), creatorName, postId, postTitle)
 
 	var urlsMap []map[string]string
 	thumbnail := postStruct.Thumb.Original
@@ -96,7 +95,7 @@ func ProcessFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 				imageUrl := image.URL.Original
 				urlsMap = append(urlsMap, map[string]string{
 					"url":      imageUrl,
-					"filepath": filepath.Join(postFolderPath, api.ImagesFolder),
+					"filepath": filepath.Join(postFolderPath, utils.IMAGES_FOLDER),
 				})
 			}
 
@@ -107,7 +106,7 @@ func ProcessFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 				imageUrl := FantiaUrl + matched[utils.FANTIA_REGEX_URL_INDEX]
 				urlsMap = append(urlsMap, map[string]string{
 					"url":      imageUrl,
-					"filepath": filepath.Join(postFolderPath, api.ImagesFolder),
+					"filepath": filepath.Join(postFolderPath, utils.IMAGES_FOLDER),
 				})
 			}
 		}
@@ -119,7 +118,7 @@ func ProcessFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 				attachmentUrlStr := FantiaUrl + attachmentUrl
 				urlsMap = append(urlsMap, map[string]string{
 					"url":      attachmentUrlStr,
-					"filepath": filepath.Join(postFolderPath, api.AttachmentFolder),
+					"filepath": filepath.Join(postFolderPath, utils.ATTACHMENT_FOLDER),
 				})
 			} else if content.DownloadUri != "" {
 				// if the attachment url string does not exist,
@@ -128,7 +127,7 @@ func ProcessFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 				filename := content.Filename
 				urlsMap = append(urlsMap, map[string]string{
 					"url":      downloadUrl,
-					"filepath": filepath.Join(postFolderPath, api.AttachmentFolder, filename),
+					"filepath": filepath.Join(postFolderPath, utils.ATTACHMENT_FOLDER, filename),
 				})
 			}
 		}
