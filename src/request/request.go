@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/quic-go/quic-go/http3"
 )
@@ -299,22 +300,42 @@ func DownloadURLsParallel(
 		maxConcurrency = len(urls)
 	}
 
-	bar := utils.GetProgressBar(
-		len(urls),
-		"Downloading...",
-		utils.GetCompletionFunc(
-			fmt.Sprintf("Downloaded %d files", len(urls)),
-		),
-	)
 	var wg sync.WaitGroup
 	queue := make(chan struct{}, maxConcurrency)
 	errChan := make(chan error, len(urls))
+
+	baseMsg := "Downloading files [%d/" + fmt.Sprintf("%d]...", len(urls))
+	progress := spinner.New(
+		spinner.DL_SPINNER,
+		"fgHiYellow",
+		fmt.Sprintf(
+			baseMsg,
+			0,
+		),
+		fmt.Sprintf(
+			"Finished downloading %d files",
+			len(urls),
+		),
+		fmt.Sprintf(
+			"Something went wrong while downloading %d files.\nPlease refer to the logs for more details.",
+			len(urls),
+		),
+		len(urls),
+	)
+	progress.Start()
 	for _, url := range urls {
 		wg.Add(1)
 		queue <- struct{}{}
 		go func(fileUrl, filePath string) {
 			defer wg.Done()
-			err := DownloadURL(fileUrl, filePath, cookies, headers, params, overwriteExistingFiles)
+			err := DownloadURL(
+				fileUrl, 
+				filePath, 
+				cookies, 
+				headers, 
+				params, 
+				overwriteExistingFiles,
+			)
 			if err != nil {
 				errChan <- fmt.Errorf(
 					"failed to download url, \"%s\", to \"%s\", please refer to the error details below:\n%v",
@@ -323,12 +344,18 @@ func DownloadURLsParallel(
 					err,
 				)
 			}
-			bar.Add(1)
+			progress.MsgIncrement(baseMsg)
 			<-queue
 		}(url["url"], url["filepath"])
 	}
 	close(queue)
 	wg.Wait()
 	close(errChan)
-	utils.LogErrors(false, &errChan)
+
+	hasErr := false
+	if len(errChan) > 0 {
+		hasErr = true
+		utils.LogErrors(false, &errChan)
+	}
+	progress.Stop(hasErr)
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
+	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
 
@@ -238,7 +239,11 @@ func DownloadMultipleUgoira(
 ) {
 	var urlsToDownload []map[string]string
 	for _, ugoira := range downloadInfo {
-		filePath, outputFilePath := GetUgoiraFilePaths(ugoira.FilePath, ugoira.Url, ugoiraDlOptions.OutputFormat)
+		filePath, outputFilePath := GetUgoiraFilePaths(
+			ugoira.FilePath, 
+			ugoira.Url, 
+			ugoiraDlOptions.OutputFormat,
+		)
 		if !utils.PathExists(outputFilePath) {
 			urlsToDownload = append(urlsToDownload, map[string]string{
 				"url":      ugoira.Url,
@@ -255,31 +260,54 @@ func DownloadMultipleUgoira(
 		nil,
 		config.OverwriteFiles,
 	)
-	bar := utils.GetProgressBar(
+
+	var errSlice []error
+	baseMsg := "Converting Ugoira to %s [%d/" + fmt.Sprintf("%d]...", len(downloadInfo))
+	progress := spinner.New(
+		spinner.DL_SPINNER,
+		"fgHiYellow",
+		fmt.Sprintf(
+			baseMsg,
+			0,
+		),
+		fmt.Sprintf(
+			"Finished converting %d Ugoira to %s!",
+			len(downloadInfo),
+			ugoiraDlOptions.OutputFormat,
+		),
+		fmt.Sprintf(
+			"Something went wrong while converting %d Ugoira to %s!\nPlease refer to the logs for more details.",
+			len(downloadInfo),
+			ugoiraDlOptions.OutputFormat,
+		),
 		len(downloadInfo),
-		fmt.Sprintf("Converting Ugoira to %s...", ugoiraDlOptions.OutputFormat),
-		utils.GetCompletionFunc(fmt.Sprintf("Finished converting %d Ugoira to %s!", len(downloadInfo), ugoiraDlOptions.OutputFormat)),
 	)
+	progress.Start()
 	for _, ugoira := range downloadInfo {
 		zipFilePath, outputPath := GetUgoiraFilePaths(ugoira.FilePath, ugoira.Url, ugoiraDlOptions.OutputFormat)
 		if utils.PathExists(outputPath) {
-			bar.Add(1)
+			progress.MsgIncrement(baseMsg)
 			continue
 		}
 		if !utils.PathExists(zipFilePath) {
-			bar.Add(1)
+			progress.MsgIncrement(baseMsg)
 			continue
 		}
-		unzipFolderPath := filepath.Join(filepath.Dir(zipFilePath), "unzipped")
+
+		unzipFolderPath := filepath.Join(
+			filepath.Dir(zipFilePath), 
+			"unzipped",
+		)
 		err := utils.ExtractFiles(zipFilePath, unzipFolderPath, true)
 		if err != nil {
-			errorMsg := fmt.Sprintf(
-				"pixiv error %d: failed to unzip file %v",
+			err := fmt.Errorf(
+				"pixiv error %d: failed to unzip file %s, more info => %v",
 				utils.OS_ERROR,
 				zipFilePath,
+				err,
 			)
-			utils.LogError(err, errorMsg, false)
-			bar.Add(1)
+			errSlice = append(errSlice, err)
+			progress.MsgIncrement(baseMsg)
 			continue
 		}
 
@@ -291,10 +319,17 @@ func DownloadMultipleUgoira(
 			ugoiraDlOptions.Quality,
 		)
 		if err != nil {
-			utils.LogError(err, "", false)
+			errSlice = append(errSlice, err)
 		} else if ugoiraDlOptions.DeleteZip {
 			os.Remove(zipFilePath)
 		}
-		bar.Add(1)
+		progress.MsgIncrement(baseMsg)
 	}
+
+	hasErr := false
+	if len(errSlice) > 0 {
+		hasErr = true
+		utils.LogErrors(false, nil, errSlice...)
+	}
+	progress.Stop(hasErr)
 }

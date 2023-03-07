@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
+	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
 
@@ -184,24 +185,38 @@ func GetArtworkDetails(artworkId, downloadPath string, cookies []http.Cookie) (s
 // Retrieves multiple artwork details based on the given slice of artwork IDs
 // and returns a map to use for downloading and a slice of Ugoira structures
 func GetMultipleArtworkDetails(artworkIds []string, downloadPath string, cookies []http.Cookie) ([]map[string]string, []Ugoira) {
-	bar := utils.GetProgressBar(
-		len(artworkIds),
-		"Getting and processing artwork details...",
-		utils.GetCompletionFunc(fmt.Sprintf("Finished getting and processing %d artwork details!", len(artworkIds))),
-	)
-
 	var errSlice []error
 	var ugoiraDetails []Ugoira
 	var artworkDetails []map[string]string
 	lastArtworkId := artworkIds[len(artworkIds)-1]
+
+	baseMsg := "Getting and processing artwork details from Pixiv [%d/" + fmt.Sprintf("%d]...", len(artworkIds))
+	progress := spinner.New(
+		spinner.JSON_SPINNER,
+		"fgHiYellow",
+		fmt.Sprintf(
+			baseMsg,
+			0,
+		),
+		fmt.Sprintf(
+			"Finished getting and processing %d artwork details from Pixiv!",
+			len(artworkIds),
+		),
+		fmt.Sprintf(
+			"Something went wrong while getting and processing %d artwork details from Pixiv!\nPlease refer to the logs for more details.",
+			len(artworkIds),
+		),
+		len(artworkIds),
+	)
+	progress.Start()
 	for _, artworkId := range artworkIds {
 		artworkFolder, jsonRes, artworkType, err := GetArtworkDetails(artworkId, downloadPath, cookies)
 		if err != nil {
 			errSlice = append(errSlice, err)
-			bar.Add(1)
+			progress.MsgIncrement(baseMsg)
 			continue
 		} else if artworkFolder == "" || artworkType == -1 {
-			bar.Add(1)
+			progress.MsgIncrement(baseMsg)
 			continue
 		}
 
@@ -212,13 +227,19 @@ func GetMultipleArtworkDetails(artworkIds []string, downloadPath string, cookies
 			artworkDetails = append(artworkDetails, processedJsonRes...)
 		}
 
-		bar.Add(1)
+		progress.MsgIncrement(baseMsg)
 		if artworkId != lastArtworkId {
 			PixivSleep()
 		}
 	}
 
-	utils.LogErrors(false, nil, errSlice...)
+	hasErr := false
+	if len(errSlice) > 0 {
+		hasErr = true
+		utils.LogErrors(false, nil, errSlice...)
+	}
+	progress.Stop(hasErr)
+
 	return artworkDetails, ugoiraDetails
 }
 
@@ -280,14 +301,28 @@ func GetIllustratorPosts(illustratorId, artworkType string, cookies []http.Cooki
 
 // Get posts from multiple illustrators and returns a map and a slice for Ugoira structures for downloads
 func GetMultipleIllustratorPosts(illustratorIds []string, downloadPath, artworkType string, cookies []http.Cookie) ([]map[string]string, []Ugoira) {
-	bar := utils.GetProgressBar(
-		len(illustratorIds),
-		"Getting artwork details from illustrator(s)...",
-		utils.GetCompletionFunc(fmt.Sprintf("Finished getting artwork details from %d illustrator(s)!", len(illustratorIds))),
-	)
-
 	var errSlice []error
 	var artworkIdsSlice []string
+
+	baseMsg := "Getting artwork details from illustrator(s) on Pixiv [%d/" + fmt.Sprintf("%d]...", len(illustratorIds))
+	progress := spinner.New(
+		spinner.REQ_SPINNER,
+		"fgHiYellow",
+		fmt.Sprintf(
+			baseMsg,
+			0,
+		),
+		fmt.Sprintf(
+			"Finished getting artwork details from %d illustrator(s) on Pixiv!",
+			len(illustratorIds),
+		),
+		fmt.Sprintf(
+			"Something went wrong while getting artwork details from %d illustrator(s) on Pixiv!\nPlease refer to the logs for more details.",
+			len(illustratorIds),
+		),
+		len(illustratorIds),
+	)
+	progress.Start()
 	for _, illustratorId := range illustratorIds {
 		artworkIds, err := GetIllustratorPosts(illustratorId, artworkType, cookies)
 		if err != nil {
@@ -295,11 +330,21 @@ func GetMultipleIllustratorPosts(illustratorIds []string, downloadPath, artworkT
 		} else {
 			artworkIdsSlice = append(artworkIdsSlice, artworkIds...)
 		}
-		bar.Add(1)
+		progress.MsgIncrement(baseMsg)
 	}
-	utils.LogErrors(false, nil, errSlice...)
 
-	artworksSlice, ugoiraSlice := GetMultipleArtworkDetails(artworkIdsSlice, downloadPath, cookies)
+	hasErr := false
+	if len(errSlice) > 0 {
+		hasErr = true
+		utils.LogErrors(false, nil, errSlice...)
+	}
+	progress.Stop(hasErr)
+
+	artworksSlice, ugoiraSlice := GetMultipleArtworkDetails(
+		artworkIdsSlice, 
+		downloadPath, 
+		cookies,
+	)
 	return artworksSlice, ugoiraSlice
 }
 
@@ -341,7 +386,7 @@ func ProcessTagJsonResults(res *http.Response) ([]string, error) {
 
 // Query Pixiv's API and search for posts based on the supplied tag name
 // which will return a map and a slice of Ugoira structures for downloads
-func TagSearch(tagName, downloadPath string, dlOptions *PixivDlOptions, minPage, maxPage int, cookies []http.Cookie) ([]map[string]string, []Ugoira) {
+func TagSearch(tagName, downloadPath string, dlOptions *PixivDlOptions, minPage, maxPage int, cookies []http.Cookie) ([]map[string]string, []Ugoira, bool) {
 	url := "https://www.pixiv.net/ajax/search/artworks/" + tagName
 	params := map[string]string{
 		"word":   tagName,              // search term
@@ -386,7 +431,12 @@ func TagSearch(tagName, downloadPath string, dlOptions *PixivDlOptions, minPage,
 		}
 	}
 
-	utils.LogErrors(false, nil, errSlice...)
+	hasErr := false
+	if len(errSlice) > 0 {
+		hasErr = true
+		utils.LogErrors(false, nil, errSlice...)
+	}
+
 	artworkSlice, ugoiraSlice := GetMultipleArtworkDetails(artworkIds, downloadPath, cookies)
-	return artworkSlice, ugoiraSlice
+	return artworkSlice, ugoiraSlice, hasErr
 }

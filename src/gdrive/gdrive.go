@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
+	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/fatih/color"
 )
@@ -396,36 +397,71 @@ func (gdrive *GDrive) DownloadMultipleFiles(files []map[string]string) {
 		if len(allowedForDownload) < maxConcurrency {
 			maxConcurrency = len(allowedForDownload)
 		}
-
-		bar := utils.GetProgressBar(
-			len(allowedForDownload),
-			"Downloading GDrive files...",
-			utils.GetCompletionFunc(
-				fmt.Sprintf("Downloaded %d GDrive files", len(allowedForDownload)),
-			),
-		)
 		var wg sync.WaitGroup
 		queue := make(chan struct{}, maxConcurrency)
+		errChan := make(chan map[string]string, len(allowedForDownload))
+
+		baseMsg := "Downloading GDrive files [%d/" + fmt.Sprintf("%d]...", len(allowedForDownload))
+		progress := spinner.New(
+			spinner.DL_SPINNER,
+			"fgHiYellow",
+			fmt.Sprintf(
+				baseMsg,
+				0,
+			),
+			fmt.Sprintf(
+				"Finished downloading %d GDrive files!",
+				len(allowedForDownload),
+			),
+			fmt.Sprintf(
+				"Something went wrong while downloading %d GDrive files!\nPlease refer to the generated log files for more details.",
+				len(allowedForDownload),
+			),
+			len(allowedForDownload),
+		)
+		progress.Start()
 		for _, file := range allowedForDownload {
 			wg.Add(1)
 			queue <- struct{}{}
 			go func(file map[string]string) {
 				defer wg.Done()
+
 				os.MkdirAll(file["filepath"], 0666)
 				filePath := filepath.Join(file["filepath"], file["name"])
+
 				if err := gdrive.DownloadFile(file, filePath); err != nil {
 					errorMsg := fmt.Sprintf(
 						"Failed to download file: %s (ID: %s, MIME Type: %s)\nRefer to error details below:\n%v",
 						file["name"], file["id"], file["mimeType"], err,
 					)
-					utils.LogMessageToPath(errorMsg, filepath.Join(file["filepath"], GDRIVE_ERROR_FILENAME))
+					errChan <- map[string]string{
+						"err":	    errorMsg,
+						"filepath": filepath.Join(
+							file["filepath"], 
+							GDRIVE_ERROR_FILENAME,
+						),
+					}
 				}
-				bar.Add(1)
+
+				progress.MsgIncrement(baseMsg)
 				<-queue
 			}(file)
 		}
 		close(queue)
 		wg.Wait()
+		close(errChan)
+
+		hasErr := false
+		if len(errChan) > 0 {
+			hasErr = true
+			for errMap := range errChan {
+				utils.LogMessageToPath(
+					errMap["err"],
+					errMap["filepath"], 
+				)
+			}
+		}
+		progress.Stop(hasErr)
 	}
 }
 
@@ -473,41 +509,84 @@ func (gdrive *GDrive) DownloadGdriveUrls(gdriveUrls []map[string]string) error {
 		}
 	}
 
-	bar := utils.GetProgressBar(
-		len(gdriveIds),
-		"Getting gdrive file info from gdrive ID(s)...",
-		utils.GetCompletionFunc(fmt.Sprintf("Finished getting gdrive file info from %d gdrive ID(s)!", len(gdriveIds))),
-	)
+	var errMapSlice []map[string]string
 	gdriveFilesInfo := []map[string]string{}
+	baseMsg := "Getting gdrive file info from gdrive ID(s) [%d/" + fmt.Sprintf("%d]...", len(gdriveIds))
+	progress := spinner.New(
+		spinner.REQ_SPINNER,
+		"fgHiYellow",
+		fmt.Sprintf(
+			baseMsg,
+			0,
+		),
+		fmt.Sprintf(
+			"Finished getting gdrive file info from %d gdrive ID(s)!",
+			len(gdriveIds),
+		),
+		fmt.Sprintf(
+			"Something went wrong while getting gdrive file info from %d gdrive ID(s)!\nPlease refer to the generated log files for more details.",
+			len(gdriveIds),
+		),
+		len(gdriveIds),
+	)
+	progress.Start()
 	for _, gdriveId := range gdriveIds {
 		if gdriveId["type"] == "file" {
 			fileInfo, err := gdrive.GetFileDetails(gdriveId["id"], gdriveId["filepath"])
 			if err != nil {
-				utils.LogMessageToPath(err.Error(), gdriveId["filepath"])
+				errMapSlice = append(errMapSlice, map[string]string{
+					"err":	    err.Error(),
+					"filepath": gdriveId["filepath"],
+				})
 			} else if fileInfo != nil {
 				fileInfo["filepath"] = gdriveId["filepath"]
 				gdriveFilesInfo = append(gdriveFilesInfo, fileInfo)
 			}
-		} else if gdriveId["type"] == "folder" {
+			progress.MsgIncrement(baseMsg)
+			continue
+		} 
+
+		if gdriveId["type"] == "folder" {
 			filesInfo, err := gdrive.GetNestedFolderContents(gdriveId["id"], gdriveId["filepath"])
 			if err != nil {
-				utils.LogMessageToPath(err.Error(), gdriveId["filepath"])
+				errMapSlice = append(errMapSlice, map[string]string{
+					"err":	    err.Error(),
+					"filepath": gdriveId["filepath"],
+				})
 			} else {
 				for _, fileInfo := range filesInfo {
 					fileInfo["filepath"] = gdriveId["filepath"]
 					gdriveFilesInfo = append(gdriveFilesInfo, fileInfo)
 				}
 			}
-		} else {
-			errMsg := fmt.Sprintf(
-				"gdrive error %d: unknown Google Drive URL type, \"%s\"",
-				utils.DEV_ERROR,
-				gdriveId["type"],
-			)
-			utils.LogMessageToPath(errMsg, gdriveId["filepath"])
-		}
-		bar.Add(1)
+			progress.MsgIncrement(baseMsg)
+			continue
+		} 
+
+		errMsg := fmt.Sprintf(
+			"gdrive error %d: unknown Google Drive URL type, \"%s\"",
+			utils.DEV_ERROR,
+			gdriveId["type"],
+		)
+		errMapSlice = append(errMapSlice, map[string]string{
+			"err":	    errMsg,
+			"filepath": gdriveId["filepath"],
+		})
+		progress.MsgIncrement(baseMsg)
 	}
+
+	hasErr := false
+	if len(errMapSlice) > 0 {
+		hasErr = true
+		for _, errMap := range errMapSlice {
+			utils.LogMessageToPath(
+				errMap["err"],
+				errMap["filepath"], 
+			)
+		}
+	}
+	progress.Stop(hasErr)
+
 	gdrive.DownloadMultipleFiles(gdriveFilesInfo)
 	return nil
 }

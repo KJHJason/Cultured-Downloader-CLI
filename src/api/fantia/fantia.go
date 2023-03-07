@@ -1,6 +1,7 @@
 package fantia
 
 import (
+	"errors"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/PuerkitoBio/goquery"
@@ -52,27 +54,40 @@ type FantiaPost struct {
 
 // Process the JSON response from Fantia's API and
 // returns a map of urls to download from
-func ProcessFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions *FantiaDlOptions) []map[string]string {
+func ProcessFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions *FantiaDlOptions) ([]map[string]string, error) {
 	// processes a fantia post
 	// returns a map containing the post id and the url to download the file from
 	var postJson FantiaPost
 	resBody, err := utils.ReadResBody(res)
 	if err != nil {
-		utils.LogError(err, "failed to read response body for fantia post", false)
-		return nil
+		return nil, fmt.Errorf(
+			"%v\nMore details: failed to read response body for fantia post",
+			err,
+		)
 	}
 
 	err = json.Unmarshal(resBody, &postJson)
 	if err != nil {
-		utils.LogError(err, fmt.Sprintf("failed to unmarshal json for fantia post\nJSON: %s", string(resBody)), false)
-		return nil
+		return nil, fmt.Errorf(
+			"fantia error %d: failed to unmarshal json for fantia post\nJSON: %s",
+			utils.JSON_ERROR,
+			string(resBody),
+		)
 	}
 
 	postStruct := postJson.Post
 	postId := strconv.Itoa(postStruct.ID)
 	postTitle := postStruct.Title
 	creatorName := postStruct.Fanclub.User.Name
-	postFolderPath := utils.GetPostFolder(filepath.Join(downloadPath, utils.FANTIA_TITLE), creatorName, postId, postTitle)
+	postFolderPath := utils.GetPostFolder(
+		filepath.Join(
+			downloadPath, 
+			utils.FANTIA_TITLE,
+		),
+		creatorName, 
+		postId, 
+		postTitle,
+	)
 
 	var urlsMap []map[string]string
 	thumbnail := postStruct.Thumb.Original
@@ -85,7 +100,7 @@ func ProcessFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 
 	postContent := postStruct.PostContents
 	if postContent == nil {
-		return urlsMap
+		return urlsMap, nil
 	}
 	for _, content := range postContent {
 		if fantiaDlOptions.DlImages {
@@ -132,7 +147,7 @@ func ProcessFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 			}
 		}
 	}
-	return urlsMap
+	return urlsMap, nil
 }
 
 // Query Fantia's API based on the slice of post IDs and returns a map of urls to download from
@@ -144,13 +159,28 @@ func GetPostDetails(postIds []string, fantiaDlOptions *FantiaDlOptions) []map[st
 	var wg sync.WaitGroup
 	queue := make(chan struct{}, maxConcurrency)
 	resChan := make(chan *http.Response, len(postIds))
+	errChan := make(chan error, len(postIds))
 
-	bar := utils.GetProgressBar(
+	baseMsg := "Getting post details from Fantia [%d/" + fmt.Sprintf("%d]...", len(postIds))
+	progress := spinner.New(
+		spinner.REQ_SPINNER,
+		"fgHiYellow",
+		fmt.Sprintf(
+			baseMsg,
+			0,
+		),
+		fmt.Sprintf(
+			"Finished getting %d post details from Fantia!", 
+			len(postIds),
+		),
+		fmt.Sprintf(
+			"Something went wrong while getting %d post details from Fantia.\nPlease refer to the logs for more details.",
+			len(postIds),
+		),
 		len(postIds),
-		"Getting Fantia post details...",
-		utils.GetCompletionFunc(fmt.Sprintf("Finished getting %d Fantia post details!", len(postIds))),
 	)
 	url := FantiaUrl + "/api/v1/posts/"
+	progress.Start()
 	for _, postId := range postIds {
 		wg.Add(1)
 		queue <- struct{}{}
@@ -172,34 +202,90 @@ func GetPostDetails(postIds []string, fantiaDlOptions *FantiaDlOptions) []map[st
 				false,
 			)
 			if err != nil || res.StatusCode != 200 {
-				utils.LogError(err, fmt.Sprintf("failed to get post details for %s", postApiUrl), false)
+				errCode := utils.CONNECTION_ERROR
+				if err == nil {
+					errCode = res.StatusCode
+				}
+
+				errMsg := fmt.Sprintf(
+					"fantia error %d: failed to get post details for %s",
+					errCode,
+					postApiUrl,
+				)
+
+				if err != nil {
+					err = fmt.Errorf(
+						"%s, more info => %v",
+						errMsg,
+						err,
+					)
+				} else {
+					err = errors.New(errMsg)
+				}
+
+				errChan <- err
 			} else {
 				resChan <- res
 			}
-			bar.Add(1)
+			progress.MsgIncrement(baseMsg)
 			<-queue
 		}(postId)
 	}
 	close(queue)
 	wg.Wait()
 	close(resChan)
+	close(errChan)
+
+	hasErr := false
+	if len(errChan) > 0 {
+		hasErr = true
+		utils.LogErrors(false, &errChan)
+	}
+	progress.Stop(hasErr)
 
 	// parse the responses
-	bar = utils.GetProgressBar(
+	baseMsg = "Processing received JSON(s) from Fantia [%d/" + fmt.Sprintf("%d]...", len(resChan))
+	progress = spinner.New(
+		spinner.JSON_SPINNER,
+		"fgHiYellow",
+		fmt.Sprintf(
+			baseMsg,
+			0,
+		),
+		fmt.Sprintf(
+			"Finished processing %d JSON(s) from Fantia!",
+			len(resChan),
+		),
+		fmt.Sprintf(
+			"Something went wrong while processing %d JSON(s) from Fantia.\nPlease refer to the logs for more details.",
+			len(resChan),
+		),
 		len(resChan),
-		"Processing received JSON(s)...",
-		utils.GetCompletionFunc(fmt.Sprintf("Finished processing %d JSON(s)!", len(resChan))),
 	)
-	var urlsMap []map[string]string
+	progress.Start()
+	var urlsMapSlice []map[string]string
+	var errSlice []error
 	for res := range resChan {
-		urlsSlice := ProcessFantiaPost(
+		urlsSlice, err := ProcessFantiaPost(
 			res, utils.DOWNLOAD_PATH,
 			fantiaDlOptions,
 		)
-		urlsMap = append(urlsMap, urlsSlice...)
-		bar.Add(1)
+		if err != nil {
+			errSlice = append(errSlice, err)
+		} else {
+			urlsMapSlice = append(urlsMapSlice, urlsSlice...)
+		}
+
+		progress.MsgIncrement(baseMsg)
 	}
-	return urlsMap
+
+	hasErr = false
+	if len(errSlice) > 0 {
+		hasErr = true
+		utils.LogErrors(false, nil, errSlice...)
+	}
+	progress.Stop(hasErr)
+	return urlsMapSlice
 }
 
 // Get all the creator's posts by using goquery to parse the HTML response to get the post IDs
@@ -258,10 +344,23 @@ func GetFantiaPosts(creatorId string, cookies []http.Cookie) ([]string, error) {
 
 // Retrieves all the posts based on the slice of creator IDs and returns a slice of post IDs
 func GetCreatorsPosts(creatorIds []string, cookies []http.Cookie) []string {
-	bar := utils.GetProgressBar(
+	baseMsg := "Getting post IDs from Fanclubs(s) on Fantia [%d/" + fmt.Sprintf("%d]...", len(creatorIds))
+	progress := spinner.New(
+		spinner.REQ_SPINNER,
+		"fgHiYellow",
+		fmt.Sprintf(
+			baseMsg,
+			0,
+		),
+		fmt.Sprintf(
+			"Finished getting post IDs from %d Fanclubs(s) on Fantia!",
+			len(creatorIds),
+		),
+		fmt.Sprintf(
+			"Something went wrong while getting post IDs from %d Fanclubs(s) on Fantia.\nPlease refer to the logs for more details.",
+			len(creatorIds),
+		),
 		len(creatorIds),
-		"Getting post IDs from creator(s)...",
-		utils.GetCompletionFunc(fmt.Sprintf("Finished getting post IDs from %d creator(s)!", len(creatorIds))),
 	)
 
 	var wg sync.WaitGroup
@@ -272,6 +371,8 @@ func GetCreatorsPosts(creatorIds []string, cookies []http.Cookie) []string {
 	queue := make(chan struct{}, maxConcurrency)
 	resChan := make(chan []string, len(creatorIds))
 	errChan := make(chan error, len(creatorIds))
+
+	progress.Start()
 	for _, creatorId := range creatorIds {
 		wg.Add(1)
 		queue <- struct{}{}
@@ -284,7 +385,7 @@ func GetCreatorsPosts(creatorIds []string, cookies []http.Cookie) []string {
 				resChan <- postIds
 			}
 
-			bar.Add(1)
+			progress.MsgIncrement(baseMsg)
 			<-queue
 		}(creatorId)
 	}
@@ -293,7 +394,13 @@ func GetCreatorsPosts(creatorIds []string, cookies []http.Cookie) []string {
 	close(resChan)
 	close(errChan)
 
-	utils.LogErrors(false, &errChan)
+	hasErr := false
+	if len(errChan) > 0 {
+		hasErr = true
+		utils.LogErrors(false, &errChan)
+	}
+	progress.Stop(hasErr)
+
 	var postIds []string
 	for postIdsRes := range resChan {
 		postIds = append(postIds, postIdsRes...)

@@ -7,6 +7,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/fantia"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixivfanbox"
@@ -143,27 +144,67 @@ func PixivDownloadProcess(config *configs.Config, pixivDl *pixiv.PixivDl, pixivD
 
 	if len(pixivDl.TagNames) > 0 {
 		// loop through each tag and page number
-		bar := utils.GetProgressBar(
+		baseMsg := "Searching for artworks based on tag names on Pixiv [%d/" + fmt.Sprintf("%d]...", len(pixivDl.TagNames))
+		progress := spinner.New(
+			"pong",
+			"fgHiYellow",
+			fmt.Sprintf(
+				baseMsg,
+				0,
+			),
+			fmt.Sprintf(
+				"Finished searching for artworks based on %d tag names on Pixiv!", 
+				len(pixivDl.TagNames),
+			),
+			fmt.Sprintf(
+				"Finished with some errors while searching for artworks based on %d tag names on Pixiv!\nPlease refer to the logs for more details...", 
+				len(pixivDl.TagNames),
+			),
 			len(pixivDl.TagNames),
-			"Searching for artworks based on tag names...",
-			utils.GetCompletionFunc(fmt.Sprintf("Finished searching for artworks based on %d tag names!", len(pixivDl.TagNames))),
 		)
+		progress.Start()
+		hasErr := false
 		for idx, tagName := range pixivDl.TagNames {
+			var err error
 			var minPage, maxPage int
 			pageNum := pixivDl.TagNamesPageNums[idx]
+
+			atoiErrorHandler := func (s string) {
+				progress.Stop(true)
+				utils.LogError(
+					fmt.Errorf(
+						"error %d: could not convert %s to int, more info => %v",
+						utils.UNEXPECTED_ERROR,
+						s,
+						err,
+					),
+					"",
+					true,
+				)
+			}
 			if strings.Contains(pageNum, "-") {
 				tagPageNums := strings.SplitN(pageNum, "-", 2)
-				minPage, _ = strconv.Atoi(tagPageNums[0])
-				maxPage, _ = strconv.Atoi(tagPageNums[1])
+				minPage, err = strconv.Atoi(tagPageNums[0])
+				if err != nil {
+					atoiErrorHandler(tagPageNums[0])
+				}
+
+				maxPage, err = strconv.Atoi(tagPageNums[1])
+				if err != nil {
+					atoiErrorHandler(tagPageNums[1])
+				}
 			} else {
-				minPage, _ = strconv.Atoi(pageNum)
+				minPage, err = strconv.Atoi(pageNum)
+				if err != nil {
+					atoiErrorHandler(pageNum)
+				}
 				maxPage = minPage
 			}
 
 			var artworksSlice []map[string]string
 			var ugoiraSlice []pixiv.Ugoira
 			if pixivDlOptions.MobileClient == nil {
-				artworksSlice, ugoiraSlice = pixiv.TagSearch(
+				artworksSlice, ugoiraSlice, hasErr = pixiv.TagSearch(
 					tagName,
 					utils.DOWNLOAD_PATH,
 					pixivDlOptions,
@@ -172,7 +213,7 @@ func PixivDownloadProcess(config *configs.Config, pixivDl *pixiv.PixivDl, pixivD
 					pixivDlOptions.SessionCookies,
 				)
 			} else {
-				artworksSlice, ugoiraSlice = pixivDlOptions.MobileClient.TagSearch(
+				artworksSlice, ugoiraSlice, hasErr = pixivDlOptions.MobileClient.TagSearch(
 					tagName,
 					utils.DOWNLOAD_PATH,
 					pixivDlOptions,
@@ -182,8 +223,9 @@ func PixivDownloadProcess(config *configs.Config, pixivDl *pixiv.PixivDl, pixivD
 			}
 			artworksToDownload = append(artworksToDownload, artworksSlice...)
 			ugoiraToDownload = append(ugoiraToDownload, ugoiraSlice...)
-			bar.Add(1)
+			progress.MsgIncrement(baseMsg)
 		}
+		progress.Stop(hasErr)
 	}
 
 	if len(artworksToDownload) > 0 {

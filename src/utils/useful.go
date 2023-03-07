@@ -17,7 +17,6 @@ import (
 	"context"
 
 	"github.com/fatih/color"
-	"github.com/schollz/progressbar/v3"
 	"github.com/mholt/archiver/v4"
 )
 
@@ -163,32 +162,6 @@ func ValidatePageNumInput(baseSliceLen int, pageNums, errMsgs []string) {
 			os.Exit(1)
 		}
 	}
-}
-
-// Returns a function that will print out a success message in green with a checkmark
-//
-// To be used with progressbar.OptionOnCompletion (github.com/schollz/progressbar/v3)
-func GetCompletionFunc(completionMsg string) func() {
-	return func() {
-		fmt.Fprintf(os.Stderr, color.GreenString("\033[2K\r✓ %s\n"), completionMsg)
-	}
-}
-
-// Returns the ProgressBar structure for printing a progress bar for the user to see
-func GetProgressBar(total int, desc string, completionFunc func()) *progressbar.ProgressBar {
-	return progressbar.NewOptions64(
-		int64(total),
-		progressbar.OptionUseANSICodes(true),
-		progressbar.OptionSetDescription(desc),
-		progressbar.OptionSetWriter(os.Stderr),
-		progressbar.OptionThrottle(65*time.Millisecond),
-		progressbar.OptionShowCount(),
-		progressbar.OptionShowIts(),
-		progressbar.OptionOnCompletion(completionFunc),
-		progressbar.OptionSpinnerType(14),
-		progressbar.OptionSetWidth(30),
-		progressbar.OptionSetRenderBlankState(true),
-	)
 }
 
 // Returns a random time.Duration between the given min and max arguments

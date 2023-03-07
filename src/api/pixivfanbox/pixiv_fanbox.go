@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
+	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
 
@@ -265,12 +266,28 @@ func GetPostDetails(postIds []string, pixivFanboxDlOptions *PixivFanboxDlOptions
 	var wg sync.WaitGroup
 	queue := make(chan struct{}, maxConcurrency)
 	resChan := make(chan *http.Response, len(postIds))
+	errChan := make(chan error, len(postIds))
 
-	bar := utils.GetProgressBar(
+	baseMsg := "Getting post details from Pixiv Fanbox [%d/" + fmt.Sprintf("%d]...", len(postIds))
+	progress := spinner.New(
+		spinner.REQ_SPINNER,
+		"fgHiYellow",
+		fmt.Sprintf(
+			baseMsg, 
+			0,
+		),
+		fmt.Sprintf(
+			"Finished getting %d post details from Pixiv Fanbox!",
+			len(postIds),
+		),
+		fmt.Sprintf(
+			"Something went wrong while getting %d post details from Pixiv Fanbox.\nPlease refer to the logs for more details.",
+			len(postIds),
+		),
 		len(postIds),
-		"Getting Pixiv Fanbox post details...",
-		utils.GetCompletionFunc(fmt.Sprintf("Finished getting %d Pixiv Fanbox post details!", len(postIds))),
 	)
+	progress.Start()
+
 	url := "https://api.fanbox.cc/post.info"
 	for _, postId := range postIds {
 		wg.Add(1)
@@ -289,28 +306,61 @@ func GetPostDetails(postIds []string, pixivFanboxDlOptions *PixivFanboxDlOptions
 				params,
 				false,
 			)
-			if err != nil || res.StatusCode != 200 {
-				utils.LogError(err, fmt.Sprintf("failed to get post details for %s", url), false)
+			if err != nil {
+				errChan <- fmt.Errorf(
+					"pixiv fanbox error %d: failed to get post details for %s, more info => %v", 
+					utils.CONNECTION_ERROR, 
+					url,
+					err,
+				)
+			} else if res.StatusCode != 200 {
+				errChan <- fmt.Errorf(
+					"pixiv fanbox error %d: failed to get post details for %s due to a %s response", 
+					utils.CONNECTION_ERROR, 
+					url,
+					res.Status,
+				)
 			} else {
 				resChan <- res
 			}
-			bar.Add(1)
+			progress.MsgIncrement(baseMsg)
 			<-queue
 		}(postId)
 	}
 	close(queue)
 	wg.Wait()
 	close(resChan)
+	close(errChan)
+
+	hasErr := false
+	if len(errChan) > 0 {
+		hasErr = true
+		utils.LogErrors(false, &errChan)
+	}
+	progress.Stop(hasErr)
 
 	// parse the responses
-	bar = utils.GetProgressBar(
-		len(resChan),
-		"Processing received JSON(s)...",
-		utils.GetCompletionFunc(fmt.Sprintf("Finished processing %d JSON(s)!", len(resChan))),
-	)
-
 	var errSlice []error
 	var urlsMap, gdriveUrls []map[string]string
+	baseMsg = "Processing received JSON(s) from Pixiv Fanbox [%d/" + fmt.Sprintf("%d]...", len(resChan))
+	progress = spinner.New(
+		spinner.JSON_SPINNER,
+		"fgHiYellow",
+		fmt.Sprintf(
+			baseMsg,
+			0,
+		),
+		fmt.Sprintf(
+			"Finished processing %d JSON(s) from Pixiv Fanbox!",
+			len(resChan),
+		),
+		fmt.Sprintf(
+			"Something went wrong while processing %d JSON(s) from Pixiv Fanbox.\nPlease refer to the logs for more details.",
+			len(resChan),
+		),
+		len(resChan),
+	)
+	progress.Start()
 	for res := range resChan {
 		postUrls, postGdriveLinks, err := ProcessFanboxPost(
 			res,
@@ -324,10 +374,16 @@ func GetPostDetails(postIds []string, pixivFanboxDlOptions *PixivFanboxDlOptions
 			urlsMap = append(urlsMap, postUrls...)
 			gdriveUrls = append(gdriveUrls, postGdriveLinks...)
 		}
-		bar.Add(1)
+		progress.MsgIncrement(baseMsg)
 	}
 
-	utils.LogErrors(false, nil, errSlice...)
+	hasErr = false
+	if len(errSlice) > 0 {
+		hasErr = true
+		utils.LogErrors(false, nil, errSlice...)
+	}
+	progress.Stop(hasErr)
+
 	return urlsMap, gdriveUrls
 }
 
@@ -459,13 +515,27 @@ func GetFanboxPosts(creatorId string, cookies []http.Cookie) ([]string, error) {
 // Retrieves all the posts based on the slice of creator IDs and returns a slice of post IDs
 func GetCreatorsPosts(creatorIds []string, cookies []http.Cookie) []string {
 	var postIds []string
-	bar := utils.GetProgressBar(
-		len(creatorIds),
-		"Getting post IDs from creator(s)...",
-		utils.GetCompletionFunc(fmt.Sprintf("Finished getting post IDs from %d creator(s)!", len(creatorIds))),
-	)
-
 	var errSlice []error
+
+	baseMsg := "Getting post IDs from creator(s) on Pixiv Fanbox [%d/" + fmt.Sprintf("%d]...", len(creatorIds))
+	progress := spinner.New(
+		spinner.REQ_SPINNER,
+		"fgHiYellow",
+		fmt.Sprintf(
+			baseMsg, 
+			0,
+		),
+		fmt.Sprintf(
+			"Finished getting post IDs from %d creator(s) on Pixiv Fanbox!",
+			len(creatorIds),
+		),
+		fmt.Sprintf(
+			"Something went wrong while getting post IDs from %d creator(s) on Pixiv Fanbox!\nPlease refer to logs for more details.",
+			len(creatorIds),
+		),
+		len(creatorIds),
+	)
+	progress.Start()
 	for _, creatorId := range creatorIds {
 		retrievedPostIds, err := GetFanboxPosts(creatorId, cookies)
 		if err != nil {
@@ -473,10 +543,15 @@ func GetCreatorsPosts(creatorIds []string, cookies []http.Cookie) []string {
 		} else {
 			postIds = append(postIds, retrievedPostIds...)
 		}
-
-		bar.Add(1)
+		progress.MsgIncrement(baseMsg)
 	}
 
-	utils.LogErrors(false, nil, errSlice...)
+	hasErr := false
+	if len(errSlice) > 0 {
+		hasErr = true
+		utils.LogErrors(false, nil, errSlice...)
+	}
+	progress.Stop(hasErr)
+
 	return postIds
 }
