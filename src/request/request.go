@@ -1,6 +1,7 @@
 package request
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,35 +11,46 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"regexp"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/quic-go/quic-go/http3"
 )
 
-var HTTP3_SUPPORT_ARR = [6]string{
-	"https://fantia.jp",
-	"https://c.fantia.jp",
-	"https://cc.fantia.jp",
+var (
+	// Since the URL below will be redirected to Fantia's AWS S3 URL, 
+	// we need to use HTTP/2 as it is not supported by HTTP/3 yet.
+	FANTIA_URL_REDIRECT = regexp.MustCompile(
+		`https://fantia.jp/posts/[\d]+/album_image`,
+	)
 
-	"https://www.pixiv.net",
-	"https://app-api.pixiv.net",
+	HTTP3_SUPPORT_ARR = [4]string{
+		"https://fantia.jp",
 
-	"https://drive.google.com",
-}
+		"https://www.pixiv.net",
+		"https://app-api.pixiv.net",
+
+		"https://drive.google.com",
+	}
+)
 
 // send the request to the target URL and retries if the request was not successful
 func sendRequest(reqUrl string, req *http.Request, timeout int, checkStatus, disableCompression bool) (*http.Response, error) {
 	var err error
 	var res *http.Response
 
+	// check if the URL supports HTTP/3 first
+	// before falling back to the default HTTP/2.
 	var roundTripper http.RoundTripper
-	for _, domain := range HTTP3_SUPPORT_ARR {
-		if strings.HasPrefix(reqUrl, domain) {
-			roundTripper = &http3.RoundTripper{
-				DisableCompression: disableCompression,
+	if !FANTIA_URL_REDIRECT.MatchString(reqUrl) {
+		for _, domain := range HTTP3_SUPPORT_ARR {
+			if strings.HasPrefix(reqUrl, domain) {
+				roundTripper = &http3.RoundTripper{
+					DisableCompression: disableCompression,
+				}
+				break
 			}
-			break
 		}
 	}
 	if roundTripper == nil {
@@ -60,15 +72,26 @@ func sendRequest(reqUrl string, req *http.Request, timeout int, checkStatus, dis
 				return res, nil
 			}
 			res.Body.Close()
-		} else {
-			fmt.Println(err.Error())
 		}
 
 		if i < utils.RETRY_COUNTER {
 			time.Sleep(utils.GetRandomDelay())
 		}
 	}
-	err = fmt.Errorf("the request to %s failed after %d retries", reqUrl, utils.RETRY_COUNTER)
+
+	errMsg := fmt.Sprintf(
+		"the request to %s failed after %d retries",
+		reqUrl,
+		utils.RETRY_COUNTER,
+	)
+	if err != nil {
+		err = fmt.Errorf("%s, more info => %v",
+			errMsg,
+			err,
+		)
+	} else {
+		err = errors.New(errMsg)
+	}
 	return nil, err
 }
 
@@ -180,7 +203,7 @@ func CallRequestNoCompression(
 //
 // Note: If the file already exists, the download process will be skipped
 func DownloadURL(
-	fileURL,
+	fileUrl,
 	filePath string,
 	cookies []http.Cookie,
 	headers,
@@ -190,7 +213,7 @@ func DownloadURL(
 	// Send a HEAD request first to get the expected file size from the Content-Length header.
 	// A GET request might work but most of the time
 	// as the Content-Length header may not present due to chunked encoding.
-	headRes, err := CallRequestNoCompression("HEAD", fileURL, 10, cookies, headers, params, true)
+	headRes, err := CallRequestNoCompression("HEAD", fileUrl, 10, cookies, headers, params, true)
 	if err != nil {
 		return err
 	}
@@ -201,13 +224,13 @@ func DownloadURL(
 	// can take quite a while for large files (especially for Pixiv)
 	// However, the average max file size on these platforms is around 300MB.
 	// Note: Fantia do have a max file size per post of 3GB if one paid extra for it.
-	res, err := CallRequest("GET", fileURL, downloadTimeout, cookies, headers, params, true)
+	res, err := CallRequest("GET", fileUrl, downloadTimeout, cookies, headers, params, true)
 	if err != nil {
 		err = fmt.Errorf(
 			"error %d: failed to download file, more info => %v\nurl: %s",
 			utils.DOWNLOAD_ERROR,
 			err,
-			fileURL,
+			fileUrl,
 		)
 		return err
 	}
@@ -274,7 +297,7 @@ func DownloadURL(
 	if err != nil {
 		file.Close()
 		os.Remove(filePath)
-		errorMsg := fmt.Sprintf("failed to download %s due to %v", fileURL, err)
+		errorMsg := fmt.Sprintf("failed to download %s due to %v", fileUrl, err)
 		utils.LogError(err, errorMsg, false)
 		return nil
 	}
@@ -329,11 +352,11 @@ func DownloadURLsParallel(
 		go func(fileUrl, filePath string) {
 			defer wg.Done()
 			err := DownloadURL(
-				fileUrl, 
-				filePath, 
-				cookies, 
-				headers, 
-				params, 
+				fileUrl,
+				filePath,
+				cookies,
+				headers,
+				params,
 				overwriteExistingFiles,
 			)
 			if err != nil {

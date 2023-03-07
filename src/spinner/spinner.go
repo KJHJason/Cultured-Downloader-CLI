@@ -112,11 +112,11 @@ func (s *Spinner) Start() {
 
 	go func() {
 		for {
-			select {
-			case <-s.stop:
-				return
-			default:
-				for _, frame := range s.Spinner.Frames {
+			for _, frame := range s.Spinner.Frames {
+				select {
+				case <-s.stop:
+					return
+				default:
 					s.mu.Lock()
 					if !s.active {
 						s.mu.Unlock()
@@ -161,7 +161,7 @@ func (s *Spinner) UpdateMsg(msg string) {
 func (s* Spinner) MsgIncrement(baseMsg string) {
 	s.UpdateMsg(
 		fmt.Sprintf(
-			s.Msg,
+			baseMsg,
 			s.Add(1),
 		),
 	)
