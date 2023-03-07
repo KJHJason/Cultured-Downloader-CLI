@@ -38,9 +38,9 @@ func GetFileSize(filePath string) (int64, error) {
 	return -1, nil
 }
 
-// Thread-safe logging function that logs to the provided file path
 var logToPathMutex sync.Mutex
 
+// Thread-safe logging function that logs to the provided file path
 func LogMessageToPath(message, filePath string) {
 	logToPathMutex.Lock()
 	defer logToPathMutex.Unlock()
