@@ -23,6 +23,8 @@ var creatorIdRegex = regexp.MustCompile(`^[\w.-]+$`)
 // ValidateArgs validates the IDs of the Pixiv Fanbox creators and posts to download.
 //
 // It also validates the page numbers of the creators to download.
+//
+// Should be called after initialising the struct.
 func (pf *PixivFanboxDl) ValidateArgs() {
 	utils.ValidateIds(&pf.PostIds)
 	for _, creatorId := range pf.CreatorIds {
@@ -61,6 +63,8 @@ type PixivFanboxDlOptions struct {
 }
 
 // ValidateArgs validates the session cookie ID of the Pixiv Fanbox account to download from.
+//
+// Should be called after initialising the struct.
 func (pf *PixivFanboxDlOptions) ValidateArgs() {
 	if pf.SessionCookieId != "" {
 		pf.SessionCookies = []http.Cookie{

@@ -23,6 +23,8 @@ type FantiaDl struct {
 // ValidateArgs validates the IDs of the Fantia fanclubs and posts to download.
 //
 // It also validates the page numbers of the fanclubs to download.
+//
+// Should be called after initialising the struct.
 func (f *FantiaDl) ValidateArgs() {
 	utils.ValidateIds(&f.FanclubIds)
 	utils.ValidateIds(&f.PostIds)
@@ -116,6 +118,8 @@ func (f *FantiaDlOptions) GetCsrfToken() error {
 } 
 
 // ValidateArgs validates the options for downloading from Fantia.
+//
+// Should be called after initialising the struct.
 func (f *FantiaDlOptions) ValidateArgs() error {
 	if f.SessionCookieId != "" {
 		f.SessionCookies = []http.Cookie{
@@ -123,5 +127,6 @@ func (f *FantiaDlOptions) ValidateArgs() error {
 		}
 	}
 
+	f.csrfMu = sync.Mutex{}
 	return f.GetCsrfToken()
 }
