@@ -2,6 +2,7 @@ package fantia
 
 import (
 	"fmt"
+	"sync"
 	"net/http"
 
 	"github.com/PuerkitoBio/goquery"
@@ -10,16 +11,36 @@ import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
 
+// FantiaDl is the struct that contains the 
+// IDs of the Fantia fanclubs and posts to download.
 type FantiaDl struct {
 	FanclubIds []string
+	FanclubPageNums []string
+
 	PostIds    []string
 }
 
+// ValidateArgs validates the IDs of the Fantia fanclubs and posts to download.
+//
+// It also validates the page numbers of the fanclubs to download.
 func (f *FantiaDl) ValidateArgs() {
 	utils.ValidateIds(&f.FanclubIds)
 	utils.ValidateIds(&f.PostIds)
+
+	if len(f.FanclubPageNums) > 0 {
+		utils.ValidatePageNumInput(
+			len(f.FanclubIds),
+			&f.FanclubPageNums,
+			[]string{
+				"Number of Fantia Fanclub ID(s) and page numbers must be equal.",
+			},
+		)
+	} else {
+		f.FanclubPageNums = make([]string, len(f.FanclubIds))
+	}
 }
 
+// FantiaDlOptions is the struct that contains the options for downloading from Fantia.
 type FantiaDlOptions struct {
 	DlThumbnails    bool
 	DlImages        bool
@@ -28,10 +49,16 @@ type FantiaDlOptions struct {
 	SessionCookieId string
 	SessionCookies  []http.Cookie
 
+	csrfMu          sync.Mutex
 	CsrfToken       string
 }
 
+// GetCsrfToken gets the CSRF token from Fantia's index HTML
+// which is required to communicate with their API.
 func (f *FantiaDlOptions) GetCsrfToken() error {
+	f.csrfMu.Lock()
+	defer f.csrfMu.Unlock()
+
 	res, err := request.CallRequest(
 		"GET", 
 		"https://fantia.jp/", 
@@ -42,20 +69,32 @@ func (f *FantiaDlOptions) GetCsrfToken() error {
 		false,
 	)
 	if err != nil || res.StatusCode != 200 {
-		err = fmt.Errorf("error %d, failed to get CSRF token from Fantia: %w", utils.CONNECTION_ERROR, err)
+		err = fmt.Errorf(
+			"error %d, failed to get CSRF token from Fantia: %w", 
+			utils.CONNECTION_ERROR, 
+			err,
+		)
 		return err
 	}
 
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		err = fmt.Errorf("error %d, failed to get CSRF token from Fantia: %w", utils.RESPONSE_ERROR, err)
+		err = fmt.Errorf(
+			"error %d, failed to get CSRF token from Fantia: %w", 
+			utils.RESPONSE_ERROR, 
+			err,
+		)
 		return err
 	}
 
 	// parse the response
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
-		err = fmt.Errorf("error %d, failed to parse response body when getting CSRF token from Fantia: %w", utils.HTML_ERROR, err)
+		err = fmt.Errorf(
+			"error %d, failed to parse response body when getting CSRF token from Fantia: %w", 
+			utils.HTML_ERROR, 
+			err,
+		)
 		return err
 	}
 
@@ -76,6 +115,7 @@ func (f *FantiaDlOptions) GetCsrfToken() error {
 	return nil
 } 
 
+// ValidateArgs validates the options for downloading from Fantia.
 func (f *FantiaDlOptions) ValidateArgs() error {
 	if f.SessionCookieId != "" {
 		f.SessionCookies = []http.Cookie{

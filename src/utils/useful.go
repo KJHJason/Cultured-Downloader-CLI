@@ -137,24 +137,26 @@ func ParseNetscapeCookieFile(filePath, sessionId, website string) ([]http.Cookie
 }
 
 var pageNumsRegex = regexp.MustCompile(`^[1-9]\d*(-[1-9]\d*)?$`)
+
 // check page nums if they are in the correct format.
 //
 // E.g. "1-10" is valid, but "0-9" is not valid because "0" is not accepted
 // If the page nums are not in the correct format, os.Exit(1) is called
-func ValidatePageNumInput(baseSliceLen int, pageNums, errMsgs []string) {
-	if baseSliceLen != len(pageNums) {
+func ValidatePageNumInput(baseSliceLen int, pageNums *[]string, errMsgs []string) {
+	pageNumsLen := len(*pageNums)
+	if baseSliceLen != pageNumsLen {
 		if len(errMsgs) > 0 {
 			for _, errMsg := range errMsgs {
 				color.Red(errMsg)
 			}
 		} else {
-			color.Red("Error: %d URLs provided, but %d page numbers provided.", baseSliceLen, len(pageNums))
+			color.Red("Error: %d URLs provided, but %d page numbers provided.", baseSliceLen, pageNumsLen)
 			color.Red("Please provide the same number of page numbers as the number of URLs.")
 		}
 		os.Exit(1)
 	}
 
-	for _, pageNum := range pageNums {
+	for _, pageNum := range *pageNums {
 		if !pageNumsRegex.MatchString(pageNum) {
 			color.Red("Invalid page number format: %s", pageNum)
 			color.Red("Please follow the format, \"1-10\", as an example.")
@@ -162,6 +164,57 @@ func ValidatePageNumInput(baseSliceLen int, pageNums, errMsgs []string) {
 			os.Exit(1)
 		}
 	}
+}
+
+// Returns the min, max, hasMaxNum, and error from the given string of "num" or "min-max"
+//
+// E.g. 
+// 	"1-10" => 1, 10, true, nil
+// 	"1" => 1, 1, true, nil
+//  "" => 1, 1, false, nil (defaults to min = 1, max = inf)
+func GetMinMaxFromStr(numStr string) (int, int, bool, error) {
+	if numStr == "" {
+		// defaults to min = 1, max = inf
+		return 1, 1, false, nil
+	}
+
+	var err error
+	var min, max int
+	if strings.Contains(numStr, "-") {
+		nums := strings.SplitN(numStr, "-", 2)
+		min, err = strconv.Atoi(nums[0])
+		if err != nil {
+			return -1, -1, false, fmt.Errorf(
+				"error %d: failed to convert min page number, \"%s\", to int",
+				UNEXPECTED_ERROR,
+				nums[0],
+			)
+		}
+
+		max, err = strconv.Atoi(nums[1])
+		if err != nil {
+			return -1, -1, false, fmt.Errorf(
+				"error %d: failed to convert max page number, \"%s\", to int",
+				UNEXPECTED_ERROR,
+				nums[1],
+			)
+		}
+
+		if min > max {
+			min, max = max, min
+		}
+	} else {
+		min, err = strconv.Atoi(numStr)
+		if err != nil {
+			return -1, -1, false, fmt.Errorf(
+				"error %d: failed to convert page number, \"%s\", to int",
+				UNEXPECTED_ERROR,
+				numStr,
+			)
+		}
+		max = min
+	}
+	return min, max, true, nil
 }
 
 // Returns a random time.Duration between the given min and max arguments

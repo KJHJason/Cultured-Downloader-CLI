@@ -1,4 +1,4 @@
-package configs
+package api
 
 import (
 	"os"

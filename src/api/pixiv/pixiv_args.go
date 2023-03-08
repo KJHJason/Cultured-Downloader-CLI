@@ -11,6 +11,8 @@ import (
 	"github.com/fatih/color"
 )
 
+// PixivDl contains the IDs of the Pixiv artworks and 
+// illustrators and Tag Names to download.
 type PixivDl struct {
 	ArtworkIds     []string
 	IllustratorIds []string
@@ -20,20 +22,25 @@ type PixivDl struct {
 	TagNamesPageNums []string
 }
 
+// ValidateArgs validates the IDs of the Pixiv artworks and illustrators to download.
+//
+// It also validates the page numbers of the tag names to download.
 func (p *PixivDl) ValidateArgs() {
 	utils.ValidateIds(&p.ArtworkIds)
 	utils.ValidateIds(&p.IllustratorIds)
 
 	utils.ValidatePageNumInput(
 		len(p.TagNames),
-		p.TagNamesPageNums,
+		&p.TagNamesPageNums,
 		[]string{
 			"Number of tag names and tag name's page numbers must be equal.",
 		},
 	)
 }
 
-type UgoiraDlOptions struct {
+// UgoiraDlOptions is the struct that contains the
+// configs for the processing of the ugoira images after downloading from Pixiv.
+type UgoiraOptions struct {
 	DeleteZip    bool
 	Quality      int
 	OutputFormat string
@@ -47,7 +54,8 @@ var UGOIRA_ACCEPTED_EXT = []string{
 	".mp4",
 }
 
-func (u *UgoiraDlOptions) ValidateArgs() {
+// ValidateArgs validates the arguments of the ugoira process options.
+func (u *UgoiraOptions) ValidateArgs() {
 	if u.Quality < 0 || u.Quality > 63 {
 		color.Red(
 			fmt.Sprintf("Pixiv: Ugoira quality of %d is nto allowed", u.Quality),
@@ -105,6 +113,7 @@ var (
 	}
 )
 
+// ValidateArgs validates the arguments of the Pixiv download options.
 func (p *PixivDlOptions) ValidateArgs() {
 	utils.ValidateStrArgs(
 		p.SortOrder,

@@ -11,46 +11,53 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 	"sync"
+	"time"
 
-	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
+	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/fatih/color"
 	"github.com/pkg/browser"
 )
 
 type accessTokenInfo struct {
-	accessToken string
-	expiresAt   time.Time
+	accessToken string    // The access token that will be used to communicate with the Pixiv's Mobile API
+	expiresAt   time.Time // The time when the access token expires
 }
 
 type PixivMobile struct {
-	baseUrl        string
-	clientId       string
-	clientSecret   string
-	userAgent      string
-	authTokenUrl   string
-	loginUrl       string
-	redirectUri    string
-	refreshToken   string
+	// API information and its endpoints
+	baseUrl      string
+	clientId     string
+	clientSecret string
+	userAgent    string
+	authTokenUrl string
+	loginUrl     string
+	redirectUri  string
+	refreshToken string
+
+	// User given arguments
+	apiTimeout int
+
+	// Access token information
+	accessTokenMu  sync.Mutex
 	accessTokenMap accessTokenInfo
-	apiTimeout     int
 }
 
 // Get a new PixivMobile structure
 func NewPixivMobile(refreshToken string, timeout int) *PixivMobile {
 	pixivMobile := &PixivMobile{
-		baseUrl:      "https://app-api.pixiv.net",
-		clientId:     "MOBrBDS8blbauoSck0ZfDbtuzpyT",
-		clientSecret: "lsACyCD94FhDUtGTXi3QzcFE2uU1hqtDaKeqrdwj",
-		userAgent:    "PixivIOSApp/7.13.3 (iOS 14.6; iPhone13,2)",
-		authTokenUrl: "https://oauth.secure.pixiv.net/auth/token",
-		loginUrl:     "https://app-api.pixiv.net/web/v1/login",
-		redirectUri:  "https://app-api.pixiv.net/web/v1/users/auth/pixiv/callback",
-		refreshToken: refreshToken,
-		apiTimeout:   timeout,
+		baseUrl:       "https://app-api.pixiv.net",
+		clientId:      "MOBrBDS8blbauoSck0ZfDbtuzpyT",
+		clientSecret:  "lsACyCD94FhDUtGTXi3QzcFE2uU1hqtDaKeqrdwj",
+		userAgent:     "PixivIOSApp/7.13.3 (iOS 14.6; iPhone13,2)",
+		authTokenUrl:  "https://oauth.secure.pixiv.net/auth/token",
+		loginUrl:      "https://app-api.pixiv.net/web/v1/login",
+		redirectUri:   "https://app-api.pixiv.net/web/v1/users/auth/pixiv/callback",
+		accessTokenMu: sync.Mutex{},
+		refreshToken:  refreshToken,
+		apiTimeout:    timeout,
 	}
 	if refreshToken != "" {
 		// refresh the access token and verify it
@@ -123,11 +130,10 @@ func S256(bytes []byte) string {
 	return base64.RawURLEncoding.EncodeToString(hash[:])
 }
 
-var pixivRefreshMutex = sync.Mutex{}
 // Refresh the access token
 func (pixiv *PixivMobile) RefreshAccessToken() error {
-	pixivRefreshMutex.Lock()
-	defer pixivRefreshMutex.Unlock()
+	pixiv.accessTokenMu.Lock()
+	defer pixiv.accessTokenMu.Unlock()
 
 	headers := map[string]string{"User-Agent": pixiv.userAgent}
 	data := map[string]string{
@@ -138,13 +144,13 @@ func (pixiv *PixivMobile) RefreshAccessToken() error {
 		"refresh_token":  pixiv.refreshToken,
 	}
 	res, err := request.CallRequestWithData(
-		pixiv.authTokenUrl, 
+		pixiv.authTokenUrl,
 		"POST",
-		pixiv.apiTimeout, 
-		nil, 
-		data, 
-		headers, 
-		nil, 
+		pixiv.apiTimeout,
+		nil,
+		data,
+		headers,
+		nil,
 		false,
 	)
 	if err != nil || res.StatusCode != 200 {
@@ -152,7 +158,7 @@ func (pixiv *PixivMobile) RefreshAccessToken() error {
 		if err == nil {
 			res.Body.Close()
 			err = fmt.Errorf(
-				"%s %d: failed to refresh token due to %s response from Pixiv\n" +
+				"%s %d: failed to refresh token due to %s response from Pixiv\n"+
 					"Please check your refresh token and try again or use the \"-pixiv_start_oauth\" flag to get a new refresh token",
 				errPrefix,
 				utils.RESPONSE_ERROR,
@@ -160,7 +166,7 @@ func (pixiv *PixivMobile) RefreshAccessToken() error {
 			)
 		} else {
 			err = fmt.Errorf(
-				"%s %d: failed to refresh token due to %v\n" +
+				"%s %d: failed to refresh token due to %v\n"+
 					"Please check your internet connection and try again",
 				errPrefix,
 				utils.CONNECTION_ERROR,
@@ -434,9 +440,9 @@ func (pixiv *PixivMobile) GetArtworkDetails(artworkId, downloadPath string) ([]m
 	params := map[string]string{"illust_id": artworkId}
 
 	res, err := pixiv.SendRequest(
-		artworkUrl, 
-		pixiv.GetHeaders(), 
-		params, 
+		artworkUrl,
+		pixiv.GetHeaders(),
+		params,
 		true,
 	)
 	if err != nil {
@@ -450,20 +456,21 @@ func (pixiv *PixivMobile) GetArtworkDetails(artworkId, downloadPath string) ([]m
 	}
 
 	artworkDetails := pixiv.ProcessArtworkJson(
-		res.(map[string]interface{})["illust"].(map[string]interface{}), 
+		res.(map[string]interface{})["illust"].(map[string]interface{}),
 		downloadPath,
 	)
 	artworkDetails, ugoiraSlice := pixiv.CheckForUgoira(&artworkDetails)
 	return artworkDetails, ugoiraSlice, nil
 }
 
-func (pixiv *PixivMobile) GetMultipleArtworkDetails(artworkIds []string, downloadPath string) ([]map[string]string, []Ugoira) {
+func (pixiv *PixivMobile) getMultipleArtworkDetails(artworkIds *[]string, downloadPath string) ([]map[string]string, []Ugoira) {
 	var artworksToDownload []map[string]string
 	var ugoiraSlice []Ugoira
-	lastIdx := len(artworkIds) - 1
+	artworkIdsLen := len(*artworkIds)
+	lastIdx := artworkIdsLen - 1
 
 	var errSlice []error
-	baseMsg := "Getting and processing artwork details from Pixiv's Mobile API [%d/" + fmt.Sprintf("%d]...", len(artworkIds))
+	baseMsg := "Getting and processing artwork details from Pixiv's Mobile API [%d/" + fmt.Sprintf("%d]...", artworkIdsLen)
 	progress := spinner.New(
 		spinner.JSON_SPINNER,
 		"fgHiYellow",
@@ -473,16 +480,16 @@ func (pixiv *PixivMobile) GetMultipleArtworkDetails(artworkIds []string, downloa
 		),
 		fmt.Sprintf(
 			"Finished getting and processing %d artwork details from Pixiv's Mobile API!",
-			len(artworkIds),
+			artworkIdsLen,
 		),
 		fmt.Sprintf(
 			"Something went wrong while getting and processing %d artwork details from Pixiv's Mobile API!\nPlease refer to the logs for more details.",
-			len(artworkIds),
+			artworkIdsLen,
 		),
-		len(artworkIds),
+		artworkIdsLen,
 	)
 	progress.Start()
-	for idx, artworkId := range artworkIds {
+	for idx, artworkId := range *artworkIds {
 		artworkDetails, ugoiraInfo, err := pixiv.GetArtworkDetails(artworkId, downloadPath)
 		if err != nil {
 			errSlice = append(errSlice, err)
@@ -525,9 +532,9 @@ func (pixiv *PixivMobile) GetIllustratorPosts(userId, downloadPath, artworkType 
 startLoop:
 	for nextUrl != "" {
 		res, err := pixiv.SendRequest(
-			nextUrl, 
-			pixiv.GetHeaders(), 
-			params, 
+			nextUrl,
+			pixiv.GetHeaders(),
+			params,
 			true,
 		)
 		if err != nil {
@@ -541,7 +548,7 @@ startLoop:
 		}
 		resJson := res.(map[string]interface{})
 		artworksToDownload = append(
-			artworksToDownload, 
+			artworksToDownload,
 			pixiv.ProcessMultipleArtworkJson(resJson, downloadPath)...,
 		)
 
@@ -553,7 +560,10 @@ startLoop:
 			pixiv.Sleep()
 		}
 	}
+
 	if params["type"] == "illust" && artworkType == "all" {
+		// if the user is downloading both
+		// illust and manga, loop again to get the manga
 		params["type"] = "manga"
 		nextUrl = pixiv.baseUrl + "/v1/user/illusts"
 		goto startLoop
@@ -563,13 +573,14 @@ startLoop:
 	return artworksToDownload, ugoiraSlice, nil
 }
 
-func (pixiv *PixivMobile) GetMultipleIllustratorPosts(userIds []string, downloadPath, artworkType string) ([]map[string]string, []Ugoira) {
+func (pixiv *PixivMobile) getMultipleIllustratorPosts(userIds *[]string, downloadPath, artworkType string) ([]map[string]string, []Ugoira) {
 	var artworksToDownload []map[string]string
 	var ugoiraSlice []Ugoira
-	lastIdx := len(userIds) - 1
+	userIdsLen := len(*userIds)
+	lastIdx := userIdsLen - 1
 
 	var errSlice []error
-	baseMsg := "Getting artwork details from illustrator(s) on Pixiv [%d/" + fmt.Sprintf("%d]...", len(userIds))
+	baseMsg := "Getting artwork details from illustrator(s) on Pixiv [%d/" + fmt.Sprintf("%d]...", userIdsLen)
 	progress := spinner.New(
 		spinner.REQ_SPINNER,
 		"fgHiYellow",
@@ -579,16 +590,16 @@ func (pixiv *PixivMobile) GetMultipleIllustratorPosts(userIds []string, download
 		),
 		fmt.Sprintf(
 			"Finished getting artwork details from %d illustrator(s) on Pixiv!",
-			len(userIds),
+			userIdsLen,
 		),
 		fmt.Sprintf(
 			"Something went wrong while getting artwork details from %d illustrator(s) on Pixiv!\nPlease refer to the logs for more details.",
-			len(userIds),
+			userIdsLen,
 		),
-		len(userIds),
+		userIdsLen,
 	)
 	progress.Start()
-	for idx, userId := range userIds {
+	for idx, userId := range *userIds {
 		artworkDetails, ugoiraInfo, err := pixiv.GetIllustratorPosts(userId, downloadPath, artworkType)
 		if err != nil {
 			errSlice = append(errSlice, err)
@@ -621,7 +632,7 @@ var pixivMobileSearchTargetMap = map[string]string{
 }
 
 // Query Pixiv's API (mobile) to get the JSON of a search query
-func (pixiv *PixivMobile) TagSearch(tagName, downloadPath string, dlOptions *PixivDlOptions, minPage, maxPage int) ([]map[string]string, []Ugoira, bool) {
+func (pixiv *PixivMobile) tagSearch(tagName, downloadPath string, dlOptions *PixivDlOptions, minPage, maxPage int) ([]map[string]string, []Ugoira, bool) {
 	var artworksToDownload []map[string]string
 	nextUrl := pixiv.baseUrl + "/v1/search/illust"
 	minOffset, maxOffset := ConvertPageNumToOffset(minPage, maxPage)
@@ -663,7 +674,7 @@ func (pixiv *PixivMobile) TagSearch(tagName, downloadPath string, dlOptions *Pix
 					utils.CONNECTION_ERROR,
 					tagName,
 					err,
-				), 
+				),
 				"",
 				false,
 			)

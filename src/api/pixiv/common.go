@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
+	"github.com/KJHJason/Cultured-Downloader-CLI/api"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
@@ -234,15 +234,15 @@ func GetUgoiraFilePaths(ugoireFilePath, ugoiraUrl, outputFormat string) (string,
 }
 
 // Downloads multiple Ugoira artworks and converts them based on the output format
-func DownloadMultipleUgoira(
-	downloadInfo []Ugoira, config *configs.Config, ugoiraDlOptions *UgoiraDlOptions, cookies []http.Cookie,
+func downloadMultipleUgoira(
+	downloadInfo *[]Ugoira, config *api.Config, ugoiraOptions *UgoiraOptions, cookies []http.Cookie,
 ) {
 	var urlsToDownload []map[string]string
-	for _, ugoira := range downloadInfo {
+	for _, ugoira := range *downloadInfo {
 		filePath, outputFilePath := GetUgoiraFilePaths(
-			ugoira.FilePath, 
-			ugoira.Url, 
-			ugoiraDlOptions.OutputFormat,
+			ugoira.FilePath,
+			ugoira.Url,
+			ugoiraOptions.OutputFormat,
 		)
 		if !utils.PathExists(outputFilePath) {
 			urlsToDownload = append(urlsToDownload, map[string]string{
@@ -253,7 +253,7 @@ func DownloadMultipleUgoira(
 	}
 
 	request.DownloadURLsParallel(
-		urlsToDownload,
+		&urlsToDownload,
 		utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
 		cookies,
 		GetPixivRequestHeaders(),
@@ -262,7 +262,8 @@ func DownloadMultipleUgoira(
 	)
 
 	var errSlice []error
-	baseMsg := "Converting Ugoira to %s [%d/" + fmt.Sprintf("%d]...", len(downloadInfo))
+	downloadInfoLen := len(*downloadInfo)
+	baseMsg := "Converting Ugoira to %s [%d/" + fmt.Sprintf("%d]...", downloadInfoLen)
 	progress := spinner.New(
 		spinner.DL_SPINNER,
 		"fgHiYellow",
@@ -272,19 +273,19 @@ func DownloadMultipleUgoira(
 		),
 		fmt.Sprintf(
 			"Finished converting %d Ugoira to %s!",
-			len(downloadInfo),
-			ugoiraDlOptions.OutputFormat,
+			downloadInfoLen,
+			ugoiraOptions.OutputFormat,
 		),
 		fmt.Sprintf(
 			"Something went wrong while converting %d Ugoira to %s!\nPlease refer to the logs for more details.",
-			len(downloadInfo),
-			ugoiraDlOptions.OutputFormat,
+			downloadInfoLen,
+			ugoiraOptions.OutputFormat,
 		),
-		len(downloadInfo),
+		downloadInfoLen,
 	)
 	progress.Start()
-	for _, ugoira := range downloadInfo {
-		zipFilePath, outputPath := GetUgoiraFilePaths(ugoira.FilePath, ugoira.Url, ugoiraDlOptions.OutputFormat)
+	for _, ugoira := range *downloadInfo {
+		zipFilePath, outputPath := GetUgoiraFilePaths(ugoira.FilePath, ugoira.Url, ugoiraOptions.OutputFormat)
 		if utils.PathExists(outputPath) {
 			progress.MsgIncrement(baseMsg)
 			continue
@@ -295,7 +296,7 @@ func DownloadMultipleUgoira(
 		}
 
 		unzipFolderPath := filepath.Join(
-			filepath.Dir(zipFilePath), 
+			filepath.Dir(zipFilePath),
 			"unzipped",
 		)
 		err := utils.ExtractFiles(zipFilePath, unzipFolderPath, true)
@@ -316,11 +317,11 @@ func DownloadMultipleUgoira(
 			unzipFolderPath,
 			outputPath,
 			config.FfmpegPath,
-			ugoiraDlOptions.Quality,
+			ugoiraOptions.Quality,
 		)
 		if err != nil {
 			errSlice = append(errSlice, err)
-		} else if ugoiraDlOptions.DeleteZip {
+		} else if ugoiraOptions.DeleteZip {
 			os.Remove(zipFilePath)
 		}
 		progress.MsgIncrement(baseMsg)

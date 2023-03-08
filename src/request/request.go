@@ -13,9 +13,10 @@ import (
 	"time"
 	"regexp"
 
+	"github.com/fatih/color"
+	"github.com/quic-go/quic-go/http3"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
-	"github.com/quic-go/quic-go/http3"
 )
 
 var (
@@ -25,12 +26,13 @@ var (
 		`https://fantia.jp/posts/[\d]+/album_image`,
 	)
 
-	HTTP3_SUPPORT_ARR = [4]string{
+	HTTP3_SUPPORT_ARR = [5]string{
 		"https://fantia.jp",
 
 		"https://www.pixiv.net",
 		"https://app-api.pixiv.net",
 
+		"https://www.google.com",
 		"https://drive.google.com",
 	}
 )
@@ -149,6 +151,29 @@ func CallRequest(
 	AddHeaders(additionalHeaders, req)
 	AddParams(params, req)
 	return sendRequest(reqUrl, req, timeout, checkStatus, false)
+}
+
+// Check for active internet connection (To be used at the start of the program)
+func CheckInternetConnection() {
+	_, err := CallRequest(
+		"HEAD",
+		"https://www.google.com",
+		10,
+		nil,
+		nil,
+		nil,
+		false,
+	)
+	if err != nil {
+		color.Red(
+			fmt.Sprintf(
+				"error %d: unable to connect to the internet, more info => %v",
+				utils.DEV_ERROR,
+				err,
+			),
+		)
+		os.Exit(1)
+	}
 }
 
 // Sends a request with the given data
@@ -309,25 +334,26 @@ func DownloadURL(
 //
 // Note: If the file already exists, the download process will be skipped
 func DownloadURLsParallel(
-	urls []map[string]string,
+	urls *[]map[string]string,
 	maxConcurrency int,
 	cookies []http.Cookie,
 	headers,
 	params map[string]string,
 	overwriteExistingFiles bool,
 ) {
-	if len(urls) == 0 {
+	urlsLen := len(*urls)
+	if urlsLen == 0 {
 		return
 	}
-	if len(urls) < maxConcurrency {
-		maxConcurrency = len(urls)
+	if urlsLen < maxConcurrency {
+		maxConcurrency = urlsLen
 	}
 
 	var wg sync.WaitGroup
 	queue := make(chan struct{}, maxConcurrency)
-	errChan := make(chan error, len(urls))
+	errChan := make(chan error, urlsLen)
 
-	baseMsg := "Downloading files [%d/" + fmt.Sprintf("%d]...", len(urls))
+	baseMsg := "Downloading files [%d/" + fmt.Sprintf("%d]...", urlsLen)
 	progress := spinner.New(
 		spinner.DL_SPINNER,
 		"fgHiYellow",
@@ -337,16 +363,16 @@ func DownloadURLsParallel(
 		),
 		fmt.Sprintf(
 			"Finished downloading %d files",
-			len(urls),
+			urlsLen,
 		),
 		fmt.Sprintf(
 			"Something went wrong while downloading %d files.\nPlease refer to the logs for more details.",
-			len(urls),
+			urlsLen,
 		),
-		len(urls),
+		urlsLen,
 	)
 	progress.Start()
-	for _, url := range urls {
+	for _, url := range *urls {
 		wg.Add(1)
 		queue <- struct{}{}
 		go func(fileUrl, filePath string) {

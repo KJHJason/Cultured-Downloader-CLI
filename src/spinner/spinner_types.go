@@ -2,7 +2,7 @@
 package spinner
 
 type SpinnerInfo struct {
-	Interval float32
+	Interval int64
 	Frames   []string
 }
 

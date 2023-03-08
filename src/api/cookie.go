@@ -95,7 +95,9 @@ func VerifyAndGetCookie(website, cookieValue string) http.Cookie {
 		utils.LogError(err, "Error occurred when trying to verify cookie.", true)
 	}
 	if cookieValue != "" && !cookieIsValid {
-		color.Red(fmt.Sprintf("%s cookie is invalid", utils.API_TITLE_MAP[website]))
+		color.Red(
+			fmt.Sprintf("%s cookie is invalid", utils.API_TITLE_MAP[website]),
+		)
 		os.Exit(1)
 	}
 	return cookie
