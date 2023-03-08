@@ -42,7 +42,11 @@ var (
 				SessionCookieId: fantiaSession,
 			}
 			if fantiaCookieFile != "" {
-				cookies, err := utils.ParseNetscapeCookieFile(fantiaCookieFile, utils.FANTIA, fantiaSession)
+				cookies, err := utils.ParseNetscapeCookieFile(
+					fantiaCookieFile, 
+					fantiaSession, 
+					utils.FANTIA,
+				)
 				if err != nil {
 					utils.LogError(
 						err,

@@ -112,7 +112,6 @@ func ParseNetscapeCookieFile(filePath, sessionId, website string) ([]http.Cookie
 				cookie.Expires = time.Unix(int64(expiresUnixInt), 0)
 			}
 		}
-		fmt.Println(cookie)
 		cookies = append(cookies, cookie)
 	}
 

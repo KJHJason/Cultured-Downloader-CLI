@@ -32,7 +32,10 @@ var (
 				OverwriteFiles: fanboxOverwriteFiles,
 			}
 			if fanboxGdriveApiKey != "" {
-				pixivFanboxConfig.GDriveClient = gdrive.GetNewGDrive(fanboxGdriveApiKey, utils.MAX_CONCURRENT_DOWNLOADS)
+				pixivFanboxConfig.GDriveClient = gdrive.GetNewGDrive(
+					fanboxGdriveApiKey, 
+					utils.MAX_CONCURRENT_DOWNLOADS,
+				)
 			}
 
 			pixivFanboxDl := pixivfanbox.PixivFanboxDl{
@@ -50,7 +53,11 @@ var (
 				SessionCookieId: fanboxSession,
 			}
 			if fanboxCookieFile != "" {
-				cookies, err := utils.ParseNetscapeCookieFile(fanboxCookieFile, utils.PIXIV_FANBOX, fanboxSession)
+				cookies, err := utils.ParseNetscapeCookieFile(
+					fanboxCookieFile, 
+					fanboxSession, 
+					utils.PIXIV_FANBOX,
+				)
 				if err != nil {
 					utils.LogError(
 						err,

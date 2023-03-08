@@ -85,7 +85,11 @@ var (
 				SessionCookieId: pixivSession,
 			}
 			if pixivCookieFile != "" {
-				cookies, err := utils.ParseNetscapeCookieFile(pixivCookieFile, utils.PIXIV, pixivSession)
+				cookies, err := utils.ParseNetscapeCookieFile(
+					pixivCookieFile, 
+					pixivSession, 
+					utils.PIXIV,
+				)
 				if err != nil {
 					utils.LogError(
 						err,
