@@ -11,9 +11,9 @@ func getMultipleIdsMsg() string {
 
 func init() {
 	type commonFlags struct {
-		cmd 		   *cobra.Command
-		overwriteVar   *bool
-		cookieFileVar  *string
+		cmd           *cobra.Command
+		overwriteVar  *bool
+		cookieFileVar *string
 	}
 	commonCmdFlags := []commonFlags{
 		{
