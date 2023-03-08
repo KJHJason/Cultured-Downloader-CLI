@@ -49,7 +49,7 @@ var (
 				DlThumbnails:    fanboxDlThumbnails,
 				DlImages:        fanboxDlImages,
 				DlAttachments:   fanboxDlAttachments,
-				DlGdrive:        fanboxDlGdrive,
+				DlGdrive:        fanboxDlGdrive && pixivFanboxConfig.GDriveClient != nil,
 				SessionCookieId: fanboxSession,
 			}
 			if fanboxCookieFile != "" {

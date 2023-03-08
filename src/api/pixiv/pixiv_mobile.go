@@ -665,7 +665,7 @@ func (pixiv *PixivMobile) tagSearch(tagName, downloadPath string, dlOptions *Pix
 		"filter":        "for_ios",
 		"offset":        strconv.Itoa(minOffset),
 	}
-	for nextUrl != "" && minOffset != maxOffset {
+	for nextUrl != "" && minOffset < maxOffset {
 		res, err := pixiv.SendRequest(nextUrl, pixiv.GetHeaders(), params, true)
 		if err != nil {
 			utils.LogError(
