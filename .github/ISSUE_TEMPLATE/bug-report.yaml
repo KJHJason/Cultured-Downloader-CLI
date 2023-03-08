@@ -1,0 +1,91 @@
+name: Bug Report
+description: File a bug report here
+title: "[Bug]: (Enter a short summary of the bug here）"
+labels: ["bug"]
+assignees: 
+  - KJHJason
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report! 
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Which Operating System are you running the program on?
+      multiple: true
+      options:
+        - Windows
+        - Linux
+        - MacOS
+    validations:
+      required: true
+
+  - type: input
+    id: program_version
+    attributes:
+      label: Program Version
+      description: What version of the program are you using? (Can be found when running the program or from the exe file name)
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps_to_reproduce
+    attributes:
+      label: Steps to reproduce the bug
+      description: This will assist me in finding where it went wrong.
+      placeholder: Please enter the steps to reproduce the bug that you have encountered...
+      value: |
+              1. 
+              2. 
+              3. 
+              4.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_behaviour
+    attributes:
+      label: Expected behaviour
+      description: A clear and concise description of what you expected to happen.
+      placeholder: Explain what should have happened instead...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: error_code
+    attributes:
+      label: What error code did you receive? (If any)
+      multiple: false
+      options:
+        - None
+        - "1000 (Developer Error)"
+        - "1001 (Unexpected Error)"
+        - "1002 (OS Error)"
+        - "1003 (Input Error)"
+        - "1004 (CMD Error)"
+        - "1005 (Connection Error)"
+        - "1006 (Response Error)"
+        - "1007 (Download Error)"
+        - "1008 (JSON Error)"
+        - "1009 (HTML Error)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: error_log_text
+    attributes:
+      label: Relevant log output (If any)
+      description: Please copy and paste the text in the error log that was generated.
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots (Optional)
+      description: Screenshots can be uploaded by simply dragging an image file into this box
+    validations:
+      required: false

@@ -6,32 +6,40 @@ import (
 	"log"
 	"time"
 	"sync"
+	"path/filepath"
+
 	"github.com/fatih/color"
 )
 
-var mut sync.Mutex
-// Thread-safe logging function that logs to "cultured_downloader.log" in the current working directory
+var logMut sync.Mutex
+var logFilePath = filepath.Join(
+	APP_PATH, 
+	"logs",
+	fmt.Sprintf("cultured_downloader-cli_v%s_%s.log", VERSION, time.Now().Format("2006-01-02")),
+)
+// Thread-safe logging function that logs to "cultured_downloader.log" in the logs directory
 func LogError(err error, errorMsg string, exit bool) {
-	mut.Lock()
-	defer mut.Unlock()
+	logMut.Lock()
+	defer logMut.Unlock()
 
 	if err == nil && errorMsg == "" {
 		return
 	}
 
-	// log the error
-	if err != nil {
-		log.Println(color.RedString(err.Error()))
-	}
-
 	// write to log file
 	f, fileErr := os.OpenFile(
-		"cultured_downloader.log", 
+		logFilePath, 
 		os.O_WRONLY|os.O_CREATE|os.O_APPEND, 
 		0666,
 	)
 	if fileErr != nil {
-		panic(fileErr)
+		fileErr = fmt.Errorf(
+			"error opening log file: %v\nlog file path: %s", 
+			fileErr, 
+			logFilePath,
+		)
+		log.Println(color.RedString(fileErr.Error()))
+		return
 	}
 	defer f.Close()
 
@@ -50,9 +58,32 @@ func LogError(err error, errorMsg string, exit bool) {
 
 	if exit {
 		if err != nil {
-			panic(err)
+			color.Red(err.Error())
 		} else {
-			panic(errorMsg)
+			color.Red(errorMsg)
 		}
+		os.Exit(1)
+	}
+}
+
+// Uses the thread-safe LogError() function to log a slice of errors or a channel of errors
+func LogErrors(exit bool, errChan *chan error, errs ...error) {
+	if errChan != nil && len(errs) > 0 {
+		panic(
+			fmt.Sprintf(
+				"error %d: cannot pass both an error channel and a slice of errors to LogErrors()",
+				DEV_ERROR,
+			),
+		)
+	}
+
+	if errChan != nil {
+		for err := range *errChan {
+			LogError(err, "", exit)
+		}
+		return
+	}
+	for _, err := range errs {
+		LogError(err, "", exit)
 	}
 }

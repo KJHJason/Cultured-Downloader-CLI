@@ -3,3 +3,4 @@
 *.log
 *.syso
 *.exe
+src/bin

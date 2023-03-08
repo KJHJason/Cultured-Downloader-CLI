@@ -5,40 +5,35 @@ import (
 	"net/http"
 	"time"
 	"os"
+
+	"github.com/fatih/color"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
-	"github.com/fatih/color"
 )
 
 // Returns a cookie with given value and website to be used in requests
 func GetCookie(sessionID, website string) http.Cookie {
-	var domainName, cookieName string
-	var sameSite http.SameSite
-	switch website {
-	case Fantia:
-		domainName = "fantia.jp"
-		cookieName = "_session_id"
-		sameSite = http.SameSiteLaxMode
-	case PixivFanbox:
-		domainName = ".fanbox.cc"
-		cookieName = "FANBOXSESSID"
-		sameSite = http.SameSiteNoneMode
-	case Pixiv:
-		domainName = ".pixiv.net"
-		cookieName = "PHPSESSID"
-		sameSite = http.SameSiteNoneMode
-	default:
-		panic("invalid website")
-	}
-
 	if sessionID == "" {
 		return http.Cookie{}
+	}
+
+	var domain, cookieName string
+	var sameSite http.SameSite
+	if sessionCookieInfo, ok := utils.SESSION_COOKIE_MAP[website]; !ok {
+		// Shouldn't happen but could happen during development
+		panic(
+			fmt.Errorf("error %d, invalid website, \"%s\", in GetCookie", utils.DEV_ERROR, website),
+		)
+	} else {
+		domain = sessionCookieInfo.Domain
+		cookieName = sessionCookieInfo.Name
+		sameSite = sessionCookieInfo.SameSite
 	}
 
 	cookie := http.Cookie{
 		Name:     cookieName,
 		Value:    sessionID,
-		Domain:   domainName,
+		Domain:   domain,
 		Expires:  time.Now().Add(365 * 24 * time.Hour),
 		Path:     "/",
 		SameSite: sameSite,
@@ -54,14 +49,17 @@ func VerifyCookie(cookie http.Cookie, website string) (bool, error) {
 	// sends a request to the website to verify the cookie
 	var websiteURL string
 	switch website {
-	case Fantia:
-		websiteURL = "https://fantia.jp/mypage/users/plans"
-	case PixivFanbox:
-		websiteURL = "https://www.fanbox.cc/creators/supporting"
-	case Pixiv:
-		websiteURL = "https://www.pixiv.net/manage/requests"
+	case utils.FANTIA:
+		websiteURL = utils.FANTIA_URL + "/mypage/users/plans"
+	case utils.PIXIV_FANBOX:
+		websiteURL = utils.PIXIV_FANBOX_URL + "/creators/supporting"
+	case utils.PIXIV:
+		websiteURL = utils.PIXIV_URL + "/manage/requests"
 	default:
-		panic("invalid website")
+		// Shouldn't happen but could happen during development
+		panic(
+			fmt.Errorf("error %d, invalid website, \"%s\", in VerifyCookie", utils.DEV_ERROR, website),
+		)
 	}
 
 	if cookie.Value == "" {
@@ -83,9 +81,16 @@ func VerifyCookie(cookie http.Cookie, website string) (bool, error) {
 // If the cookie is valid, the cookie will be returned
 //
 // However, if the cookie is invalid, an error message will be printed out and the program will shutdown
-func VerifyAndGetCookie(website, title, cookieValue string) http.Cookie {
-	if title == "" {
-		title = website
+func VerifyAndGetCookie(website, cookieValue string) http.Cookie {
+	if _, ok := utils.API_TITLE_MAP[website]; !ok {
+		// Shouldn't happen but could happen during development
+		panic(
+			fmt.Errorf(
+				"error %d, invalid website, \"%s\", in VerifyAndGetCookie", 
+				utils.DEV_ERROR, 
+				website,
+			),
+		)
 	}
 
 	cookie := GetCookie(cookieValue, website)
@@ -94,7 +99,13 @@ func VerifyAndGetCookie(website, title, cookieValue string) http.Cookie {
 		utils.LogError(err, "Error occurred when trying to verify cookie.", true)
 	}
 	if cookieValue != "" && !cookieIsValid {
-		color.Red(fmt.Sprintf("%s cookie is invalid", title))
+		color.Red(
+			fmt.Sprintf(
+				"error %d: %s cookie is invalid", 
+				utils.INPUT_ERROR, 
+				utils.API_TITLE_MAP[website],
+			),
+		)
 		os.Exit(1)
 	}
 	return cookie
