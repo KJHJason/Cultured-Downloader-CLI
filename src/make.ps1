@@ -1,5 +1,10 @@
 Write-Output "Building Cultured Downloader CLI for Windows, Linux, and macOS..."
 
+# Make the bin directory quietly if it doesn't exist
+if (!(Test-Path -Path "bin")) {
+    New-Item -ItemType Directory -Path "bin" | Out-Null
+}
+
 Remove-Item -Path "bin/hash.txt" -Force -ErrorAction SilentlyContinue
 "SHA256 Hashes`r`n" | Out-File -FilePath "bin/hash.txt"
 
