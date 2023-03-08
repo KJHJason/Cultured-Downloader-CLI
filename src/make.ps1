@@ -6,8 +6,14 @@ Remove-Item -Path "bin/hash.txt" -Force -ErrorAction SilentlyContinue
 function GetHash($path, $os, $arch) {
     $hash = Get-FileHash -Algorithm SHA256 $path | Select-Object -ExpandProperty Hash
 
+    $bits = "64-bit"
+    if ($arch -eq "386") {
+        $bits = "32-bit"
+    }
+
     $filename = Split-Path -Path $path -Leaf 
-    $hashMsg = "$filename ($os-$arch):`r`n- $hash`r`n"
+    $osTitle = $os.Substring(0,1).ToUpper() + $os.Substring(1)
+    $hashMsg = "$filename ($os-$arch/$osTitle $bits):`r`n- $hash`r`n"
 
     # write to bin/hash.txt
     $hashMsg | Out-File -FilePath "bin/hash.txt" -Append
