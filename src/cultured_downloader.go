@@ -7,8 +7,6 @@ import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
 
-
-// Main program
 func main() {
 	err := cmds.RootCmd.Execute()
 	if err != nil {

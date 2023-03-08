@@ -12,9 +12,9 @@ import (
 const (
 	CLEAR_LINE = "\033[K"
 
-	// Standard spinner types used
-	REQ_SPINNER  = "aesthetic"
-	JSON_SPINNER = "pong"
+	// Common spinner types used in this program
+	REQ_SPINNER  = "pong"
+	JSON_SPINNER = "aesthetic"
 	DL_SPINNER   = "material"
 )
 
@@ -41,6 +41,32 @@ var (
 	}
 )
 
+// ListSpinnerTypes lists all the supported spinner types
+func ListSpinnerTypes() {
+	fmt.Println("Spinner types:")
+	for spinnerType := range spinnerTypes {
+		fmt.Printf(
+			"%s\n",
+			spinnerType,
+		)
+	}
+} 
+
+// ListColours lists all the supported colours
+func ListColours() {
+	fmt.Println("Colours:")
+	for colour := range colourMap {
+		fmt.Printf(
+			"%s\n",
+			colour,
+		)
+	}
+}
+
+// GetSpinner returns the spinner info of 
+// the given spinner type string if it exists.
+//
+// If the spinner type string does not exist, the program will panic.
 func GetSpinner(spinnerType string) SpinnerInfo {
 	if spinner, ok := spinnerTypes[spinnerType]; ok {
 		return spinner
@@ -71,6 +97,11 @@ type Spinner struct {
 	stop     chan struct{}
 }
 
+// New creates a new spinner with the given spinner type, 
+// colour, message, success message, error message and max count.
+//
+// For the spinner type and colour, please refer to the source code or 
+// use ListSpinnerTypes() and ListColours() to print all the supported spinner types and colours.
 func New(spinnerType, colour, message, successMsg, errMsg string, maxCount int) *Spinner {
 	colourAttribute, ok := colourMap[colour]
 	if !ok {
@@ -139,6 +170,7 @@ func (s *Spinner) Start() {
 	}()
 }
 
+// Add adds i to the spinner count
 func (s *Spinner) Add(i int) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -151,6 +183,7 @@ func (s *Spinner) Add(i int) int {
 	return s.count
 }
 
+// UpdateMsg changes the spinner message
 func (s *Spinner) UpdateMsg(msg string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -158,6 +191,11 @@ func (s *Spinner) UpdateMsg(msg string) {
 	s.Msg = msg
 }
 
+// MsgIncrement increments the spinner count and 
+// updates the message with the new count based onthe baseMsg.
+//
+// baseMsg should be a string with a single %d placeholder
+// e.g. s.MsgIncrement("Downloading %d files...")
 func (s* Spinner) MsgIncrement(baseMsg string) {
 	s.UpdateMsg(
 		fmt.Sprintf(
