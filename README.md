@@ -32,12 +32,32 @@ The CLI version of the program is currently only available for Windows, Linux an
 
 This program has only been tested on Windows 10. Hence, if you encounter any issues on other operating systems, I may not be able to help you.
 
+## Known Issue(s)
+
+### File access denied error when downloading with the `--overwrite=true` flag...
+
+- What the flag does:
+  - Regardless of this flag, the program will overwrite any incomplete downloaded file by verifying against the Content-Length header response.
+  - If the size of locally downloaded file does not match with the header response, the program will re-download the file.
+  - Otherwise, if the Content-Length header is not present in the response, the program will only skip the file if the file already exists.
+  - However, if there's a need to overwrite the skipped files, you can use this flag to do so.
+  - You should only use this for websites like Pixiv Fanbox which does not return a Content-Length header in their response.
+- Causes:
+  - This is caused by the antivirus program on your PC, flagging the program as a malware and stopping it from executing normally.
+  - This is due to how the programs works, it will try to check the image file size by doing a HEAD request first before doing a GET request for downloading.
+    - In the event that the Content-Length is not in the response header, it will re-download the file if the overwrite flag is set to true.
+    - Usually, this is not a problem for Fantia and Pixiv, but for Pixiv Fanbox, it will not return the Content-Length in the response header, which is why the program will try to re-download all the files and overwrite any existing files. Hence, the antivirus program will flag the program as a ransomware and stop it from executing normally.
+- Solutions:
+  - Please exclude `cultured-downloader-cli.exe` or the compiled version of the program from your antivirus software as it can be flagged as a ransomware as previously explained above in the Causes.
+    - `go run .` will also NOT work as it will still be blocked by the antivirus program. Hence, you will need to build the program first and then run it.
+    - By running `go build . -o cultured-downloader-cli.exe` in the src directory of the project, it will build the program and create an executable file.
+
 ## Disclaimers
 
 - Cultured Downloader is not liable for any damages caused.
 - Pixiv:
   - Pixiv API calls are throttled to avoid being rate limited.
-    - You can try using the `-pixiv_refresh_token` flag instead of the `-pixiv_session` flag if you prefer faster downloads as it generally has lesser API calls but at the expense of a less flexible download options.
+    - You can try using the `--refresh_token` flag instead of the `--session` flag if you prefer faster downloads as it generally has lesser API calls but at the expense of a less flexible download options.
   - Try not to overuse the program when downloading from Pixiv as it can cause your IP to be flagged by Cloudflare.
 
 ## Usage Example
@@ -101,19 +121,8 @@ Flags:
                              For multiple IDs, separate them with a comma.
                              Example: "12345,67891" (without the quotes)
   -h, --help                 help for fantia
-  -o, --overwrite            Regardless of this flag, the program will overwrite any
-                             incomplete downloaded file by verifying against the Content-Length header response,
-                             if the size of locally downloaded file does not
-                             match with the header response, the program will re-download the file.
-                             Otherwise, if the Content-Length header is not present in the response,
-                             the program will only skip the file if the file already exists.
-                             However, if there's a need to overwrite the skipped files, you can use this flag to do so.
-                             You should only use this for websites like Pixiv Fanbox
-                             which does not return a Content-Length header in their response.
-                             However, do note that if you have an anti-virus program running,
-                             it might detect this program as a ransomware due as it is overwriting multiple files at once.
-                             Thus, it is recommended to not use this flag if you have an
-                             anti-virus program unless the anti-virus software has been disabled.
+  -o, --overwrite            Overwrite any existing files if there is no Content-Length header in the response.
+                             Usually used for Pixiv Fanbox when there are incomplete downloads.
       --page_num strings     Min and max page numbers to search for corresponding to the order of the supplied Fantia Fanclub ID(s).
                              Format: "num" or "minNum-maxNum"
                              Example: "1" or "1-10"
@@ -144,19 +153,8 @@ Flags:
       --gdrive_api_key string   Google Drive API key to use for downloading gdrive files.
                                 Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_key_guide.md
   -h, --help                    help for pixiv_fanbox
-  -o, --overwrite               Regardless of this flag, the program will overwrite any
-                                incomplete downloaded file by verifying against the Content-Length header response,
-                                if the size of locally downloaded file does not
-                                match with the header response, the program will re-download the file.
-                                Otherwise, if the Content-Length header is not present in the response,
-                                the program will only skip the file if the file already exists.
-                                However, if there's a need to overwrite the skipped files, you can use this flag to do so.
-                                You should only use this for websites like Pixiv Fanbox
-                                which does not return a Content-Length header in their response.
-                                However, do note that if you have an anti-virus program running,
-                                it might detect this program as a ransomware due as it is overwriting multiple files at once.
-                                Thus, it is recommended to not use this flag if you have an
-                                anti-virus program unless the anti-virus software has been disabled.
+  -o, --overwrite               Overwrite any existing files if there is no Content-Length header in the response.
+                                Usually used for Pixiv Fanbox when there are incomplete downloads.
       --page_num strings        Min and max page numbers to search for corresponding to the order of the supplied Pixiv Fanbox Creator ID(s).
                                 Format: "num" or "minNum-maxNum"
                                 Example: "1" or "1-10"
@@ -195,19 +193,8 @@ Flags:
       --illustrator_id strings        Illustrator ID(s) to download.
                                       For multiple IDs, separate them with a comma.
                                       Example: "12345,67891" (without the quotes)
-  -o, --overwrite                     Regardless of this flag, the program will overwrite any
-                                      incomplete downloaded file by verifying against the Content-Length header response,
-                                      if the size of locally downloaded file does not
-                                      match with the header response, the program will re-download the file.
-                                      Otherwise, if the Content-Length header is not present in the response,
-                                      the program will only skip the file if the file already exists.
-                                      However, if there's a need to overwrite the skipped files, you can use this flag to do so.
-                                      You should only use this for websites like Pixiv Fanbox
-                                      which does not return a Content-Length header in their response.
-                                      However, do note that if you have an anti-virus program running,
-                                      it might detect this program as a ransomware due as it is overwriting multiple files at once.
-                                      Thus, it is recommended to not use this flag if you have an
-                                      anti-virus program unless the anti-virus software has been disabled.
+  -o, --overwrite                     Overwrite any existing files if there is no Content-Length header in the response.
+                                      Usually used for Pixiv Fanbox when there are incomplete downloads.
       --rating_mode string            Rating Mode Options:
                                       - r18: Restrict downloads to R-18 artworks
                                       - safe: Restrict downloads to all ages artworks

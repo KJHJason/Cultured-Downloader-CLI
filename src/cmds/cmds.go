@@ -42,19 +42,8 @@ func init() {
 			false,
 			utils.CombineStringsWithNewline(
 				[]string{
-					"Regardless of this flag, the program will overwrite any",
-					"incomplete downloaded file by verifying against the Content-Length header response,",
-					"if the size of locally downloaded file does not",
-					"match with the header response, the program will re-download the file.",
-					"Otherwise, if the Content-Length header is not present in the response,",
-					"the program will only skip the file if the file already exists.",
-					"However, if there's a need to overwrite the skipped files, you can use this flag to do so.",
-					"You should only use this for websites like Pixiv Fanbox",
-					"which does not return a Content-Length header in their response.",
-					"However, do note that if you have an anti-virus program running,",
-					"it might detect this program as a ransomware due as it is overwriting multiple files at once.",
-					"Thus, it is recommended to not use this flag if you have an",
-					"anti-virus program unless the anti-virus software has been disabled.",
+					"Overwrite any existing files if there is no Content-Length header in the response.",
+					"Usually used for Pixiv Fanbox when there are incomplete downloads.",
 				},
 			),
 		)
