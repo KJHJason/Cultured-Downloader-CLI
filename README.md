@@ -43,7 +43,9 @@ This program has only been tested on Windows 10. Hence, if you encounter any iss
 ## Usage Example
 
 The example below assumes you are using [Go](https://go.dev/dl/) to run the program.
+
 Otherwise, instead of `go run cultured_downloader.go`, you can run the executable file by typing `./cultured_downloader.exe` for Windows.
+
 There is also compiled binaries for Linux and macOS in the [releases](https://github.com/KJHJason/Cultured-Downloader-CLI/releases) page.
 
 Note:
