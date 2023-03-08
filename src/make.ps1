@@ -7,7 +7,7 @@ function GetHash($path, $os, $arch) {
     $hash = Get-FileHash -Algorithm SHA256 $path | Select-Object -ExpandProperty Hash
 
     $filename = Split-Path -Path $path -Leaf 
-    $hashMsg = "$filename ($os-$arch):`r`n$hash`r`n"
+    $hashMsg = "$filename ($os-$arch):`r`n- $hash`r`n"
 
     # write to bin/hash.txt
     $hashMsg | Out-File -FilePath "bin/hash.txt" -Append
