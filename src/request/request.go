@@ -100,7 +100,6 @@ func sendRequest(reqUrl string, req *http.Request, timeout int, checkStatus, dis
 			time.Sleep(utils.GetRandomDelay())
 		}
 	}
-}
 
 	errMsg := fmt.Sprintf(
 		"the request to %s failed after %d retries",
@@ -141,6 +140,7 @@ func AddCookies(reqUrl string, cookies []http.Cookie, req *http.Request) {
 
 // add params to the request
 func AddParams(params map[string]string, req *http.Request) {
+	if len(params) > 0 {
 		query := req.URL.Query()
 		for key, value := range params {
 			query.Add(key, value)
@@ -170,6 +170,8 @@ func CallRequest(
 	AddCookies(reqUrl, cookies, req)
 	AddHeaders(additionalHeaders, req)
 	AddParams(params, req)
+	return sendRequest(reqUrl, req, timeout, checkStatus, false)
+}
 
 // Check for active internet connection (To be used at the start of the program)
 func CheckInternetConnection() {
@@ -367,13 +369,6 @@ func DownloadURLsParallel(
 		maxConcurrency = urlsLen
 	}
 
-	bar := utils.GetProgressBar(
-		len(urls),
-		"Downloading...",
-		utils.GetCompletionFunc(
-			fmt.Sprintf("Downloaded %d files", len(urls)),
-		),
-	)
 	var wg sync.WaitGroup
 	queue := make(chan struct{}, maxConcurrency)
 	errChan := make(chan error, urlsLen)

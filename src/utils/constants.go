@@ -73,6 +73,7 @@ const (
 
 	PIXIV                     = "pixiv"
 	PIXIV_TITLE               = "Pixiv"
+	PIXIV_URL                 = "https://www.pixiv.net"
 	PIXIV_API_URL             = "https://www.pixiv.net/ajax"
 	PIXIV_MOBILE_URL          = "https://app-api.pixiv.net"
 

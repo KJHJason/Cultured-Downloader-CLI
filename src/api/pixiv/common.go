@@ -24,15 +24,29 @@ type Ugoira struct {
 // Returns a defined request header needed to communicate with Pixiv's API
 func GetPixivRequestHeaders() map[string]string {
 	return map[string]string{
-		"Origin":  "https://www.pixiv.net/",
-		"Referer": "https://www.pixiv.net/",
+		"Origin":  utils.PIXIV_URL,
+		"Referer": utils.PIXIV_URL,
 	}
 }
 
+// Get the Pixiv illust page URL for the referral header value
 func GetIllustUrl(illustId string) string {
-	return "https://www.pixiv.net/artworks/" + illustId
+	return fmt.Sprintf(
+		"%s/artworks/%s", 
+		utils.PIXIV_URL, 
+		illustId,
+	)
 }
+
+// Get the Pixiv user page URL for the referral header value
 func GetUserUrl(userId string) string {
+	return fmt.Sprintf(
+		"%s/users/%s",
+		utils.PIXIV_URL,
+		userId,
+	)
+}
+
 // Map the Ugoira frame delays to their respective filenames
 func MapDelaysToFilename(ugoiraFramesJson map[string]interface{}) map[string]int64 {
 	frameInfoMap := map[string]int64{}
