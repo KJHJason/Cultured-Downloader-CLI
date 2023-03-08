@@ -1,11 +1,13 @@
 Write-Output "Building Cultured Downloader CLI for Windows, Linux, and macOS..."
 
 Remove-Item -Path "bin/hash.txt" -Force -ErrorAction SilentlyContinue
+"SHA256 Hashes`r`n" | Out-File -FilePath "bin/hash.txt"
+
 function GetHash($path, $os, $arch) {
     $hash = Get-FileHash -Algorithm SHA256 $path | Select-Object -ExpandProperty Hash
 
     $filename = Split-Path -Path $path -Leaf 
-    $hashMsg = "SHA256 hash for $filename ($os-$arch): $hash"
+    $hashMsg = "$filename ($os-$arch):`r`n$hash`r`n"
 
     # write to bin/hash.txt
     $hashMsg | Out-File -FilePath "bin/hash.txt" -Append
