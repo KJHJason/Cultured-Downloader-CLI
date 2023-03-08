@@ -50,11 +50,11 @@ func VerifyCookie(cookie http.Cookie, website string) (bool, error) {
 	var websiteURL string
 	switch website {
 	case utils.FANTIA:
-		websiteURL = "https://fantia.jp/mypage/users/plans"
+		websiteURL = utils.FANTIA_URL + "/mypage/users/plans"
 	case utils.PIXIV_FANBOX:
-		websiteURL = "https://www.fanbox.cc/creators/supporting"
+		websiteURL = utils.PIXIV_FANBOX_URL + "/creators/supporting"
 	case utils.PIXIV:
-		websiteURL = "https://www.pixiv.net/manage/requests"
+		websiteURL = utils.PIXIV_URL + "/manage/requests"
 	default:
 		// Shouldn't happen but could happen during development
 		panic(
