@@ -2,7 +2,7 @@
 
 ## Type of additions (Tick those that apply):
 
-<!-- Use ✗/✓ for the following type of additions  -->
+<!-- Use ✗/✓ for the following type of additions -->
 
 - [ ] Bug fix (non-breaking change which fixes an issue)
 - [ ] New feature (non-breaking change which adds functionality)
@@ -17,7 +17,7 @@ Please add your summary here...
 
 ## Checklist (Tick those that apply):
 
-<!-- Use ✗/✓ for the following checklist  -->
+<!-- Use ✗/✓ for the following checklist -->
 
 - [ ] I have read the [contribution guidelines](https://github.com/KJHJason/Cultured-Downloader-CLI/blob/main/CONTRIBUTING.md) and have adhered to it
 - [ ] I have performed a self-review of my code
