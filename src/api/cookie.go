@@ -85,7 +85,11 @@ func VerifyAndGetCookie(website, cookieValue string) http.Cookie {
 	if _, ok := utils.API_TITLE_MAP[website]; !ok {
 		// Shouldn't happen but could happen during development
 		panic(
-			fmt.Errorf("error %d, invalid website, \"%s\", in VerifyAndGetCookie", utils.DEV_ERROR, website),
+			fmt.Errorf(
+				"error %d, invalid website, \"%s\", in VerifyAndGetCookie", 
+				utils.DEV_ERROR, 
+				website,
+			),
 		)
 	}
 
@@ -96,7 +100,11 @@ func VerifyAndGetCookie(website, cookieValue string) http.Cookie {
 	}
 	if cookieValue != "" && !cookieIsValid {
 		color.Red(
-			fmt.Sprintf("%s cookie is invalid", utils.API_TITLE_MAP[website]),
+			fmt.Sprintf(
+				"error %d: %s cookie is invalid", 
+				utils.INPUT_ERROR, 
+				utils.API_TITLE_MAP[website],
+			),
 		)
 		os.Exit(1)
 	}

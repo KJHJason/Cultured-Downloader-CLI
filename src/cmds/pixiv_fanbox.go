@@ -91,6 +91,18 @@ func init() {
 		),
 	)
 	pixivFanboxCmd.Flags().StringSliceVar(
+		&fanboxPageNums,
+		"page_num",
+		[]string{},
+		utils.CombineStringsWithNewline(
+			[]string{
+				"Min and max page numbers to search for corresponding to the order of the supplied Pixiv Fanbox Creator ID(s).",
+				"Format: \"num\" or \"minNum-maxNum\"",
+				"Example: \"1\" or \"1-10\"",
+			},
+		),
+	)
+	pixivFanboxCmd.Flags().StringSliceVar(
 		&fanboxPostIds,
 		"post_id",
 		[]string{},
