@@ -103,6 +103,32 @@ Downloading from Pixiv using a tag name:
 go run cultured_downloader.go pixiv --refresh_token="<add yours here>" --tag_name "tag1,tag2,tag3" --tag_page_num 1,4,2 --rating_mode safe --search_mode s_tag
 ```
 
+## Base Flags
+
+```
+Cultured Downloader CLI is a command-line tool for downloading images, videos, etc. from various websites like Pixiv, Pixiv Fanbox, and Fantia.
+
+Usage:
+  cultured-downloader-cli [flags]
+  cultured-downloader-cli [command]
+
+Available Commands:
+  fantia       Download from Fantia
+  help         Help about any command
+  pixiv        Download from Pixiv
+  pixiv_fanbox Download from Pixiv Fanbox
+
+Flags:
+      --download_path string   Configure the path to download the files to and save it for future runs. Otherwise, the program will use the current working directory.
+                               Note:
+                               If you had used the "-download_path" flag before or
+                               had used the Cultured Downloader Python program, the program will automatically use the path you had set.
+  -h, --help                   help for cultured-downloader-cli
+  -v, --version                version for cultured-downloader-cli
+
+Use "cultured-downloader-cli [command] --help" for more information about a command.
+```
+
 ## Fantia Flags
 
 ```
