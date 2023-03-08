@@ -219,8 +219,8 @@ func GetMinMaxFromStr(numStr string) (int, int, bool, error) {
 
 // Returns a random time.Duration between the given min and max arguments
 func GetRandomTime(min, max float64) time.Duration {
-	rand.Seed(time.Now().UnixNano())
-	randomDelay := min + rand.Float64()*(max-min)
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	randomDelay := min + r.Float64()*(max-min)
 	return time.Duration(randomDelay*1000) * time.Millisecond
 }
 

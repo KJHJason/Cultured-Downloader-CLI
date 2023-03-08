@@ -16,8 +16,6 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-const FantiaUrl = "https://fantia.jp"
-
 type fantiaPost struct {
 	Post struct {
 		ID    int    `json:"id"`
@@ -119,7 +117,7 @@ func processFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 			comment := content.Comment
 			matchedStr := utils.FANTIA_IMAGE_URL_REGEX.FindAllStringSubmatch(comment, -1)
 			for _, matched := range matchedStr {
-				imageUrl := FantiaUrl + matched[utils.FANTIA_REGEX_URL_INDEX]
+				imageUrl := utils.FANTIA_URL + matched[utils.FANTIA_REGEX_URL_INDEX]
 				urlsMap = append(urlsMap, map[string]string{
 					"url":      imageUrl,
 					"filepath": filepath.Join(postFolderPath, utils.IMAGES_FOLDER),
@@ -131,7 +129,7 @@ func processFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 			// get the attachment url string if it exists
 			attachmentUrl := content.AttachmentURI
 			if attachmentUrl != "" {
-				attachmentUrlStr := FantiaUrl + attachmentUrl
+				attachmentUrlStr := utils.FANTIA_URL + attachmentUrl
 				urlsMap = append(urlsMap, map[string]string{
 					"url":      attachmentUrlStr,
 					"filepath": filepath.Join(postFolderPath, utils.ATTACHMENT_FOLDER),
@@ -139,7 +137,7 @@ func processFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 			} else if content.DownloadUri != "" {
 				// if the attachment url string does not exist,
 				// then get the download url for the file
-				downloadUrl := FantiaUrl + content.DownloadUri
+				downloadUrl := utils.FANTIA_URL + content.DownloadUri
 				filename := content.Filename
 				urlsMap = append(urlsMap, map[string]string{
 					"url":      downloadUrl,
@@ -181,7 +179,7 @@ func getPostDetails(postIds *[]string, fantiaDlOptions *FantiaDlOptions) []map[s
 		),
 		postIdsLen,
 	)
-	url := FantiaUrl + "/api/v1/posts/"
+	url := utils.FANTIA_URL + "/api/v1/posts/"
 	progress.Start()
 	for _, postId := range *postIds {
 		wg.Add(1)
@@ -191,7 +189,7 @@ func getPostDetails(postIds *[]string, fantiaDlOptions *FantiaDlOptions) []map[s
 
 			postApiUrl := url + postId
 			header := map[string]string{
-				"Referer":      fmt.Sprintf("%s/posts/%s", FantiaUrl, postId),
+				"Referer":      fmt.Sprintf("%s/posts/%s", utils.FANTIA_URL, postId),
 				"x-csrf-token": fantiaDlOptions.CsrfToken,
 			}
 			res, err := request.CallRequest(
@@ -300,7 +298,7 @@ func getFantiaPosts(creatorId, pageNum string, cookies []http.Cookie) ([]string,
 
 	curPage := minPage
 	for {
-		url := fmt.Sprintf("%s/fanclubs/%s/posts", FantiaUrl, creatorId)
+		url := fmt.Sprintf("%s/fanclubs/%s/posts", utils.FANTIA_URL, creatorId)
 		params := map[string]string{
 			"page":   fmt.Sprintf("%d", curPage),
 			"q[s]":   "newer",
@@ -373,25 +371,6 @@ func getCreatorsPosts(creatorIds, pageNums *[]string, cookies []http.Cookie) []s
 		)
 	}
 
-	baseMsg := "Getting post IDs from Fanclubs(s) on Fantia [%d/" + fmt.Sprintf("%d]...", creatorIdsLen)
-	progress := spinner.New(
-		spinner.REQ_SPINNER,
-		"fgHiYellow",
-		fmt.Sprintf(
-			baseMsg,
-			0,
-		),
-		fmt.Sprintf(
-			"Finished getting post IDs from %d Fanclubs(s) on Fantia!",
-			creatorIdsLen,
-		),
-		fmt.Sprintf(
-			"Something went wrong while getting post IDs from %d Fanclubs(s) on Fantia.\nPlease refer to the logs for more details.",
-			creatorIdsLen,
-		),
-		creatorIdsLen,
-	)
-
 	var wg sync.WaitGroup
 	maxConcurrency := utils.MAX_API_CALLS
 	if creatorIdsLen < maxConcurrency {
@@ -401,6 +380,24 @@ func getCreatorsPosts(creatorIds, pageNums *[]string, cookies []http.Cookie) []s
 	resChan := make(chan []string, creatorIdsLen)
 	errChan := make(chan error, creatorIdsLen)
 
+	baseMsg := "Getting post ID(s) from Fanclubs(s) on Fantia [%d/" + fmt.Sprintf("%d]...", creatorIdsLen)
+	progress := spinner.New(
+		spinner.REQ_SPINNER,
+		"fgHiYellow",
+		fmt.Sprintf(
+			baseMsg,
+			0,
+		),
+		fmt.Sprintf(
+			"Finished getting post ID(s) from %d Fanclubs(s) on Fantia!",
+			creatorIdsLen,
+		),
+		fmt.Sprintf(
+			"Something went wrong while getting post IDs from %d Fanclubs(s) on Fantia.\nPlease refer to the logs for more details.",
+			creatorIdsLen,
+		),
+		creatorIdsLen,
+	)
 	progress.Start()
 	for idx, creatorId := range *creatorIds {
 		wg.Add(1)

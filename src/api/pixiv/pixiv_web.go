@@ -82,7 +82,7 @@ func GetArtworkDetails(artworkId, downloadPath string, cookies []http.Cookie) (s
 
 	headers := GetPixivRequestHeaders()
 	headers["Referer"] = GetUserUrl(artworkId)
-	url := fmt.Sprintf("https://www.pixiv.net/ajax/illust/%s", artworkId)
+	url := fmt.Sprintf("%s/illust/%s", utils.PIXIV_API_URL, artworkId)
 	artworkDetailsRes, err := request.CallRequest("GET", url, 15, cookies, headers, nil, false)
 	if err != nil {
 		err = fmt.Errorf(
@@ -138,9 +138,9 @@ func GetArtworkDetails(artworkId, downloadPath string, cookies []http.Cookie) (s
 	artworkType := artworkJsonBody.IllustType
 	switch artworkType {
 	case illust, manga: // illustration or manga
-		url = fmt.Sprintf("https://www.pixiv.net/ajax/illust/%s/pages", artworkId)
+		url = fmt.Sprintf("%s/illust/%s/pages", utils.PIXIV_API_URL, artworkId)
 	case ugoira: // ugoira
-		url = fmt.Sprintf("https://www.pixiv.net/ajax/illust/%s/ugoira_meta", artworkId)
+		url = fmt.Sprintf("%s/illust/%s/ugoira_meta", utils.PIXIV_API_URL, artworkId)
 	default:
 		err = fmt.Errorf(
 			"pixiv error %d: unsupported artwork type %d for artwork ID %s",
@@ -249,7 +249,7 @@ func GetIllustratorPosts(illustratorId, artworkType string, cookies []http.Cooki
 	artworkType = strings.ToLower(artworkType)
 	headers := GetPixivRequestHeaders()
 	headers["Referer"] = GetIllustUrl(illustratorId)
-	url := fmt.Sprintf("https://www.pixiv.net/ajax/user/%s/profile/all", illustratorId)
+	url := fmt.Sprintf("%s/user/%s/profile/all", utils.PIXIV_API_URL, illustratorId)
 
 	res, err := request.CallRequest("GET", url, 5, cookies, headers, nil, false)
 	if err != nil {
@@ -388,7 +388,7 @@ func ProcessTagJsonResults(res *http.Response) ([]string, error) {
 // Query Pixiv's API and search for posts based on the supplied tag name
 // which will return a map and a slice of Ugoira structures for downloads
 func tagSearch(tagName, downloadPath string, dlOptions *PixivDlOptions, minPage, maxPage int, cookies []http.Cookie) ([]map[string]string, []Ugoira, bool) {
-	url := "https://www.pixiv.net/ajax/search/artworks/" + tagName
+	url := fmt.Sprintf("%s/search/artworks/%s", utils.PIXIV_API_URL, tagName)
 	params := map[string]string{
 		// search term
 		"word": tagName,

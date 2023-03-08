@@ -69,10 +69,17 @@ const (
 
 	FANTIA                    = "fantia"
 	FANTIA_TITLE              = "Fantia"
+	FANTIA_URL                = "https://fantia.jp"
+
 	PIXIV                     = "pixiv"
 	PIXIV_TITLE               = "Pixiv"
+	PIXIV_API_URL             = "https://www.pixiv.net/ajax"
+	PIXIV_MOBILE_URL          = "https://app-api.pixiv.net"
+
 	PIXIV_FANBOX              = "fanbox"
 	PIXIV_FANBOX_TITLE        = "Pixiv Fanbox"
+	PIXIV_FANBOX_URL          = "https://www.fanbox.cc"
+	PIXIV_FANBOX_API_URL      = "https://api.fanbox.cc"
 
 	PASSWORD_FILENAME = "detected_passwords.txt"
 	ATTACHMENT_FOLDER = "attachments"

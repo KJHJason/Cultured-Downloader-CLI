@@ -20,15 +20,16 @@ import (
 )
 
 var (
-	// Since the URL below will be redirected to Fantia's AWS S3 URL, 
+	// Since the URLs below will be redirected to Fantia's AWS S3 URL, 
 	// we need to use HTTP/2 as it is not supported by HTTP/3 yet.
-	FANTIA_URL_REDIRECT = regexp.MustCompile(
-		`https://fantia.jp/posts/[\d]+/album_image`,
+	FANTIA_ALBUM_URL = regexp.MustCompile(
+		`^https://fantia.jp/posts/[\d]+/album_image`,
+	)
+	FANTIA_DOWNLOAD_URL = regexp.MustCompile(
+		`^https://fantia.jp/posts/[\d]+/download/[\d]+`,
 	)
 
-	HTTP3_SUPPORT_ARR = [5]string{
-		"https://fantia.jp",
-
+	HTTP3_SUPPORT_ARR = [4]string{
 		"https://www.pixiv.net",
 		"https://app-api.pixiv.net",
 
@@ -37,33 +38,52 @@ var (
 	}
 )
 
+func getHttp2Client(disableCompression bool) *http.Client {
+	if disableCompression {
+		return &http.Client{
+			Transport: &http.Transport{
+				DisableCompression: true,
+			},
+		}
+	}
+	return &http.Client{}
+}
+
+func getHttp3Client(disableCompression bool) *http.Client {
+	if disableCompression {
+		return &http.Client{
+			Transport: &http3.RoundTripper{
+				DisableCompression: true,
+			},
+		}
+	}
+	return &http.Client{
+		Transport: &http3.RoundTripper{},
+	}
+}
+
+// Get a new HTTP/2 or HTTP/3 client based on the given URL if it's supported
+func getHttpClient(reqUrl *string, disableCompression bool) *http.Client {
+	if FANTIA_DOWNLOAD_URL.MatchString(*reqUrl) || FANTIA_ALBUM_URL.MatchString(*reqUrl) {
+		return getHttp2Client(disableCompression)
+	}
+
+	// check if the URL supports HTTP/3 first
+	// before falling back to the default HTTP/2.
+	for _, domain := range HTTP3_SUPPORT_ARR {
+		if strings.HasPrefix(*reqUrl, domain) {
+			return getHttp3Client(disableCompression)
+		}
+	}
+	return getHttp2Client(disableCompression)
+}
+
 // send the request to the target URL and retries if the request was not successful
 func sendRequest(reqUrl string, req *http.Request, timeout int, checkStatus, disableCompression bool) (*http.Response, error) {
 	var err error
 	var res *http.Response
 
-	// check if the URL supports HTTP/3 first
-	// before falling back to the default HTTP/2.
-	var roundTripper http.RoundTripper
-	if !FANTIA_URL_REDIRECT.MatchString(reqUrl) {
-		for _, domain := range HTTP3_SUPPORT_ARR {
-			if strings.HasPrefix(reqUrl, domain) {
-				roundTripper = &http3.RoundTripper{
-					DisableCompression: disableCompression,
-				}
-				break
-			}
-		}
-	}
-	if roundTripper == nil {
-		roundTripper = &http.Transport{
-			DisableCompression: disableCompression,
-		}
-	}
-
-	client := &http.Client{
-		Transport: roundTripper,
-	}
+	client := getHttpClient(&reqUrl, disableCompression)
 	client.Timeout = time.Duration(timeout) * time.Second
 	for i := 1; i <= utils.RETRY_COUNTER; i++ {
 		res, err = client.Do(req)

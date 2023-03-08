@@ -70,3 +70,65 @@ var (
 		},
 	}
 )
+
+func init() {
+	mutlipleIdsMsg := getMultipleIdsMsg()
+	fantiaCmd.Flags().StringVar(
+		&fantiaSession,
+		"session",
+		"",
+		"Your _session_id cookie value to use for the requests to Fantia.",
+	)
+	fantiaCmd.Flags().StringSliceVar(
+		&fantiaFanclubIds,
+		"fanclub_id",
+		[]string{},
+		utils.CombineStringsWithNewline(
+			[]string{
+				"Fantia Fanclub ID(s) to download from.",
+				mutlipleIdsMsg,
+			},
+		),
+	)
+	fantiaCmd.Flags().StringSliceVar(
+		&fantiaPageNums,
+		"page_num",
+		[]string{},
+		utils.CombineStringsWithNewline(
+			[]string{
+				"Min and max page numbers to search for corresponding to the order of the supplied Fantia Fanclub ID(s).",
+				"Format: \"num\" or \"minNum-maxNum\"",
+				"Example: \"1\" or \"1-10\"",
+			},
+		),
+	)
+	fantiaCmd.Flags().StringSliceVar(
+		&fantiaPostIds,
+		"post_id",
+		[]string{},
+		utils.CombineStringsWithNewline(
+			[]string{
+				"Fantia post ID(s) to download.",
+				mutlipleIdsMsg,
+			},
+		),
+	)
+	fantiaCmd.Flags().BoolVar(
+		&fantiaDlThumbnails,
+		"dl_thumbnails",
+		true,
+		"Whether to download the thumbnail of a Fantia post.",
+	)
+	fantiaCmd.Flags().BoolVar(
+		&fantiaDlImages,
+		"dl_images",
+		true,
+		"Whether to download the images of a Fantia post.",
+	)
+	fantiaCmd.Flags().BoolVar(
+		&fantiaDlAttachments,
+		"dl_attachments",
+		true,
+		"Whether to download the attachments of a Fantia post.",
+	)
+}

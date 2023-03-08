@@ -17,8 +17,8 @@ import (
 // Returns a defined request header needed to communicate with Pixiv Fanbox's API
 func GetPixivFanboxHeaders() map[string]string {
 	return map[string]string{
-		"Origin":  "https://www.fanbox.cc",
-		"Referer": "https://www.fanbox.cc/",
+		"Origin":  utils.PIXIV_FANBOX_URL,
+		"Referer": utils.PIXIV_FANBOX_URL,
 	}
 }
 
@@ -290,7 +290,7 @@ func getPostDetails(postIds *[]string, pixivFanboxDlOptions *PixivFanboxDlOption
 	)
 	progress.Start()
 
-	url := "https://api.fanbox.cc/post.info"
+	url := fmt.Sprintf("%s/post.info", utils.PIXIV_FANBOX_API_URL)
 	for _, postId := range *postIds {
 		wg.Add(1)
 		queue <- struct{}{}
@@ -407,7 +407,10 @@ func getFanboxPosts(creatorId, pageNum string, cookies []http.Cookie) ([]string,
 	headers := GetPixivFanboxHeaders()
 	res, err := request.CallRequest(
 		"GET",
-		"https://api.fanbox.cc/post.paginateCreator",
+		fmt.Sprintf(
+			"%s/post.paginateCreator", 
+			utils.PIXIV_FANBOX_API_URL,
+		),
 		30,
 		cookies,
 		headers,
@@ -541,7 +544,7 @@ func getCreatorsPosts(creatorIds, pageNums *[]string, cookies []http.Cookie) []s
 
 	var postIds []string
 	var errSlice []error
-	baseMsg := "Getting post IDs from creator(s) on Pixiv Fanbox [%d/" + fmt.Sprintf("%d]...", creatorIdsLen)
+	baseMsg := "Getting post ID(s) from creator(s) on Pixiv Fanbox [%d/" + fmt.Sprintf("%d]...", creatorIdsLen)
 	progress := spinner.New(
 		spinner.REQ_SPINNER,
 		"fgHiYellow",
@@ -550,7 +553,7 @@ func getCreatorsPosts(creatorIds, pageNums *[]string, cookies []http.Cookie) []s
 			0,
 		),
 		fmt.Sprintf(
-			"Finished getting post IDs from %d creator(s) on Pixiv Fanbox!",
+			"Finished getting post ID(s) from %d creator(s) on Pixiv Fanbox!",
 			creatorIdsLen,
 		),
 		fmt.Sprintf(

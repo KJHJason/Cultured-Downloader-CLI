@@ -48,13 +48,13 @@ type PixivMobile struct {
 // Get a new PixivMobile structure
 func NewPixivMobile(refreshToken string, timeout int) *PixivMobile {
 	pixivMobile := &PixivMobile{
-		baseUrl:       "https://app-api.pixiv.net",
+		baseUrl:       utils.PIXIV_MOBILE_URL,
 		clientId:      "MOBrBDS8blbauoSck0ZfDbtuzpyT",
 		clientSecret:  "lsACyCD94FhDUtGTXi3QzcFE2uU1hqtDaKeqrdwj",
 		userAgent:     "PixivIOSApp/7.13.3 (iOS 14.6; iPhone13,2)",
 		authTokenUrl:  "https://oauth.secure.pixiv.net/auth/token",
-		loginUrl:      "https://app-api.pixiv.net/web/v1/login",
-		redirectUri:   "https://app-api.pixiv.net/web/v1/users/auth/pixiv/callback",
+		loginUrl:      utils.PIXIV_MOBILE_URL + "/web/v1/login",
+		redirectUri:   utils.PIXIV_MOBILE_URL + "/web/v1/users/auth/pixiv/callback",
 		accessTokenMu: sync.Mutex{},
 		refreshToken:  refreshToken,
 		apiTimeout:    timeout,
