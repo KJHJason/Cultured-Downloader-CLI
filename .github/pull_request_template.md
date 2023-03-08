@@ -2,6 +2,8 @@
 
 ## Type of additions (Tick those that apply):
 
+<!-- Use ✗/✓ for the following type of additions  -->
+
 - [ ] Bug fix (non-breaking change which fixes an issue)
 - [ ] New feature (non-breaking change which adds functionality)
 
