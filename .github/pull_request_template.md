@@ -15,6 +15,8 @@ Please add your summary here...
 
 ## Checklist (Tick those that apply):
 
+<!-- Use ✗/✓ for the following checklist  -->
+
 - [ ] I have read the [contribution guidelines](https://github.com/KJHJason/Cultured-Downloader-CLI/blob/main/CONTRIBUTING.md) and have adhered to it
 - [ ] I have performed a self-review of my code
 - [ ] I have commented my code, particularly in hard-to-understand areas
