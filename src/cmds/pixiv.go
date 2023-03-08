@@ -138,10 +138,10 @@ func init() {
 			[]string{
 				"Your Pixiv refresh token to use for the requests to Pixiv.",
 				"If you're downloading from Pixiv, it is recommended to use this flag",
-				"instead of the \"-pixiv_session\" flag as there will be significantly lesser API calls to Pixiv.",
+				"instead of the \"--session\" flag as there will be significantly lesser API calls to Pixiv.",
 				"However, if you prefer more flexibility with your Pixiv downloads, you can use",
-				"the \"-pixiv_session\" flag instead at the expense of longer API call time due to Pixiv's rate limiting.",
-				"Note that you can get your refresh token by running the program with the \"-pixiv_start_oauth\" flag.",
+				"the \"--session\" flag instead at the expense of longer API call time due to Pixiv's rate limiting.",
+				"Note that you can get your refresh token by running the program with the \"--start_oauth\" flag.",
 			},
 		),
 	)
@@ -245,9 +245,8 @@ func init() {
 				"Additionally, you can add the \"_d\" suffix for a descending order.",
 				"Example: \"popular_d\"",
 				"Note:",
-				"- If using the \"-pixiv_refresh_token\" flag, only \"date\", \"date_d\", \"popular_d\" are supported.",
+				"- If using the \"--refresh_token\" flag, only \"date\", \"date_d\", \"popular_d\" are supported.",
 				"- Pixiv Premium is needed in order to search by popularity. Otherwise, Pixiv's API will default to \"date_d\".",
-				"- You can only specify ONE tag name per run!\n",
 			},
 		),
 	)
@@ -261,7 +260,6 @@ func init() {
 				"- s_tag: Match any post with SIMILAR tag name",
 				"- s_tag_full: Match any post with the SAME tag name",
 				"- s_tc: Match any post related by its title or caption",
-				"Note that you can only specify ONE search mode per run!",
 			},
 		),
 	)
@@ -276,8 +274,7 @@ func init() {
 				"- safe: Restrict downloads to all ages artworks",
 				"- all: Include both R-18 and all ages artworks",
 				"Notes:",
-				"- You can only specify ONE rating mode per run!",
-				"- If you're using the \"-pixiv_refresh_token\" flag, only \"all\" is supported.",
+				"- If you're using the \"--refresh_token\" flag, only \"all\" is supported.",
 			},
 		),
 	)
@@ -292,7 +289,6 @@ func init() {
 				"- manga: Restrict downloads to manga only",
 				"- all: Include both illustrations, ugoira, and manga artworks",
 				"Notes:",
-				"- You can only specify ONE artwork type per run!",
 				"- If you're using the \"-pixiv_refresh_token\" flag and are downloading by tag names, only \"all\" is supported.",
 			},
 		),

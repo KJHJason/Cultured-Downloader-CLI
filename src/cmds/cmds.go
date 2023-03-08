@@ -54,7 +54,8 @@ func init() {
 			utils.CombineStringsWithNewline(
 				[]string{
 					"Pass in a file path to your saved Netscape/Mozilla generated cookie file to use when downloading.",
-					"You can generate a cookie file by using the \"Get cookies.txt\" extension for your browser.",
+					"You can generate a cookie file by using the \"Get cookies.txt LOCALLY\" extension for your browser.",
+					"Chrome Extension URL: https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc",
 				},
 			),
 		)
