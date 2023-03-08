@@ -21,6 +21,14 @@ const (
 	GDRIVE_FILE_FIELDS = "id,name,size,mimeType,md5Checksum"
 )
 
+const (
+	GDRIVE_ERROR_FILENAME = "gdrive_download.log"
+
+	// file fields to fetch from GDrive API:
+	// https://developers.google.com/drive/api/v3/reference/files
+	GDRIVE_FILE_FIELDS = "id,name,size,mimeType,md5Checksum" 
+)
+
 type GDrive struct {
 	apiKey             string // Google Drive API key to use
 	apiUrl             string // https://www.googleapis.com/drive/v3/files

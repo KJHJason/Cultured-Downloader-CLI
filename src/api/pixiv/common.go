@@ -32,11 +32,7 @@ func GetPixivRequestHeaders() map[string]string {
 func GetIllustUrl(illustId string) string {
 	return "https://www.pixiv.net/artworks/" + illustId
 }
-
 func GetUserUrl(userId string) string {
-	return "https://www.pixiv.net/users/" + userId
-}
-
 // Map the Ugoira frame delays to their respective filenames
 func MapDelaysToFilename(ugoiraFramesJson map[string]interface{}) map[string]int64 {
 	frameInfoMap := map[string]int64{}
