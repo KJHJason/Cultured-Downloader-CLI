@@ -101,8 +101,8 @@ func init() {
 		utils.CombineStringsWithNewline(
 			[]string{
 				"Min and max page numbers to search for corresponding to the order of the supplied Fantia Fanclub ID(s).",
-				"Format: \"num\" or \"minNum-maxNum\"",
-				"Example: \"1\" or \"1-10\"",
+				"Format: \"num\", \"minNum-maxNum\", or \"\" to download all pages",
+				"Leave blank to download all pages from each Fantia Fanclub.",
 			},
 		),
 	)

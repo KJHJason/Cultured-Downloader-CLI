@@ -38,13 +38,14 @@ func PixivDownloadProcess(config *api.Config, pixivDl *PixivDl, pixivDlOptions *
 		if pixivDlOptions.MobileClient == nil {
 			artworksSlice, ugoiraSlice = getMultipleIllustratorPosts(
 				&pixivDl.IllustratorIds,
+				&pixivDl.IllustratorPageNums,
 				utils.DOWNLOAD_PATH,
-				pixivDlOptions.ArtworkType,
-				pixivDlOptions.SessionCookies,
+				pixivDlOptions,
 			)
 		} else {
 			artworksSlice, ugoiraSlice = pixivDlOptions.MobileClient.getMultipleIllustratorPosts(
 				&pixivDl.IllustratorIds,
+				&pixivDl.IllustratorPageNums,
 				utils.DOWNLOAD_PATH,
 				pixivDlOptions.ArtworkType,
 			)
@@ -76,34 +77,21 @@ func PixivDownloadProcess(config *api.Config, pixivDl *PixivDl, pixivDlOptions *
 		progress.Start()
 		hasErr := false
 		for idx, tagName := range pixivDl.TagNames {
-			var err error
-			var minPage, maxPage int
-			pageNum := pixivDl.TagNamesPageNums[idx]
-
-			minPage, maxPage, _, err = utils.GetMinMaxFromStr(pageNum)
-			if err != nil {
-				progress.Stop(true)
-				utils.LogError(err, "", true)
-			}
-
 			var artworksSlice []map[string]string
 			var ugoiraSlice []Ugoira
 			if pixivDlOptions.MobileClient == nil {
 				artworksSlice, ugoiraSlice, hasErr = tagSearch(
 					tagName,
 					utils.DOWNLOAD_PATH,
+					pixivDl.TagNamesPageNums[idx],
 					pixivDlOptions,
-					minPage,
-					maxPage,
-					pixivDlOptions.SessionCookies,
 				)
 			} else {
 				artworksSlice, ugoiraSlice, hasErr = pixivDlOptions.MobileClient.tagSearch(
 					tagName,
 					utils.DOWNLOAD_PATH,
+					pixivDl.TagNamesPageNums[idx],
 					pixivDlOptions,
-					minPage,
-					maxPage,
 				)
 			}
 			artworksToDownload = append(artworksToDownload, artworksSlice...)

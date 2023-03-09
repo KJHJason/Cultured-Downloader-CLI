@@ -47,6 +47,38 @@ func GetUserUrl(userId string) string {
 	)
 }
 
+// Convert the page number to the offset as one page will have 60 illustrations.
+//
+// Usually for paginated results from Pixiv's mobile API, checkPixivMax should be set to true.
+func ConvertPageNumToOffset(minPageNum, maxPageNum int, checkPixivMax bool) (int, int) {
+	// Check for negative page numbers
+	if minPageNum < 0 {
+		minPageNum = 1
+	}
+	if maxPageNum < 0 {
+		maxPageNum = 1
+	}
+
+	// Swap the page numbers if the min is greater than the max
+	if minPageNum > maxPageNum {
+		minPageNum, maxPageNum = maxPageNum, minPageNum
+	}
+
+	minOffset := 60 * (minPageNum - 1)
+	maxOffset := 60 * (maxPageNum - minPageNum + 1)
+
+	if checkPixivMax {
+		// Check if the offset is larger than Pixiv's max offset
+		if maxOffset > 5000 {
+			maxOffset = 5000
+		}
+		if minOffset > 5000 {
+			minOffset = 5000
+		}
+	}
+	return minOffset, maxOffset
+}
+
 // Map the Ugoira frame delays to their respective filenames
 func MapDelaysToFilename(ugoiraFramesJson map[string]interface{}) map[string]int64 {
 	frameInfoMap := map[string]int64{}
@@ -61,7 +93,11 @@ func MapDelaysToFilename(ugoiraFramesJson map[string]interface{}) map[string]int
 func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpegPath string, ugoiraQuality int) error {
 	outputExt := filepath.Ext(outputPath)
 	if !utils.SliceContains(UGOIRA_ACCEPTED_EXT, outputExt) {
-		return fmt.Errorf("pixiv error %d: Output extension %v is not allowed for ugoira conversion", utils.INPUT_ERROR, outputExt)
+		return fmt.Errorf(
+			"pixiv error %d: Output extension %v is not allowed for ugoira conversion", 
+			utils.INPUT_ERROR, 
+			outputExt,
+		)
 	}
 
 	// sort the ugoira frames by their filename which are %6d.imageExt

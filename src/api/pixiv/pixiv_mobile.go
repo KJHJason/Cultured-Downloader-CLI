@@ -70,33 +70,6 @@ func NewPixivMobile(refreshToken string, timeout int) *PixivMobile {
 	return pixivMobile
 }
 
-// Convert the page number to the offset as one page will have 30 illustrations instead of the usual 60.
-func ConvertPageNumToOffset(minPageNum, maxPageNum int) (int, int) {
-	// Check for negative page numbers
-	if minPageNum < 0 {
-		minPageNum = 1
-	}
-	if maxPageNum < 0 {
-		maxPageNum = 1
-	}
-
-	// Swap the page numbers if the min is greater than the max
-	if minPageNum > maxPageNum {
-		minPageNum, maxPageNum = maxPageNum, minPageNum
-	}
-
-	minOffset := 60 * (minPageNum - 1)
-	maxOffset := 60 * (maxPageNum - minPageNum + 1)
-	// Check if the offset is larger than Pixiv's max offset
-	if maxOffset > 5000 {
-		maxOffset = 5000
-	}
-	if minOffset > 5000 {
-		minOffset = 5000
-	}
-	return minOffset, maxOffset
-}
-
 // This is due to Pixiv's strict rate limiting.
 //
 // Without delays, the user might get 429 too many requests
@@ -516,20 +489,29 @@ func (pixiv *PixivMobile) getMultipleArtworkDetails(artworkIds *[]string, downlo
 }
 
 // Query Pixiv's API (mobile) to get all the posts JSON(s) of a user ID
-func (pixiv *PixivMobile) GetIllustratorPosts(userId, downloadPath, artworkType string) ([]map[string]string, []Ugoira, error) {
+func (pixiv *PixivMobile) GetIllustratorPosts(userId, pageNum, downloadPath, artworkType string) ([]map[string]string, []Ugoira, error) {
+	minPage, maxPage, hasMax, err := utils.GetMinMaxFromStr(pageNum)
+	if err != nil {
+		return nil, nil, err
+	}
+	minOffset, maxOffset := ConvertPageNumToOffset(minPage, maxPage, false)
+
 	params := map[string]string{
 		"user_id": userId,
 		"filter":  "for_ios",
+		"offset":  strconv.Itoa(minOffset),
 	}
-	if artworkType == "illust_and_ugoira" || artworkType == "all" {
+	if artworkType == "all" {
 		params["type"] = "illust"
 	} else {
-		params["type"] = "manga"
+		params["type"] = artworkType
 	}
 
 	var artworksToDownload []map[string]string
 	nextUrl := pixiv.baseUrl + "/v1/user/illusts"
+
 startLoop:
+	curOffset := minOffset
 	for nextUrl != "" {
 		res, err := pixiv.SendRequest(
 			nextUrl,
@@ -552,8 +534,10 @@ startLoop:
 			pixiv.ProcessMultipleArtworkJson(resJson, downloadPath)...,
 		)
 
+		curOffset += 30
+		params["offset"] = strconv.Itoa(curOffset)
 		jsonNextUrl := resJson["next_url"]
-		if jsonNextUrl == nil {
+		if jsonNextUrl == nil || (hasMax && curOffset >= maxOffset) {
 			nextUrl = ""
 		} else {
 			nextUrl = jsonNextUrl.(string)
@@ -573,7 +557,7 @@ startLoop:
 	return artworksToDownload, ugoiraSlice, nil
 }
 
-func (pixiv *PixivMobile) getMultipleIllustratorPosts(userIds *[]string, downloadPath, artworkType string) ([]map[string]string, []Ugoira) {
+func (pixiv *PixivMobile) getMultipleIllustratorPosts(userIds, pageNums *[]string, downloadPath, artworkType string) ([]map[string]string, []Ugoira) {
 	var artworksToDownload []map[string]string
 	var ugoiraSlice []Ugoira
 	userIdsLen := len(*userIds)
@@ -600,7 +584,12 @@ func (pixiv *PixivMobile) getMultipleIllustratorPosts(userIds *[]string, downloa
 	)
 	progress.Start()
 	for idx, userId := range *userIds {
-		artworkDetails, ugoiraInfo, err := pixiv.GetIllustratorPosts(userId, downloadPath, artworkType)
+		artworkDetails, ugoiraInfo, err := pixiv.GetIllustratorPosts(
+			userId, 
+			(*pageNums)[idx],
+			downloadPath, 
+			artworkType,
+		)
 		if err != nil {
 			errSlice = append(errSlice, err)
 			progress.MsgIncrement(baseMsg)
@@ -625,47 +614,30 @@ func (pixiv *PixivMobile) getMultipleIllustratorPosts(userIds *[]string, downloa
 	return artworksToDownload, ugoiraSlice
 }
 
-var pixivMobileSearchTargetMap = map[string]string{
-	"s_tag":      "partial_match_for_tags",
-	"s_tag_full": "exact_match_for_tags",
-	"s_tc":       "title_and_caption",
-}
-
 // Query Pixiv's API (mobile) to get the JSON of a search query
-func (pixiv *PixivMobile) tagSearch(tagName, downloadPath string, dlOptions *PixivDlOptions, minPage, maxPage int) ([]map[string]string, []Ugoira, bool) {
+func (pixiv *PixivMobile) tagSearch(tagName, downloadPath, pageNum string, dlOptions *PixivDlOptions) ([]map[string]string, []Ugoira, bool) {
 	var artworksToDownload []map[string]string
 	nextUrl := pixiv.baseUrl + "/v1/search/illust"
-	minOffset, maxOffset := ConvertPageNumToOffset(minPage, maxPage)
-
-	// Convert searchTarget to the correct value
-	// based on the Pixiv's ajax web API
-	searchTarget, ok := pixivMobileSearchTargetMap[dlOptions.SearchMode]
-	if !ok {
-		color.Red(
-			fmt.Sprintf("pixiv mobile error %d: invalid search mode \"%s\"", utils.DEV_ERROR, dlOptions.SearchMode),
+	minPage, maxPage, hasMax, err := utils.GetMinMaxFromStr(pageNum)
+	if err != nil {
+		utils.LogError(
+			err,
+			"",
+			false,
 		)
-		os.Exit(1)
+		return nil, nil, true
 	}
-
-	// Convert sortOrder to the correct value
-	// based on the Pixiv's ajax web API
-	var sortOrder string
-	if strings.Contains(dlOptions.SortOrder, "popular") {
-		sortOrder = "popular_desc" // only supports popular_desc
-	} else if dlOptions.SortOrder == "date_d" {
-		sortOrder = "date_desc"
-	} else {
-		sortOrder = "date_asc"
-	}
+	minOffset, maxOffset := ConvertPageNumToOffset(minPage, maxPage, false)
 
 	params := map[string]string{
 		"word":          tagName,
-		"search_target": searchTarget,
-		"sort":          sortOrder,
+		"search_target": dlOptions.SearchMode,
+		"sort":          dlOptions.SortOrder,
 		"filter":        "for_ios",
 		"offset":        strconv.Itoa(minOffset),
 	}
-	for nextUrl != "" && minOffset < maxOffset {
+	curOffset := minOffset
+	for nextUrl != "" {
 		res, err := pixiv.SendRequest(nextUrl, pixiv.GetHeaders(), params, true)
 		if err != nil {
 			utils.LogError(
@@ -681,12 +653,15 @@ func (pixiv *PixivMobile) tagSearch(tagName, downloadPath string, dlOptions *Pix
 			return nil, nil, true
 		}
 		resJson := res.(map[string]interface{})
-		artworksToDownload = append(artworksToDownload, pixiv.ProcessMultipleArtworkJson(resJson, downloadPath)...)
+		artworksToDownload = append(
+			artworksToDownload, 
+			pixiv.ProcessMultipleArtworkJson(resJson, downloadPath)...,
+		)
 
-		minOffset += 30
-		params["offset"] = strconv.Itoa(minOffset)
+		curOffset += 30
+		params["offset"] = strconv.Itoa(curOffset)
 		jsonNextUrl := resJson["next_url"]
-		if jsonNextUrl == nil {
+		if jsonNextUrl == nil || (hasMax && curOffset >= maxOffset){
 			nextUrl = ""
 		} else {
 			nextUrl = jsonNextUrl.(string)

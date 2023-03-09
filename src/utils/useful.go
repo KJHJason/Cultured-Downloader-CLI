@@ -242,7 +242,6 @@ func SliceContains(arr []string, str string) bool {
 //
 // Otherwise, os.Exit(1) is called after printing error messages for the user to read
 func ValidateStrArgs(str string, slice, errMsgs []string) string {
-	str = strings.ToLower(str)
 	if SliceContains(slice, str) {
 		return str
 	}

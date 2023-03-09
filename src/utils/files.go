@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -131,16 +130,6 @@ func GetDefaultDownloadPath() string {
 	return config.DownloadDir
 }
 
-// Pretify a JSON bytes input by indenting it with 4 whitespaces
-func PretifyJSON(jsonBytes []byte) ([]byte, error) {
-	var prettyJSON bytes.Buffer
-	err := json.Indent(&prettyJSON, jsonBytes, "", "    ")
-	if err != nil {
-		return []byte{}, err
-	}
-	return prettyJSON.Bytes(), nil
-}
-
 // Configure and saves the config file with updated download path
 func SetDefaultDownloadPath(newDownloadPath string) error {
 	if !PathExists(newDownloadPath) {
@@ -163,19 +152,10 @@ func SetDefaultDownloadPath(newDownloadPath string) error {
 			ClientDigestMethod: digestMethod,
 		}
 
-		configFile, err := json.Marshal(config)
+		configFile, err := json.MarshalIndent(config, "", "    ")
 		if err != nil {
 			return fmt.Errorf(
 				"error %d: failed to marshal config file, more info => %v",
-				JSON_ERROR,
-				err,
-			)
-		}
-
-		configFile, err = PretifyJSON(configFile)
-		if err != nil {
-			return fmt.Errorf(
-				"error %d: failed to pretify config file, more info => %v",
 				JSON_ERROR,
 				err,
 			)
@@ -216,20 +196,10 @@ func SetDefaultDownloadPath(newDownloadPath string) error {
 		}
 
 		config.DownloadDir = newDownloadPath
-		configFile, err = json.Marshal(config)
+		configFile, err = json.MarshalIndent(config, "", "    ")
 		if err != nil {
 			return fmt.Errorf(
 				"error %d: failed to marshal config file, more info => %v",
-				JSON_ERROR,
-				err,
-			)
-		}
-
-		// indent the file
-		configFile, err = PretifyJSON(configFile)
-		if err != nil {
-			return fmt.Errorf(
-				"error %d: failed to pretify config file, more info => %v",
 				JSON_ERROR,
 				err,
 			)

@@ -297,7 +297,10 @@ func DownloadURL(
 		}
 		filename = utils.GetLastPartOfURL(filename)
 		filenameWithoutExt := utils.RemoveExtFromFilename(filename)
-		filePath = filepath.Join(filePath, filenameWithoutExt+strings.ToLower(filepath.Ext(filename)))
+		filePath = filepath.Join(
+			filePath, 
+			filenameWithoutExt + strings.ToLower(filepath.Ext(filename)),
+		)
 	} else {
 		filePathDir := filepath.Dir(filePath)
 		os.MkdirAll(filePathDir, 0666)

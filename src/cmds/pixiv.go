@@ -12,23 +12,24 @@ import (
 )
 
 var (
-	pixivCookieFile     string
-	pixivFfmpegPath     string
-	pixivStartOauth     bool
-	pixivRefreshToken   string
-	pixivSession        string
-	deleteUgoiraZip     bool
-	ugoiraQuality       int
-	ugoiraOutputFormat  string
-	pixivArtworkIds     []string
-	pixivIllustratorIds []string
-	pixivTagNames       []string
-	pixivPageNums       []string
-	pixivSortOrder      string
-	pixivSearchMode     string
-	pixivRatingMode     string
-	pixivArtworkType    string
-	pixivOverwrite      bool
+	pixivCookieFile          string
+	pixivFfmpegPath          string
+	pixivStartOauth          bool
+	pixivRefreshToken        string
+	pixivSession             string
+	deleteUgoiraZip          bool
+	ugoiraQuality            int
+	ugoiraOutputFormat       string
+	pixivArtworkIds          []string
+	pixivIllustratorIds      []string
+	pixivIllustratorPageNums []string
+	pixivTagNames            []string
+	pixivPageNums            []string
+	pixivSortOrder           string
+	pixivSearchMode          string
+	pixivRatingMode          string
+	pixivArtworkType         string
+	pixivOverwrite           bool
 	pixivCmd            = &cobra.Command{
 		Use:   "pixiv",
 		Short: "Download from Pixiv",
@@ -62,10 +63,11 @@ var (
 				},
 			)
 			pixivDl := pixiv.PixivDl{
-				ArtworkIds:       pixivArtworkIds,
-				IllustratorIds:   pixivIllustratorIds,
-				TagNames:         pixivTagNames,
-				TagNamesPageNums: pixivPageNums,
+				ArtworkIds:          pixivArtworkIds,
+				IllustratorIds:      pixivIllustratorIds,
+				IllustratorPageNums: pixivIllustratorPageNums,
+				TagNames:            pixivTagNames,
+				TagNamesPageNums:    pixivPageNums,
 			}
 			pixivDl.ValidateArgs()
 
@@ -212,6 +214,18 @@ func init() {
 		),
 	)
 	pixivCmd.Flags().StringSliceVar(
+		&pixivIllustratorPageNums,
+		"illustrator_page_num",
+		[]string{},
+		utils.CombineStringsWithNewline(
+			[]string{
+				"Min and max page numbers to search for corresponding to the order of the supplied illustrator ID(s).",
+				"Format: \"num\", \"minNum-maxNum\", or \"\" to download all pages",
+				"Leave blank to download all pages from each illustrator.",
+			},
+		),
+	)
+	pixivCmd.Flags().StringSliceVar(
 		&pixivTagNames,
 		"tag_name",
 		[]string{},
@@ -229,9 +243,9 @@ func init() {
 		[]string{},
 		utils.CombineStringsWithNewline(
 			[]string{
-				"Min and max page numbers to search for corresponding to the order of the supplied tag names.",
-				"Format: \"num\" or \"minNum-maxNum\"",
-				"Example: \"1\" or \"1-10\"",
+				"Min and max page numbers to search for corresponding to the order of the supplied tag name(s).",
+				"Format: \"num\", \"minNum-maxNum\", or \"\" to download all pages",
+				"Leave blank to search all pages for each tag name.",
 			},
 		),
 	)
