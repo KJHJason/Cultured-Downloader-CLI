@@ -25,6 +25,8 @@ type PixivDl struct {
 // ValidateArgs validates the IDs of the Pixiv artworks and illustrators to download.
 //
 // It also validates the page numbers of the tag names to download.
+//
+// Should be called after initialising the struct.
 func (p *PixivDl) ValidateArgs() {
 	utils.ValidateIds(&p.ArtworkIds)
 	utils.ValidateIds(&p.IllustratorIds)
@@ -55,6 +57,8 @@ var UGOIRA_ACCEPTED_EXT = []string{
 }
 
 // ValidateArgs validates the arguments of the ugoira process options.
+//
+// Should be called after initialising the struct.
 func (u *UgoiraOptions) ValidateArgs() {
 	if u.Quality < 0 || u.Quality > 63 {
 		color.Red(
@@ -114,6 +118,8 @@ var (
 )
 
 // ValidateArgs validates the arguments of the Pixiv download options.
+//
+// Should be called after initialising the struct.
 func (p *PixivDlOptions) ValidateArgs() {
 	utils.ValidateStrArgs(
 		p.SortOrder,

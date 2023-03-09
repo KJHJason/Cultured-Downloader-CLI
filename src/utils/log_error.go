@@ -11,12 +11,19 @@ import (
 	"github.com/fatih/color"
 )
 
-var logMut sync.Mutex
-var logFilePath = filepath.Join(
-	APP_PATH, 
-	"logs",
-	fmt.Sprintf("cultured_downloader-cli_v%s_%s.log", VERSION, time.Now().Format("2006-01-02")),
+var (
+	logMut = sync.Mutex{}
+	logFilePath = filepath.Join(
+		APP_PATH, 
+		"logs",
+		fmt.Sprintf(
+			"cultured_downloader-cli_v%s_%s.log", 
+			VERSION, 
+			time.Now().Format("2006-01-02"),
+		),
+	)
 )
+
 // Thread-safe logging function that logs to "cultured_downloader.log" in the logs directory
 func LogError(err error, errorMsg string, exit bool) {
 	logMut.Lock()
