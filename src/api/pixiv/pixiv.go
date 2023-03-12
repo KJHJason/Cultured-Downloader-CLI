@@ -102,12 +102,13 @@ func PixivDownloadProcess(config *api.Config, pixivDl *PixivDl, pixivDlOptions *
 	}
 
 	if len(artworksToDownload) > 0 {
+		headers := GetPixivRequestHeaders()
 		request.DownloadURLsParallel(
 			&artworksToDownload,
 			utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
 			pixivDlOptions.SessionCookies,
-			GetPixivRequestHeaders(),
-			nil,
+			&headers,
+			false,
 			config.OverwriteFiles,
 		)
 	}

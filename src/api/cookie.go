@@ -48,17 +48,25 @@ func GetCookie(sessionID, website string) http.Cookie {
 func VerifyCookie(cookie http.Cookie, website string) (bool, error) {
 	// sends a request to the website to verify the cookie
 	var websiteURL string
+	var useHttp3 bool
 	switch website {
 	case utils.FANTIA:
+		useHttp3 = true
 		websiteURL = utils.FANTIA_URL + "/mypage/users/plans"
 	case utils.PIXIV_FANBOX:
+		useHttp3 = false
 		websiteURL = utils.PIXIV_FANBOX_URL + "/creators/supporting"
 	case utils.PIXIV:
+		useHttp3 = true
 		websiteURL = utils.PIXIV_URL + "/manage/requests"
 	default:
 		// Shouldn't happen but could happen during development
 		panic(
-			fmt.Errorf("error %d, invalid website, \"%s\", in VerifyCookie", utils.DEV_ERROR, website),
+			fmt.Errorf(
+				"error %d, invalid website, \"%s\", in VerifyCookie", 
+				utils.DEV_ERROR, 
+				website,
+			),
 		)
 	}
 
@@ -67,7 +75,16 @@ func VerifyCookie(cookie http.Cookie, website string) (bool, error) {
 	}
 
 	cookies := []http.Cookie{cookie}
-	resp, err := request.CallRequest("HEAD", websiteURL, 5, cookies, nil, nil, true)
+	resp, err := request.CallRequest(
+		&request.RequestArgs{
+			Method:      "HEAD",
+			Url:         websiteURL,
+			Cookies:     &cookies,
+			CheckStatus: true,
+			Http3:       useHttp3,
+			Http2:       !useHttp3,
+		},
+	)
 	if err != nil {
 		return false, err
 	}

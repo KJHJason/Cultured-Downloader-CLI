@@ -99,7 +99,7 @@ var (
 						true,
 					)
 				}
-				pixivDlOptions.SessionCookies = cookies
+				pixivDlOptions.SessionCookies = &cookies
 			}
 			pixivDlOptions.ValidateArgs()
 

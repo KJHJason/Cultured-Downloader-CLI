@@ -54,7 +54,7 @@ var (
 						true,
 					)
 				}
-				fantiaDlOptions.SessionCookies = cookies
+				fantiaDlOptions.SessionCookies = &cookies
 			}
 
 			err := fantiaDlOptions.ValidateArgs()

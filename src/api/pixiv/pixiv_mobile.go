@@ -109,22 +109,20 @@ func (pixiv *PixivMobile) RefreshAccessToken() error {
 	defer pixiv.accessTokenMu.Unlock()
 
 	headers := map[string]string{"User-Agent": pixiv.userAgent}
-	data := map[string]string{
-		"client_id":      pixiv.clientId,
-		"client_secret":  pixiv.clientSecret,
-		"grant_type":     "refresh_token",
-		"include_policy": "true",
-		"refresh_token":  pixiv.refreshToken,
-	}
 	res, err := request.CallRequestWithData(
-		pixiv.authTokenUrl,
-		"POST",
-		pixiv.apiTimeout,
-		nil,
-		data,
-		headers,
-		nil,
-		false,
+		&request.RequestArgs{
+			Url:    pixiv.authTokenUrl,
+			Method: "POST",
+			Timeout: pixiv.apiTimeout,
+			Headers: &headers,
+		},
+		&map[string]string{
+			"client_id":      pixiv.clientId,
+			"client_secret":  pixiv.clientSecret,
+			"grant_type":     "refresh_token",
+			"include_policy": "true",
+			"refresh_token":  pixiv.refreshToken,
+		},
 	)
 	if err != nil || res.StatusCode != 200 {
 		const errPrefix = "pixiv mobile error"
@@ -193,7 +191,7 @@ func (pixiv *PixivMobile) SendRequest(reqUrl string, additionalHeaders, params m
 	for k, v := range pixiv.GetHeaders(additionalHeaders) {
 		req.Header.Set(k, v)
 	}
-	request.AddParams(params, req)
+	request.AddParams(&params, req)
 
 	var res *http.Response
 	client := &http.Client{}
@@ -272,18 +270,23 @@ func (pixiv *PixivMobile) StartOauthFlow() error {
 			continue
 		}
 
-		data := map[string]string{
-			"client_id":      pixiv.clientId,
-			"client_secret":  pixiv.clientSecret,
-			"code":           code,
-			"code_verifier":  codeVerifier,
-			"grant_type":     "authorization_code",
-			"include_policy": "true",
-			"redirect_uri":   pixiv.redirectUri,
-		}
 		res, err := request.CallRequestWithData(
-			pixiv.authTokenUrl, "POST",
-			pixiv.apiTimeout, nil, data, headers, nil, true,
+			&request.RequestArgs{
+				Url:    pixiv.authTokenUrl,
+				Method: "POST",
+				Timeout: pixiv.apiTimeout,
+				Headers: &headers,
+				CheckStatus: true,
+			},
+			&map[string]string{
+				"client_id":      pixiv.clientId,
+				"client_secret":  pixiv.clientSecret,
+				"code":           code,
+				"code_verifier":  codeVerifier,
+				"grant_type":     "authorization_code",
+				"include_policy": "true",
+				"redirect_uri":   pixiv.redirectUri,
+			},
 		)
 		if err != nil {
 			color.Red("Please check if the code you entered is correct.")

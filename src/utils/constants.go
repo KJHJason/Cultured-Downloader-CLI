@@ -67,6 +67,11 @@ const (
 	PIXIV_MAX_CONCURRENT_DOWNLOADS = 3
 	MAX_API_CALLS                  = 10
 
+	DOWNLOAD_TIMEOUT = 25 * 60 // 25 minutes in seconds as downloads
+	                           // can take quite a while for large files (especially for Pixiv)
+	                           // However, the average max file size on these platforms is around 300MB.
+	                           // Note: Fantia do have a max file size per post of 3GB if one paid extra for it.
+
 	FANTIA       = "fantia"
 	FANTIA_TITLE = "Fantia"
 	FANTIA_URL   = "https://fantia.jp"

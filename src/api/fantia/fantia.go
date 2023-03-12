@@ -185,7 +185,10 @@ func getPostDetails(postIds *[]string, fantiaDlOptions *FantiaDlOptions) []map[s
 		wg.Add(1)
 		queue <- struct{}{}
 		go func(postId string) {
-			defer wg.Done()
+			defer func() { 
+				<-queue
+				wg.Done()
+			}()
 
 			postApiUrl := url + postId
 			header := map[string]string{
@@ -193,13 +196,13 @@ func getPostDetails(postIds *[]string, fantiaDlOptions *FantiaDlOptions) []map[s
 				"x-csrf-token": fantiaDlOptions.CsrfToken,
 			}
 			res, err := request.CallRequest(
-				"GET",
-				postApiUrl,
-				30,
-				fantiaDlOptions.SessionCookies,
-				header,
-				nil,
-				false,
+				&request.RequestArgs{
+					Method: "GET",
+					Url:    postApiUrl,
+					Cookies: fantiaDlOptions.SessionCookies,
+					Headers: &header,
+					Http2: true,
+				},
 			)
 			if err != nil || res.StatusCode != 200 {
 				errCode := utils.CONNECTION_ERROR
@@ -228,7 +231,6 @@ func getPostDetails(postIds *[]string, fantiaDlOptions *FantiaDlOptions) []map[s
 				resChan <- res
 			}
 			progress.MsgIncrement(baseMsg)
-			<-queue
 		}(postId)
 	}
 	close(queue)
@@ -239,7 +241,7 @@ func getPostDetails(postIds *[]string, fantiaDlOptions *FantiaDlOptions) []map[s
 	hasErr := false
 	if len(errChan) > 0 {
 		hasErr = true
-		utils.LogErrors(false, &errChan)
+		utils.LogErrors(false, errChan)
 	}
 	progress.Stop(hasErr)
 
@@ -289,7 +291,7 @@ func getPostDetails(postIds *[]string, fantiaDlOptions *FantiaDlOptions) []map[s
 }
 
 // Get all the creator's posts by using goquery to parse the HTML response to get the post IDs
-func getFantiaPosts(creatorId, pageNum string, cookies []http.Cookie) ([]string, error) {
+func getFantiaPosts(creatorId, pageNum string, cookies *[]http.Cookie) ([]string, error) {
 	var postIds []string
 	minPage, maxPage, hasMax, err := utils.GetMinMaxFromStr(pageNum)
 	if err != nil {
@@ -307,7 +309,16 @@ func getFantiaPosts(creatorId, pageNum string, cookies []http.Cookie) ([]string,
 
 		// note that even if the max page is more than 
 		// the actual number of pages, the response will still be 200 OK.
-		res, err := request.CallRequest("GET", url, 30, cookies, nil, params, true)
+		res, err := request.CallRequest(
+			&request.RequestArgs{
+				Method: "GET",
+				Url:    url,
+				Cookies: cookies,
+				Params: &params,
+				Http3: true,
+				CheckStatus: true,
+			},
+		)
 		if err != nil {
 			err = fmt.Errorf(
 				"fantia error %d: failed to get creator's pages for %s, more info => %v",
@@ -360,7 +371,7 @@ func getFantiaPosts(creatorId, pageNum string, cookies []http.Cookie) ([]string,
 }
 
 // Retrieves all the posts based on the slice of creator IDs and returns a slice of post IDs
-func getCreatorsPosts(creatorIds, pageNums *[]string, cookies []http.Cookie) []string {
+func getCreatorsPosts(creatorIds, pageNums *[]string, cookies *[]http.Cookie) []string {
 	creatorIdsLen := len(*creatorIds)
 	if creatorIdsLen != len(*pageNums) {
 		panic(
@@ -403,7 +414,10 @@ func getCreatorsPosts(creatorIds, pageNums *[]string, cookies []http.Cookie) []s
 		wg.Add(1)
 		queue <- struct{}{}
 		go func(creatorId string, pageNumIdx int) {
-			defer wg.Done()
+			defer func() { 
+				<-queue
+				wg.Done()
+			}()
 
 			postIds, err := getFantiaPosts(
 				creatorId,
@@ -417,7 +431,6 @@ func getCreatorsPosts(creatorIds, pageNums *[]string, cookies []http.Cookie) []s
 			}
 
 			progress.MsgIncrement(baseMsg)
-			<-queue
 		}(creatorId, idx)
 	}
 	close(queue)
@@ -428,7 +441,7 @@ func getCreatorsPosts(creatorIds, pageNums *[]string, cookies []http.Cookie) []s
 	hasErr := false
 	if len(errChan) > 0 {
 		hasErr = true
-		utils.LogErrors(false, &errChan)
+		utils.LogErrors(false, errChan)
 	}
 	progress.Stop(hasErr)
 
@@ -472,7 +485,7 @@ func FantiaDownloadProcess(config *api.Config, fantiaDl *FantiaDl, fantiaDlOptio
 			utils.MAX_CONCURRENT_DOWNLOADS,
 			fantiaDlOptions.SessionCookies,
 			nil,
-			nil,
+			false,
 			config.OverwriteFiles,
 		)
 	}

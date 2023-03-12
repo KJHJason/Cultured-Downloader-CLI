@@ -65,7 +65,7 @@ var (
 						true,
 					)
 				}
-				pixivFanboxDlOptions.SessionCookies = cookies
+				pixivFanboxDlOptions.SessionCookies = &cookies
 			}
 			pixivFanboxDlOptions.ValidateArgs()
 

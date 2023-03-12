@@ -128,7 +128,7 @@ type PixivDlOptions struct {
 	MobileClient *PixivMobile
 	RefreshToken string
 
-	SessionCookies  []http.Cookie
+	SessionCookies  *[]http.Cookie
 	SessionCookieId string
 }
 
@@ -213,7 +213,7 @@ func (p *PixivDlOptions) ValidateArgs() {
 	)
 
 	if p.SessionCookieId != "" {
-		p.SessionCookies = []http.Cookie{
+		p.SessionCookies = &[]http.Cookie{
 			api.VerifyAndGetCookie(utils.PIXIV, p.SessionCookieId),
 		}
 	}

@@ -49,7 +49,7 @@ type FantiaDlOptions struct {
 	DlAttachments   bool
 
 	SessionCookieId string
-	SessionCookies  []http.Cookie
+	SessionCookies  *[]http.Cookie
 
 	csrfMu          sync.Mutex
 	CsrfToken       string
@@ -62,17 +62,17 @@ func (f *FantiaDlOptions) GetCsrfToken() error {
 	defer f.csrfMu.Unlock()
 
 	res, err := request.CallRequest(
-		"GET", 
-		"https://fantia.jp/", 
-		30, 
-		f.SessionCookies, 
-		nil, 
-		nil, 
-		false,
+		&request.RequestArgs{
+			Method: "GET",
+			Url: "https://fantia.jp/",
+			Cookies: f.SessionCookies,
+			Http3: true,
+			CheckStatus: true,
+		},
 	)
-	if err != nil || res.StatusCode != 200 {
+	if err != nil {
 		err = fmt.Errorf(
-			"error %d, failed to get CSRF token from Fantia: %w", 
+			"fantia error %d, failed to get CSRF token from Fantia: %w", 
 			utils.CONNECTION_ERROR, 
 			err,
 		)
@@ -82,7 +82,7 @@ func (f *FantiaDlOptions) GetCsrfToken() error {
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
 		err = fmt.Errorf(
-			"error %d, failed to get CSRF token from Fantia: %w", 
+			"fantia error %d, failed to get CSRF token from Fantia: %w", 
 			utils.RESPONSE_ERROR, 
 			err,
 		)
@@ -93,7 +93,7 @@ func (f *FantiaDlOptions) GetCsrfToken() error {
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
 		err = fmt.Errorf(
-			"error %d, failed to parse response body when getting CSRF token from Fantia: %w", 
+			"fantia error %d, failed to parse response body when getting CSRF token from Fantia: %w", 
 			utils.HTML_ERROR, 
 			err,
 		)
@@ -107,7 +107,7 @@ func (f *FantiaDlOptions) GetCsrfToken() error {
 			docHtml = "failed to get HTML"
 		}
 		return fmt.Errorf(
-			"error %d, failed to get CSRF Token from Fantia, please report this issue!\nHTML: %s",
+			"fantia error %d, failed to get CSRF Token from Fantia, please report this issue!\nHTML: %s",
 			utils.HTML_ERROR,
 			docHtml,
 		)
@@ -122,7 +122,7 @@ func (f *FantiaDlOptions) GetCsrfToken() error {
 // Should be called after initialising the struct.
 func (f *FantiaDlOptions) ValidateArgs() error {
 	if f.SessionCookieId != "" {
-		f.SessionCookies = []http.Cookie{
+		f.SessionCookies = &[]http.Cookie{
 			api.VerifyAndGetCookie(utils.FANTIA, f.SessionCookieId),
 		}
 	}

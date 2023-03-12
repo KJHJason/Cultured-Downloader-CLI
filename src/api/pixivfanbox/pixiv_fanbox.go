@@ -295,18 +295,21 @@ func getPostDetails(postIds *[]string, pixivFanboxDlOptions *PixivFanboxDlOption
 		wg.Add(1)
 		queue <- struct{}{}
 		go func(postId string) {
-			defer wg.Done()
+			defer func() { 
+				<-queue
+				wg.Done()
+			}()
 
 			header := GetPixivFanboxHeaders()
 			params := map[string]string{"postId": postId}
 			res, err := request.CallRequest(
-				"GET",
-				url,
-				30,
-				pixivFanboxDlOptions.SessionCookies,
-				header,
-				params,
-				false,
+				&request.RequestArgs{
+					Method:  "GET",
+					Url:     url,
+					Cookies: pixivFanboxDlOptions.SessionCookies,
+					Headers: &header,
+					Params:  &params,
+				},
 			)
 			if err != nil {
 				errChan <- fmt.Errorf(
@@ -326,7 +329,6 @@ func getPostDetails(postIds *[]string, pixivFanboxDlOptions *PixivFanboxDlOption
 				resChan <- res
 			}
 			progress.MsgIncrement(baseMsg)
-			<-queue
 		}(postId)
 	}
 	close(queue)
@@ -337,7 +339,7 @@ func getPostDetails(postIds *[]string, pixivFanboxDlOptions *PixivFanboxDlOption
 	hasErr := false
 	if len(errChan) > 0 {
 		hasErr = true
-		utils.LogErrors(false, &errChan)
+		utils.LogErrors(false, errChan)
 	}
 	progress.Stop(hasErr)
 
@@ -402,20 +404,21 @@ type FanboxCreatorPosts struct {
 }
 
 // GetFanboxCreatorPosts returns a slice of post IDs for a given creator
-func getFanboxPosts(creatorId, pageNum string, cookies []http.Cookie) ([]string, error) {
+func getFanboxPosts(creatorId, pageNum string, cookies *[]http.Cookie) ([]string, error) {
 	params := map[string]string{"creatorId": creatorId}
 	headers := GetPixivFanboxHeaders()
+	url := fmt.Sprintf(
+		"%s/post.paginateCreator", 
+		utils.PIXIV_FANBOX_API_URL,
+	)
 	res, err := request.CallRequest(
-		"GET",
-		fmt.Sprintf(
-			"%s/post.paginateCreator", 
-			utils.PIXIV_FANBOX_API_URL,
-		),
-		30,
-		cookies,
-		headers,
-		params,
-		false,
+		&request.RequestArgs{
+			Method:  "GET",
+			Url:     url,
+			Cookies: cookies,
+			Headers: &headers,
+			Params:  &params,
+		},
 	)
 	if err != nil || res.StatusCode != 200 {
 		const errPrefix = "pixiv fanbox error"
@@ -483,7 +486,14 @@ func getFanboxPosts(creatorId, pageNum string, cookies []http.Cookie) ([]string,
 		queue <- struct{}{}
 		go func(reqUrl string) {
 			defer wg.Done()
-			res, err := request.CallRequest("GET", reqUrl, 30, cookies, headers, nil, false)
+			res, err := request.CallRequest(
+				&request.RequestArgs{
+					Method:  "GET",
+					Url:     reqUrl,
+					Cookies: cookies,
+					Headers: &headers,
+				},
+			)
 			if err != nil || res.StatusCode != 200 {
 				if err == nil {
 					res.Body.Close()
@@ -531,7 +541,7 @@ func getFanboxPosts(creatorId, pageNum string, cookies []http.Cookie) ([]string,
 }
 
 // Retrieves all the posts based on the slice of creator IDs and returns a slice of post IDs
-func getCreatorsPosts(creatorIds, pageNums *[]string, cookies []http.Cookie) []string {
+func getCreatorsPosts(creatorIds, pageNums *[]string, cookies *[]http.Cookie) []string {
 	creatorIdsLen := len(*creatorIds)
 	if creatorIdsLen != len(*pageNums) {
 		panic(
@@ -617,12 +627,13 @@ func PixivFanboxDownloadProcess(config *api.Config, pixivFanboxDl *PixivFanboxDl
 	}
 
 	if len(urlsToDownload) > 0 {
+		headers := GetPixivFanboxHeaders()
 		request.DownloadURLsParallel(
 			&urlsToDownload,
 			utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
 			pixivFanboxDlOptions.SessionCookies,
-			GetPixivFanboxHeaders(),
-			nil,
+			&headers,
+			false,
 			config.OverwriteFiles,
 		)
 	}

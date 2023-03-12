@@ -74,7 +74,7 @@ type ArtworkDetails struct {
 
 // Retrieves details of an artwork ID and returns
 // the folder path to download the artwork to, the JSON response, and the artwork type
-func GetArtworkDetails(artworkId, downloadPath string, cookies []http.Cookie) (string, interface{}, int64, error) {
+func GetArtworkDetails(artworkId, downloadPath string, cookies *[]http.Cookie) (string, interface{}, int64, error) {
 	if artworkId == "" {
 		return "", nil, -1, nil
 	}
@@ -82,7 +82,14 @@ func GetArtworkDetails(artworkId, downloadPath string, cookies []http.Cookie) (s
 	headers := GetPixivRequestHeaders()
 	headers["Referer"] = GetUserUrl(artworkId)
 	url := fmt.Sprintf("%s/illust/%s", utils.PIXIV_API_URL, artworkId)
-	artworkDetailsRes, err := request.CallRequest("GET", url, 15, cookies, headers, nil, false)
+	artworkDetailsRes, err := request.CallRequest(
+		&request.RequestArgs{
+			Url: 	 url,
+			Method:  "GET",
+			Cookies: cookies,
+			Headers: &headers,
+		},
+	)
 	if err != nil {
 		err = fmt.Errorf(
 			"pixiv error %d: failed to get artwork details for ID %v from %s",
@@ -150,7 +157,14 @@ func GetArtworkDetails(artworkId, downloadPath string, cookies []http.Cookie) (s
 		return "", nil, -1, err
 	}
 
-	artworkUrlsRes, err := request.CallRequest("GET", url, 15, cookies, headers, nil, false)
+	artworkUrlsRes, err := request.CallRequest(
+		&request.RequestArgs{
+			Url: 	 url,
+			Method:  "GET",
+			Cookies: cookies,
+			Headers: &headers,
+		},
+	)
 	if err != nil {
 		err = fmt.Errorf(
 			"pixiv error %d: failed to get artwork URLs for ID %s from %s due to %v",
@@ -183,7 +197,7 @@ func GetArtworkDetails(artworkId, downloadPath string, cookies []http.Cookie) (s
 
 // Retrieves multiple artwork details based on the given slice of artwork IDs
 // and returns a map to use for downloading and a slice of Ugoira structures
-func getMultipleArtworkDetails(artworkIds *[]string, downloadPath string, cookies []http.Cookie) ([]map[string]string, []Ugoira) {
+func getMultipleArtworkDetails(artworkIds *[]string, downloadPath string, cookies *[]http.Cookie) ([]map[string]string, []Ugoira) {
 	var errSlice []error
 	var ugoiraDetails []Ugoira
 	var artworkDetails []map[string]string
@@ -244,12 +258,19 @@ func getMultipleArtworkDetails(artworkIds *[]string, downloadPath string, cookie
 }
 
 // Query Pixiv's API for all the illustrator's posts
-func GetIllustratorPosts(illustratorId, artworkType, pageNum string, cookies []http.Cookie) ([]string, error) {
+func GetIllustratorPosts(illustratorId, artworkType, pageNum string, cookies *[]http.Cookie) ([]string, error) {
 	headers := GetPixivRequestHeaders()
 	headers["Referer"] = GetIllustUrl(illustratorId)
 	url := fmt.Sprintf("%s/user/%s/profile/all", utils.PIXIV_API_URL, illustratorId)
 
-	res, err := request.CallRequest("GET", url, 5, cookies, headers, nil, false)
+	res, err := request.CallRequest(
+		&request.RequestArgs{
+			Url:     url,
+			Method:  "GET",
+			Cookies: cookies,
+			Headers: &headers,
+		},
+	)
 	if err != nil {
 		err = fmt.Errorf(
 			"pixiv error %d: failed to get illustrator's posts with an ID of %s due to %v",
@@ -460,13 +481,14 @@ func tagSearch(tagName, downloadPath, pageNum string, dlOptions *PixivDlOptions)
 
 		params["p"] = strconv.Itoa(page) // page number
 		res, err := request.CallRequest(
-			"GET",
-			url, 
-			5, 
-			dlOptions.SessionCookies,
-			headers, 
-			params, 
-			true,
+			&request.RequestArgs{
+				Url:         url,
+				Method:      "GET",
+				Cookies:     dlOptions.SessionCookies,
+				Headers:     &headers,
+				Params:      &params,
+				CheckStatus: true,
+			},
 		)
 		if err != nil {
 			err = fmt.Errorf(

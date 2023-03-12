@@ -59,7 +59,7 @@ type PixivFanboxDlOptions struct {
 	DlGdrive      bool
 
 	SessionCookieId string
-	SessionCookies  []http.Cookie
+	SessionCookies  *[]http.Cookie
 }
 
 // ValidateArgs validates the session cookie ID of the Pixiv Fanbox account to download from.
@@ -67,7 +67,7 @@ type PixivFanboxDlOptions struct {
 // Should be called after initialising the struct.
 func (pf *PixivFanboxDlOptions) ValidateArgs() {
 	if pf.SessionCookieId != "" {
-		pf.SessionCookies = []http.Cookie{
+		pf.SessionCookies = &[]http.Cookie{
 			api.VerifyAndGetCookie(utils.PIXIV_FANBOX, pf.SessionCookieId),
 		}
 	}

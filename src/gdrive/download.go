@@ -1,13 +1,16 @@
 package gdrive
 
 import (
+	"context"
 	"crypto/md5"
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
@@ -17,7 +20,7 @@ import (
 // Downloads the given GDrive file using GDrive API v3
 //
 // If the md5Checksum has a mismatch, the file will be overwritten and downloaded again
-func (gdrive *GDrive) DownloadFile(fileInfo map[string]string, filePath string) error {
+func (gdrive *GDrive) DownloadFile(fileInfo map[string]string, filePath string, queue chan struct{}) error {
 	if utils.PathExists(filePath) {
 		// check the md5 checksum and the file size
 		file, err := os.OpenFile(filePath, os.O_RDONLY, 0666)
@@ -55,13 +58,35 @@ func (gdrive *GDrive) DownloadFile(fileInfo map[string]string, filePath string) 
 		}
 	}
 
+	// Create a context that can be cancelled when SIGINT signal is received
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
+
+    // Catch SIGINT signal and cancel the context when received
+    sigs := make(chan os.Signal, 1)
+    signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+    go func() {
+        <-sigs
+        cancel()
+    }()
+	defer signal.Stop(sigs)
+
+	queue <- struct{}{}
 	params := map[string]string{
 		"key":              gdrive.apiKey,
 		"alt":              "media", // to tell Google that we are downloading the file
 		"acknowledgeAbuse": "true",  // If the files are marked as abusive, download them anyway
 	}
 	url := fmt.Sprintf("%s/%s", gdrive.apiUrl, fileInfo["id"])
-	res, err := request.CallRequest("GET", url, gdrive.downloadTimeout, nil, nil, params, false)
+	res, err := request.CallRequest(
+		&request.RequestArgs{
+			Url:	 url,
+			Method:	 "GET",
+			Timeout: gdrive.downloadTimeout,
+			Params:	 &params,
+			Context: ctx,
+		},
+	)
 	if err != nil {
 		return err
 	}
@@ -85,7 +110,22 @@ func (gdrive *GDrive) DownloadFile(fileInfo map[string]string, filePath string) 
 
 	_, err = io.Copy(file, res.Body)
 	if err != nil {
-		os.Remove(filePath)
+		if fileErr := os.Remove(filePath); fileErr != nil {
+			utils.LogError(
+				fmt.Errorf(
+					"download error %d: failed to remove file at %s, more info => %v",
+					utils.OS_ERROR,
+					filePath,
+					fileErr,
+				), 
+				"", 
+				false,
+			)
+		}
+
+		if err == context.Canceled {
+			return err
+		}
 		err = fmt.Errorf(
 			"gdrive error %d: failed to download file \"%s\", more info => %v",
 			utils.DOWNLOAD_ERROR,
@@ -149,18 +189,25 @@ func (gdrive *GDrive) DownloadMultipleFiles(files []map[string]string) {
 		progress.Start()
 		for _, file := range allowedForDownload {
 			wg.Add(1)
-			queue <- struct{}{}
 			go func(file map[string]string) {
-				defer wg.Done()
+				defer func() { 
+					<-queue
+					wg.Done()
+				}()
 
 				os.MkdirAll(file["filepath"], 0666)
 				filePath := filepath.Join(file["filepath"], file["name"])
 
-				if err := gdrive.DownloadFile(file, filePath); err != nil {
-					errorMsg := fmt.Sprintf(
-						"Failed to download file: %s (ID: %s, MIME Type: %s)\nRefer to error details below:\n%v",
-						file["name"], file["id"], file["mimeType"], err,
-					)
+				if err := gdrive.DownloadFile(file, filePath, queue); err != nil {
+					var errorMsg string
+					if err == context.Canceled {
+						errorMsg = err.Error()
+					} else {
+						errorMsg = fmt.Sprintf(
+							"Failed to download file: %s (ID: %s, MIME Type: %s)\nRefer to error details below:\n%v",
+							file["name"], file["id"], file["mimeType"], err,
+						)
+					}
 					errChan <- map[string]string{
 						"err":	    errorMsg,
 						"filepath": filepath.Join(
@@ -171,7 +218,6 @@ func (gdrive *GDrive) DownloadMultipleFiles(files []map[string]string) {
 				}
 
 				progress.MsgIncrement(baseMsg)
-				<-queue
 			}(file)
 		}
 		close(queue)
@@ -181,10 +227,24 @@ func (gdrive *GDrive) DownloadMultipleFiles(files []map[string]string) {
 		hasErr := false
 		if len(errChan) > 0 {
 			hasErr = true
+			killProgram := false
 			for errMap := range errChan {
+				if errMap["err"] == context.Canceled.Error() {
+					if !killProgram {
+						killProgram = true
+					}
+					continue
+				}
+
 				utils.LogMessageToPath(
 					errMap["err"],
 					errMap["filepath"], 
+				)
+			}
+
+			if killProgram {
+				progress.KillProgram(
+					"Stopped downloading GDrive files (incomplete downloads will be deleted)...",
 				)
 			}
 		}

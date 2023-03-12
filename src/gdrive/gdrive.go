@@ -60,7 +60,14 @@ func (gdrive *GDrive) GDriveKeyIsValid() (bool, error) {
 	}
 
 	params := map[string]string{"key": gdrive.apiKey}
-	res, err := request.CallRequest("GET", gdrive.apiUrl, gdrive.timeout, nil, nil, params, false)
+	res, err := request.CallRequest(
+		&request.RequestArgs{
+			Url: gdrive.apiUrl,
+			Method: "GET",
+			Timeout: gdrive.timeout,
+			Params: &params,
+		},
+	)
 	if err != nil {
 		err = fmt.Errorf(
 			"gdrive error %d: failed to check if Google Drive API key is valid, more info => %v",
@@ -156,7 +163,14 @@ func (gdrive *GDrive) GetFolderContents(folderId, logPath string) ([]map[string]
 		} else {
 			delete(params, "pageToken")
 		}
-		res, err := request.CallRequest("GET", gdrive.apiUrl, gdrive.timeout, nil, nil, params, false)
+		res, err := request.CallRequest(
+			&request.RequestArgs{
+				Url: gdrive.apiUrl,
+				Method: "GET",
+				Timeout: gdrive.timeout,
+				Params: &params,
+			},
+		)
 		if err != nil {
 			err = fmt.Errorf(
 				"gdrive error %d: failed to get folder contents with ID of %s, more info => %v",
@@ -241,7 +255,14 @@ func (gdrive *GDrive) GetFileDetails(fileId, logPath string) (map[string]string,
 		"fields": GDRIVE_FILE_FIELDS,
 	}
 	url := fmt.Sprintf("%s/%s", gdrive.apiUrl, fileId)
-	res, err := request.CallRequest("GET", url, gdrive.timeout, nil, nil, params, false)
+	res, err := request.CallRequest(
+		&request.RequestArgs{
+			Url:     url,
+			Method:  "GET",
+			Timeout: gdrive.timeout,
+			Params:  &params,
+		},
+	)
 	if err != nil {
 		err = fmt.Errorf(
 			"gdrive error %d: failed to get file details with ID of %s, more info => %v",

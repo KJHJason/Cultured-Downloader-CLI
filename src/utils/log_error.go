@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"os"
 	"fmt"
 	"log"
@@ -26,12 +27,12 @@ var (
 
 // Thread-safe logging function that logs to "cultured_downloader.log" in the logs directory
 func LogError(err error, errorMsg string, exit bool) {
-	logMut.Lock()
-	defer logMut.Unlock()
-
 	if err == nil && errorMsg == "" {
 		return
 	}
+
+	logMut.Lock()
+	defer logMut.Unlock()
 
 	// write to log file
 	f, fileErr := os.OpenFile(
@@ -74,7 +75,9 @@ func LogError(err error, errorMsg string, exit bool) {
 }
 
 // Uses the thread-safe LogError() function to log a slice of errors or a channel of errors
-func LogErrors(exit bool, errChan *chan error, errs ...error) {
+//
+// Also returns if any errors were due to context.Canceled which is caused by Ctrl + C.
+func LogErrors(exit bool, errChan chan error, errs ...error) bool {
 	if errChan != nil && len(errs) > 0 {
 		panic(
 			fmt.Sprintf(
@@ -84,13 +87,28 @@ func LogErrors(exit bool, errChan *chan error, errs ...error) {
 		)
 	}
 
+	hasCanceled := false
 	if errChan != nil {
-		for err := range *errChan {
+		for err := range errChan {
+			if err == context.Canceled {
+				if !hasCanceled {
+					hasCanceled = true
+				}
+				continue
+			}
 			LogError(err, "", exit)
 		}
-		return
+		return hasCanceled
 	}
+
 	for _, err := range errs {
+		if err == context.Canceled {
+			if !hasCanceled {
+				hasCanceled = true
+			}
+			continue
+		}
 		LogError(err, "", exit)
 	}
+	return hasCanceled
 }
