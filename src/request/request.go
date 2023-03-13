@@ -37,8 +37,54 @@ func getHttpClient(reqArgs *RequestArgs) *http.Client {
 	}
 }
 
+// add headers to the request
+func AddHeaders(headers map[string]string, defaultUserAgent string, req *http.Request) {
+	if len(headers) == 0 {
+		return
+	}
+
+	for key, value := range headers {
+		req.Header.Add(key, value)
+	}
+	if req.Header.Get("User-Agent") == "" {
+		req.Header.Add(
+			"User-Agent", defaultUserAgent,
+		)
+	}
+}
+
+// add cookies to the request
+func AddCookies(reqUrl string, cookies []*http.Cookie, req *http.Request) {
+	if len(cookies) == 0 {
+		return
+	}
+
+	for _, cookie := range cookies {
+		if strings.Contains(reqUrl, cookie.Domain) {
+			req.AddCookie(cookie)
+		}
+	}
+}
+
+// add params to the request
+func AddParams(params map[string]string, req *http.Request) {
+	if len(params) == 0 {
+		return
+	}
+
+	query := req.URL.Query()
+	for key, value := range params {
+		query.Add(key, value)
+	}
+	req.URL.RawQuery = query.Encode()
+}
+
 // send the request to the target URL and retries if the request was not successful
 func sendRequest(req *http.Request, reqArgs *RequestArgs) (*http.Response, error) {
+	AddCookies(reqArgs.Url, reqArgs.Cookies, req)
+	AddHeaders(reqArgs.Headers, reqArgs.UserAgent, req)
+	AddParams(reqArgs.Params, req)
+
 	var err error
 	var res *http.Response
 
@@ -78,48 +124,6 @@ func sendRequest(req *http.Request, reqArgs *RequestArgs) (*http.Response, error
 	return nil, err
 }
 
-// add headers to the request
-func AddHeaders(headers map[string]string, req *http.Request) {
-	if len(headers) == 0 {
-		return
-	}
-
-	for key, value := range headers {
-		req.Header.Add(key, value)
-	}
-	if req.Header.Get("User-Agent") == "" {
-		req.Header.Add(
-			"User-Agent", utils.USER_AGENT,
-		)
-	}
-}
-
-// add cookies to the request
-func AddCookies(reqUrl string, cookies []*http.Cookie, req *http.Request) {
-	if len(cookies) == 0 {
-		return
-	}
-
-	for _, cookie := range cookies {
-		if strings.Contains(reqUrl, cookie.Domain) {
-			req.AddCookie(cookie)
-		}
-	}
-}
-
-// add params to the request
-func AddParams(params map[string]string, req *http.Request) {
-	if len(params) == 0 {
-		return
-	}
-
-	query := req.URL.Query()
-	for key, value := range params {
-		query.Add(key, value)
-	}
-	req.URL.RawQuery = query.Encode()
-}
-
 // CallRequest is used to make a request to a URL and return the response
 //
 // If the request fails, it will retry the request again up
@@ -140,9 +144,6 @@ func CallRequest(reqArgs *RequestArgs) (*http.Response, error) {
 		)
 	}
 
-	AddCookies(reqArgs.Url, reqArgs.Cookies, req)
-	AddHeaders(reqArgs.Headers, req)
-	AddParams(reqArgs.Params, req)
 	return sendRequest(req, reqArgs)
 }
 
@@ -171,6 +172,7 @@ func CheckInternetConnection() {
 
 // Sends a request with the given data
 func CallRequestWithData(reqArgs *RequestArgs, data map[string]string) (*http.Response, error) {
+	reqArgs.ValidateArgs()
 	form := url.Values{}
 	for key, value := range data {
 		form.Add(key, value)
@@ -189,9 +191,6 @@ func CallRequestWithData(reqArgs *RequestArgs, data map[string]string) (*http.Re
 		return nil, err
 	}
 
-	AddCookies(reqArgs.Url, reqArgs.Cookies, req)
-	AddHeaders(reqArgs.Headers, req)
-	AddParams(reqArgs.Params, req)
 	return sendRequest(req, reqArgs)
 }
 
@@ -338,20 +337,42 @@ func DownloadURL(filePath string, queue chan struct{}, reqArgs *RequestArgs, ove
 	return nil
 }
 
+type DlOptions struct {
+	// MaxConcurrency is the maximum number of concurrent downloads
+	MaxConcurrency int
+
+	// Cookies is a list of cookies to be used in the download process
+	Cookies []*http.Cookie
+
+	// Headers is a map of headers to be used in the download process
+	Headers map[string]string
+
+	// UseHttp3 is a flag to enable HTTP/3
+	// Otherwise, HTTP/2 will be used by default
+	UseHttp3 bool
+
+	// OverwriteExistingFiles is a flag to overwrite existing files
+	// If false, the download process will be skipped if the file already exists
+	OverwriteExistingFiles bool
+
+	// UserAgent is the user agent to be used in the download process
+	UserAgent string
+}
+
 // DownloadURLsParallel is used to download multiple files from URLs in parallel
 //
 // Note: If the file already exists, the download process will be skipped
-func DownloadURLsParallel(urls []map[string]string, maxConcurrency int, cookies []*http.Cookie, headers map[string]string, useHttp3, overwriteExistingFiles bool) {
+func DownloadURLsParallel(urls []map[string]string, dlOptions *DlOptions) {
 	urlsLen := len(urls)
 	if urlsLen == 0 {
 		return
 	}
-	if urlsLen < maxConcurrency {
-		maxConcurrency = urlsLen
+	if urlsLen < dlOptions.MaxConcurrency {
+		dlOptions.MaxConcurrency = urlsLen
 	}
 
 	var wg sync.WaitGroup
-	queue := make(chan struct{}, maxConcurrency)
+	queue := make(chan struct{}, dlOptions.MaxConcurrency)
 	errChan := make(chan error, urlsLen)
 
 	baseMsg := "Downloading files [%d/" + fmt.Sprintf("%d]...", urlsLen)
@@ -384,15 +405,16 @@ func DownloadURLsParallel(urls []map[string]string, maxConcurrency int, cookies 
 				filePath,
 				queue,
 				&RequestArgs{
-					Url:     fileUrl,
-					Method:  "GET",
-					Timeout: utils.DOWNLOAD_TIMEOUT,
-					Cookies: cookies,
-					Headers: headers,
-					Http2:   !useHttp3,
-					Http3:   useHttp3,
+					Url:       fileUrl,
+					Method:    "GET",
+					Timeout:   utils.DOWNLOAD_TIMEOUT,
+					Cookies:   dlOptions.Cookies,
+					Headers:   dlOptions.Headers,
+					Http2:     !dlOptions.UseHttp3,
+					Http3:     dlOptions.UseHttp3,
+					UserAgent: dlOptions.UserAgent,
 				},
-				overwriteExistingFiles,
+				dlOptions.OverwriteExistingFiles,
 			)
 			if err != nil {
 				errChan <- err

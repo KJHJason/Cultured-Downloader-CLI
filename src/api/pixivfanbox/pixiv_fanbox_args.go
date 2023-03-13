@@ -71,10 +71,10 @@ type PixivFanboxDlOptions struct {
 // ValidateArgs validates the session cookie ID of the Pixiv Fanbox account to download from.
 //
 // Should be called after initialising the struct.
-func (pf *PixivFanboxDlOptions) ValidateArgs() {
+func (pf *PixivFanboxDlOptions) ValidateArgs(userAgent string) {
 	if pf.SessionCookieId != "" {
 		pf.SessionCookies = []*http.Cookie{
-			api.VerifyAndGetCookie(utils.PIXIV_FANBOX, pf.SessionCookieId),
+			api.VerifyAndGetCookie(utils.PIXIV_FANBOX, pf.SessionCookieId, userAgent),
 		}
 	}
 }

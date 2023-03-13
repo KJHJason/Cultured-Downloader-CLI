@@ -299,11 +299,14 @@ func downloadMultipleUgoira(downloadInfo []*Ugoira, config *api.Config, ugoiraOp
 	pixivHeaders := GetPixivRequestHeaders()
 	request.DownloadURLsParallel(
 		urlsToDownload,
-		utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
-		cookies,
-		pixivHeaders,
-		false,
-		config.OverwriteFiles,
+		&request.DlOptions{
+			MaxConcurrency:         utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
+			Headers:                pixivHeaders,
+			Cookies:                cookies,
+			OverwriteExistingFiles: config.OverwriteFiles,
+			UseHttp3:               false,
+			UserAgent:              config.UserAgent,
+		},
 	)
 
 	var errSlice []error

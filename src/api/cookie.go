@@ -45,7 +45,7 @@ func GetCookie(sessionID, website string) *http.Cookie {
 
 // Verifies the given cookie by making a request to the website
 // and returns true if the cookie is valid
-func VerifyCookie(cookie *http.Cookie, website string) (bool, error) {
+func VerifyCookie(cookie *http.Cookie, website, userAgent string) (bool, error) {
 	// sends a request to the website to verify the cookie
 	var websiteURL string
 	var useHttp3 bool
@@ -83,6 +83,7 @@ func VerifyCookie(cookie *http.Cookie, website string) (bool, error) {
 			CheckStatus: true,
 			Http3:       useHttp3,
 			Http2:       !useHttp3,
+			UserAgent:   userAgent,
 		},
 	)
 	if err != nil {
@@ -98,7 +99,7 @@ func VerifyCookie(cookie *http.Cookie, website string) (bool, error) {
 // If the cookie is valid, the cookie will be returned
 //
 // However, if the cookie is invalid, an error message will be printed out and the program will shutdown
-func VerifyAndGetCookie(website, cookieValue string) *http.Cookie {
+func VerifyAndGetCookie(website, cookieValue, userAgent string) *http.Cookie {
 	if _, ok := utils.API_TITLE_MAP[website]; !ok {
 		// Shouldn't happen but could happen during development
 		panic(
@@ -111,7 +112,7 @@ func VerifyAndGetCookie(website, cookieValue string) *http.Cookie {
 	}
 
 	cookie := GetCookie(cookieValue, website)
-	cookieIsValid, err := VerifyCookie(cookie, website)
+	cookieIsValid, err := VerifyCookie(cookie, website, userAgent)
 	if err != nil {
 		utils.LogError(err, "Error occurred when trying to verify cookie.", true)
 	}

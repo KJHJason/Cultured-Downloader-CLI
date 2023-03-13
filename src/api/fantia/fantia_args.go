@@ -63,17 +63,18 @@ type FantiaDlOptions struct {
 
 // GetCsrfToken gets the CSRF token from Fantia's index HTML
 // which is required to communicate with their API.
-func (f *FantiaDlOptions) GetCsrfToken() error {
+func (f *FantiaDlOptions) GetCsrfToken(userAgent string) error {
 	f.csrfMu.Lock()
 	defer f.csrfMu.Unlock()
 
 	res, err := request.CallRequest(
 		&request.RequestArgs{
-			Method: "GET",
-			Url: "https://fantia.jp/",
-			Cookies: f.SessionCookies,
-			Http3: true,
+			Method:      "GET",
+			Url:         "https://fantia.jp/",
+			Cookies:     f.SessionCookies,
+			Http3:       true,
 			CheckStatus: true,
+			UserAgent:   userAgent,
 		},
 	)
 	if err != nil {
@@ -126,13 +127,13 @@ func (f *FantiaDlOptions) GetCsrfToken() error {
 // ValidateArgs validates the options for downloading from Fantia.
 //
 // Should be called after initialising the struct.
-func (f *FantiaDlOptions) ValidateArgs() error {
+func (f *FantiaDlOptions) ValidateArgs(userAgent string) error {
 	if f.SessionCookieId != "" {
 		f.SessionCookies = []*http.Cookie{
-			api.VerifyAndGetCookie(utils.FANTIA, f.SessionCookieId),
+			api.VerifyAndGetCookie(utils.FANTIA, f.SessionCookieId, userAgent),
 		}
 	}
 
 	f.csrfMu = sync.Mutex{}
-	return f.GetCsrfToken()
+	return f.GetCsrfToken(userAgent)
 }

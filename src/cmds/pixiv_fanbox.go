@@ -22,6 +22,7 @@ var (
 	fanboxDlGdrive       bool
 	fanboxGdriveApiKey   string
 	fanboxOverwriteFiles bool
+	fanboxUserAgent      string
 	pixivFanboxCmd       = &cobra.Command{
 		Use:   "pixiv_fanbox",
 		Short: "Download from Pixiv Fanbox",
@@ -31,10 +32,12 @@ var (
 
 			pixivFanboxConfig := api.Config{
 				OverwriteFiles: fanboxOverwriteFiles,
+				UserAgent: 	    fanboxUserAgent,
 			}
 			if fanboxGdriveApiKey != "" {
 				pixivFanboxConfig.GDriveClient = gdrive.GetNewGDrive(
 					fanboxGdriveApiKey, 
+					fanboxUserAgent,
 					utils.MAX_CONCURRENT_DOWNLOADS,
 				)
 			}
@@ -77,7 +80,7 @@ var (
 				}
 				pixivFanboxDlOptions.SessionCookies = cookies
 			}
-			pixivFanboxDlOptions.ValidateArgs()
+			pixivFanboxDlOptions.ValidateArgs(fanboxUserAgent)
 
 			utils.PrintWarningMsg()
 			pixivfanbox.PixivFanboxDownloadProcess(

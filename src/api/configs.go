@@ -13,6 +13,7 @@ type Config struct {
 	DownloadPath   string
 	FfmpegPath     string
 	OverwriteFiles bool
+	UserAgent      string
 }
 
 func (c *Config) ValidateFfmpeg() {

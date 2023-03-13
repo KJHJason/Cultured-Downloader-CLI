@@ -74,7 +74,7 @@ type ArtworkDetails struct {
 
 // Retrieves details of an artwork ID and returns
 // the folder path to download the artwork to, the JSON response, and the artwork type
-func GetArtworkDetails(artworkId, downloadPath string, cookies []*http.Cookie) (string, interface{}, int64, error) {
+func GetArtworkDetails(artworkId, downloadPath, userAgent string, cookies []*http.Cookie) (string, interface{}, int64, error) {
 	if artworkId == "" {
 		return "", nil, -1, nil
 	}
@@ -84,10 +84,11 @@ func GetArtworkDetails(artworkId, downloadPath string, cookies []*http.Cookie) (
 	url := fmt.Sprintf("%s/illust/%s", utils.PIXIV_API_URL, artworkId)
 	artworkDetailsRes, err := request.CallRequest(
 		&request.RequestArgs{
-			Url:     url,
-			Method:  "GET",
-			Cookies: cookies,
-			Headers: headers,
+			Url:       url,
+			Method:    "GET",
+			Cookies:   cookies,
+			Headers:   headers,
+			UserAgent: userAgent,
 		},
 	)
 	if err != nil {
@@ -159,10 +160,11 @@ func GetArtworkDetails(artworkId, downloadPath string, cookies []*http.Cookie) (
 
 	artworkUrlsRes, err := request.CallRequest(
 		&request.RequestArgs{
-			Url:     url,
-			Method:  "GET",
-			Cookies: cookies,
-			Headers: headers,
+			Url:       url,
+			Method:    "GET",
+			Cookies:   cookies,
+			Headers:   headers,
+			UserAgent: userAgent,
 		},
 	)
 	if err != nil {
@@ -197,7 +199,7 @@ func GetArtworkDetails(artworkId, downloadPath string, cookies []*http.Cookie) (
 
 // Retrieves multiple artwork details based on the given slice of artwork IDs
 // and returns a map to use for downloading and a slice of Ugoira structures
-func getMultipleArtworkDetails(artworkIds []string, downloadPath string, cookies []*http.Cookie) ([]map[string]string, []*Ugoira) {
+func getMultipleArtworkDetails(artworkIds []string, downloadPath, userAgent string, cookies []*http.Cookie) ([]map[string]string, []*Ugoira) {
 	var errSlice []error
 	var ugoiraDetails []*Ugoira
 	var artworkDetails []map[string]string
@@ -224,7 +226,7 @@ func getMultipleArtworkDetails(artworkIds []string, downloadPath string, cookies
 	)
 	progress.Start()
 	for _, artworkId := range artworkIds {
-		artworkFolder, jsonRes, artworkType, err := GetArtworkDetails(artworkId, downloadPath, cookies)
+		artworkFolder, jsonRes, artworkType, err := GetArtworkDetails(artworkId, downloadPath, userAgent, cookies)
 		if err != nil {
 			errSlice = append(errSlice, err)
 			progress.MsgIncrement(baseMsg)
@@ -258,17 +260,18 @@ func getMultipleArtworkDetails(artworkIds []string, downloadPath string, cookies
 }
 
 // Query Pixiv's API for all the illustrator's posts
-func GetIllustratorPosts(illustratorId, artworkType, pageNum string, cookies []*http.Cookie) ([]string, error) {
+func GetIllustratorPosts(illustratorId, pageNum, userAgent string, pixivDlOptions *PixivDlOptions) ([]string, error) {
 	headers := GetPixivRequestHeaders()
 	headers["Referer"] = GetIllustUrl(illustratorId)
 	url := fmt.Sprintf("%s/user/%s/profile/all", utils.PIXIV_API_URL, illustratorId)
 
 	res, err := request.CallRequest(
 		&request.RequestArgs{
-			Url:     url,
-			Method:  "GET",
-			Cookies: cookies,
-			Headers: headers,
+			Url:       url,
+			Method:    "GET",
+			Cookies:   pixivDlOptions.SessionCookies,
+			Headers:   headers,
+			UserAgent: userAgent,
 		},
 	)
 	if err != nil {
@@ -304,7 +307,7 @@ func GetIllustratorPosts(illustratorId, artworkType, pageNum string, cookies []*
 	minOffset, maxOffset := ConvertPageNumToOffset(minPage, maxPage, false)
 
 	var artworkIds []string
-	if artworkType == "all" || artworkType == "illust_and_ugoira" {
+	if pixivDlOptions.ArtworkType == "all" || pixivDlOptions.ArtworkType == "illust_and_ugoira" {
 		illusts := jsonBody.(map[string]interface{})["illusts"]
 		if reflect.TypeOf(illusts).Kind() == reflect.Map {
 			curPage := 0
@@ -322,7 +325,7 @@ func GetIllustratorPosts(illustratorId, artworkType, pageNum string, cookies []*
 		}
 	}
 
-	if artworkType == "all" || artworkType == "manga" {
+	if pixivDlOptions.ArtworkType == "all" || pixivDlOptions.ArtworkType == "manga" {
 		manga := jsonBody.(map[string]interface{})["manga"]
 		if reflect.TypeOf(manga).Kind() == reflect.Map {
 			curPage := 0
@@ -343,7 +346,7 @@ func GetIllustratorPosts(illustratorId, artworkType, pageNum string, cookies []*
 }
 
 // Get posts from multiple illustrators and returns a map and a slice for Ugoira structures for downloads
-func getMultipleIllustratorPosts(illustratorIds, pageNums []string, downloadPath string, pixivDlOptions *PixivDlOptions) ([]map[string]string, []*Ugoira) {
+func getMultipleIllustratorPosts(illustratorIds, pageNums []string, downloadPath, userAgent string, pixivDlOptions *PixivDlOptions) ([]map[string]string, []*Ugoira) {
 	var errSlice []error
 	var artworkIdsSlice []string
 	illustratorIdsLen := len(illustratorIds)
@@ -370,9 +373,9 @@ func getMultipleIllustratorPosts(illustratorIds, pageNums []string, downloadPath
 	for idx, illustratorId := range illustratorIds {
 		artworkIds, err := GetIllustratorPosts(
 			illustratorId,
-			pixivDlOptions.ArtworkType,
 			pageNums[idx],
-			pixivDlOptions.SessionCookies,
+			userAgent,
+			pixivDlOptions,
 		)
 		if err != nil {
 			errSlice = append(errSlice, err)
@@ -392,6 +395,7 @@ func getMultipleIllustratorPosts(illustratorIds, pageNums []string, downloadPath
 	artworksSlice, ugoiraSlice := getMultipleArtworkDetails(
 		artworkIdsSlice,
 		downloadPath,
+		userAgent,
 		pixivDlOptions.SessionCookies,
 	)
 	return artworksSlice, ugoiraSlice
@@ -435,7 +439,7 @@ func ProcessTagJsonResults(res *http.Response) ([]string, error) {
 
 // Query Pixiv's API and search for posts based on the supplied tag name
 // which will return a map and a slice of Ugoira structures for downloads
-func tagSearch(tagName, downloadPath, pageNum string, dlOptions *PixivDlOptions) ([]map[string]string, []*Ugoira, bool) {
+func tagSearch(tagName, downloadPath, pageNum, userAgent string, dlOptions *PixivDlOptions) ([]map[string]string, []*Ugoira, bool) {
 	minPage, maxPage, hasMax, err := utils.GetMinMaxFromStr(pageNum)
 	if err != nil {
 		utils.LogError(err, "", false)
@@ -488,6 +492,7 @@ func tagSearch(tagName, downloadPath, pageNum string, dlOptions *PixivDlOptions)
 				Headers:     headers,
 				Params:      params,
 				CheckStatus: true,
+				UserAgent:   userAgent,
 			},
 		)
 		if err != nil {
@@ -526,6 +531,7 @@ func tagSearch(tagName, downloadPath, pageNum string, dlOptions *PixivDlOptions)
 	artworkSlice, ugoiraSlice := getMultipleArtworkDetails(
 		artworkIds,
 		downloadPath,
+		userAgent,
 		dlOptions.SessionCookies,
 	)
 	return artworkSlice, ugoiraSlice, hasErr

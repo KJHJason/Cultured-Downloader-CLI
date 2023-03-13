@@ -30,7 +30,7 @@ type GDrive struct {
 }
 
 // Returns a GDrive structure with the given API key and max download workers
-func GetNewGDrive(apiKey string, maxDownloadWorkers int) *GDrive {
+func GetNewGDrive(apiKey, userAgent string, maxDownloadWorkers int) *GDrive {
 	gdrive := &GDrive{
 		apiKey:             apiKey,
 		apiUrl:             "https://www.googleapis.com/drive/v3/files",
@@ -39,7 +39,7 @@ func GetNewGDrive(apiKey string, maxDownloadWorkers int) *GDrive {
 		maxDownloadWorkers: maxDownloadWorkers,
 	}
 
-	gdriveIsValid, err := gdrive.GDriveKeyIsValid()
+	gdriveIsValid, err := gdrive.GDriveKeyIsValid(userAgent)
 	if err != nil {
 		color.Red(err.Error())
 		os.Exit(1)
@@ -53,7 +53,7 @@ func GetNewGDrive(apiKey string, maxDownloadWorkers int) *GDrive {
 // Checks if the given Google Drive API key is valid
 //
 // Will return true if the given Google Drive API key is valid
-func (gdrive *GDrive) GDriveKeyIsValid() (bool, error) {
+func (gdrive *GDrive) GDriveKeyIsValid(userAgent string) (bool, error) {
 	match, _ := regexp.MatchString(`^AIza[\w-]{35}$`, gdrive.apiKey)
 	if !match {
 		return false, nil
@@ -62,10 +62,11 @@ func (gdrive *GDrive) GDriveKeyIsValid() (bool, error) {
 	params := map[string]string{"key": gdrive.apiKey}
 	res, err := request.CallRequest(
 		&request.RequestArgs{
-			Url:     gdrive.apiUrl,
-			Method:  "GET",
-			Timeout: gdrive.timeout,
-			Params:  params,
+			Url:       gdrive.apiUrl,
+			Method:    "GET",
+			Timeout:   gdrive.timeout,
+			Params:    params,
+			UserAgent: userAgent,
 		},
 	)
 	if err != nil {
@@ -149,7 +150,7 @@ type GDriveFolder struct {
 }
 
 // Returns the contents of the given GDrive folder
-func (gdrive *GDrive) GetFolderContents(folderId, logPath string) ([]map[string]string, error) {
+func (gdrive *GDrive) GetFolderContents(folderId, logPath, userAgent string) ([]map[string]string, error) {
 	params := map[string]string{
 		"key":    gdrive.apiKey,
 		"q":      fmt.Sprintf("'%s' in parents", folderId),
@@ -165,10 +166,11 @@ func (gdrive *GDrive) GetFolderContents(folderId, logPath string) ([]map[string]
 		}
 		res, err := request.CallRequest(
 			&request.RequestArgs{
-				Url:     gdrive.apiUrl,
-				Method:  "GET",
-				Timeout: gdrive.timeout,
-				Params:  params,
+				Url:       gdrive.apiUrl,
+				Method:    "GET",
+				Timeout:   gdrive.timeout,
+				Params:    params,
+				UserAgent: userAgent,
 			},
 		)
 		if err != nil {
@@ -227,16 +229,16 @@ func (gdrive *GDrive) GetFolderContents(folderId, logPath string) ([]map[string]
 }
 
 // Retrieves the content of a GDrive folder and its subfolders recursively using GDrive API v3
-func (gdrive *GDrive) GetNestedFolderContents(folderId, logPath string) ([]map[string]string, error) {
+func (gdrive *GDrive) GetNestedFolderContents(folderId, logPath, userAgent string) ([]map[string]string, error) {
 	files := []map[string]string{}
-	folderContents, err := gdrive.GetFolderContents(folderId, logPath)
+	folderContents, err := gdrive.GetFolderContents(folderId, logPath, userAgent)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, file := range folderContents {
 		if file["mimeType"] == "application/vnd.google-apps.folder" {
-			subFolderFiles, err := gdrive.GetNestedFolderContents(file["id"], logPath)
+			subFolderFiles, err := gdrive.GetNestedFolderContents(file["id"], logPath, userAgent)
 			if err != nil {
 				return nil, err
 			}
@@ -249,7 +251,7 @@ func (gdrive *GDrive) GetNestedFolderContents(folderId, logPath string) ([]map[s
 }
 
 // Retrieves the file details of the given GDrive file using GDrive API v3
-func (gdrive *GDrive) GetFileDetails(fileId, logPath string) (map[string]string, error) {
+func (gdrive *GDrive) GetFileDetails(fileId, logPath, userAgent string) (map[string]string, error) {
 	params := map[string]string{
 		"key":    gdrive.apiKey,
 		"fields": GDRIVE_FILE_FIELDS,
@@ -257,10 +259,11 @@ func (gdrive *GDrive) GetFileDetails(fileId, logPath string) (map[string]string,
 	url := fmt.Sprintf("%s/%s", gdrive.apiUrl, fileId)
 	res, err := request.CallRequest(
 		&request.RequestArgs{
-			Url:     url,
-			Method:  "GET",
-			Timeout: gdrive.timeout,
-			Params:  params,
+			Url:       url,
+			Method:    "GET",
+			Timeout:   gdrive.timeout,
+			Params:    params,
+			UserAgent: userAgent,
 		},
 	)
 	if err != nil {

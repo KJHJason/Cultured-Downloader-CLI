@@ -19,6 +19,7 @@ var (
 	fantiaDlImages      bool
 	fantiaDlAttachments bool
 	fantiaOverwrite     bool
+	fantiaUserAgent     string
 	fantiaCmd           = &cobra.Command{
 		Use:   "fantia",
 		Short: "Download from Fantia",
@@ -38,6 +39,7 @@ var (
 
 			fantiaConfig := api.Config{
 				OverwriteFiles: fantiaOverwrite,
+				UserAgent:      fantiaUserAgent,
 			}
 			fantiaDl := fantia.FantiaDl{
 				FanclubIds:      fantiaFanclubIds,
@@ -68,7 +70,7 @@ var (
 				fantiaDlOptions.SessionCookies = cookies
 			}
 
-			err := fantiaDlOptions.ValidateArgs()
+			err := fantiaDlOptions.ValidateArgs(fantiaUserAgent)
 			if err != nil {
 				utils.LogError(
 					err,

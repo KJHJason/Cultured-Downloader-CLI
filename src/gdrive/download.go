@@ -20,7 +20,7 @@ import (
 // Downloads the given GDrive file using GDrive API v3
 //
 // If the md5Checksum has a mismatch, the file will be overwritten and downloaded again
-func (gdrive *GDrive) DownloadFile(fileInfo map[string]string, filePath string, queue chan struct{}) error {
+func (gdrive *GDrive) DownloadFile(fileInfo map[string]string, filePath, userAgent string, queue chan struct{}) error {
 	if utils.PathExists(filePath) {
 		// check the md5 checksum and the file size
 		file, err := os.OpenFile(filePath, os.O_RDONLY, 0666)
@@ -80,11 +80,12 @@ func (gdrive *GDrive) DownloadFile(fileInfo map[string]string, filePath string, 
 	url := fmt.Sprintf("%s/%s", gdrive.apiUrl, fileInfo["id"])
 	res, err := request.CallRequest(
 		&request.RequestArgs{
-			Url:	 url,
-			Method:	 "GET",
-			Timeout: gdrive.downloadTimeout,
-			Params:	 params,
-			Context: ctx,
+			Url:	   url,
+			Method:	   "GET",
+			Timeout:   gdrive.downloadTimeout,
+			Params:	   params,
+			Context:   ctx,
+			UserAgent: userAgent,
 		},
 	)
 	if err != nil {
@@ -138,7 +139,7 @@ func (gdrive *GDrive) DownloadFile(fileInfo map[string]string, filePath string, 
 }
 
 // Downloads the multiple GDrive file in parallel using GDrive API v3
-func (gdrive *GDrive) DownloadMultipleFiles(files []map[string]string) {
+func (gdrive *GDrive) DownloadMultipleFiles(files []map[string]string, userAgent string) {
 	var allowedForDownload, notAllowedForDownload []map[string]string
 	for _, file := range files {
 		if strings.Contains(file["mimeType"], "application/vnd.google-apps") {
@@ -198,7 +199,7 @@ func (gdrive *GDrive) DownloadMultipleFiles(files []map[string]string) {
 				os.MkdirAll(file["filepath"], 0666)
 				filePath := filepath.Join(file["filepath"], file["name"])
 
-				if err := gdrive.DownloadFile(file, filePath, queue); err != nil {
+				if err := gdrive.DownloadFile(file, filePath, userAgent, queue); err != nil {
 					var errorMsg string
 					if err == context.Canceled {
 						errorMsg = err.Error()
@@ -278,7 +279,7 @@ func GetFileIdAndTypeFromUrl(url string) (string, string) {
 }
 
 // Downloads multiple GDrive files based on a slice of GDrive URL strings in parallel
-func (gdrive *GDrive) DownloadGdriveUrls(gdriveUrls []map[string]string) error {
+func (gdrive *GDrive) DownloadGdriveUrls(gdriveUrls []map[string]string, userAgent string) error {
 	if len(gdriveUrls) == 0 {
 		return nil
 	}
@@ -319,7 +320,11 @@ func (gdrive *GDrive) DownloadGdriveUrls(gdriveUrls []map[string]string) error {
 	progress.Start()
 	for _, gdriveId := range gdriveIds {
 		if gdriveId["type"] == "file" {
-			fileInfo, err := gdrive.GetFileDetails(gdriveId["id"], gdriveId["filepath"])
+			fileInfo, err := gdrive.GetFileDetails(
+				gdriveId["id"],
+				gdriveId["filepath"],
+				userAgent,
+			)
 			if err != nil {
 				errMapSlice = append(errMapSlice, map[string]string{
 					"err":	    err.Error(),
@@ -334,7 +339,11 @@ func (gdrive *GDrive) DownloadGdriveUrls(gdriveUrls []map[string]string) error {
 		} 
 
 		if gdriveId["type"] == "folder" {
-			filesInfo, err := gdrive.GetNestedFolderContents(gdriveId["id"], gdriveId["filepath"])
+			filesInfo, err := gdrive.GetNestedFolderContents(
+				gdriveId["id"], 
+				gdriveId["filepath"],
+				userAgent,
+			)
 			if err != nil {
 				errMapSlice = append(errMapSlice, map[string]string{
 					"err":	    err.Error(),
@@ -374,6 +383,6 @@ func (gdrive *GDrive) DownloadGdriveUrls(gdriveUrls []map[string]string) error {
 	}
 	progress.Stop(hasErr)
 
-	gdrive.DownloadMultipleFiles(gdriveFilesInfo)
+	gdrive.DownloadMultipleFiles(gdriveFilesInfo, userAgent)
 	return nil
 }

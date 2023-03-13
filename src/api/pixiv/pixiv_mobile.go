@@ -108,13 +108,12 @@ func (pixiv *PixivMobile) RefreshAccessToken() error {
 	pixiv.accessTokenMu.Lock()
 	defer pixiv.accessTokenMu.Unlock()
 
-	headers := map[string]string{"User-Agent": pixiv.userAgent}
 	res, err := request.CallRequestWithData(
 		&request.RequestArgs{
-			Url:    pixiv.authTokenUrl,
-			Method: "POST",
-			Timeout: pixiv.apiTimeout,
-			Headers: headers,
+			Url:       pixiv.authTokenUrl,
+			Method:    "POST",
+			Timeout:   pixiv.apiTimeout,
+			UserAgent: pixiv.userAgent,
 		},
 		map[string]string{
 			"client_id":      pixiv.clientId,
@@ -255,7 +254,6 @@ func (pixiv *PixivMobile) StartOauthFlow() error {
 
 	color.Yellow("If unsure, follow the guide below:")
 	color.Yellow("https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/pixiv_oauth_guide.md\n")
-	headers := map[string]string{"User-Agent": "PixivAndroidApp/5.0.234 (Android 11; Pixel 5)"}
 	for {
 		var code string
 		fmt.Print(color.YellowString("Please enter the code you received from Pixiv: "))
@@ -272,11 +270,11 @@ func (pixiv *PixivMobile) StartOauthFlow() error {
 
 		res, err := request.CallRequestWithData(
 			&request.RequestArgs{
-				Url:    pixiv.authTokenUrl,
-				Method: "POST",
-				Timeout: pixiv.apiTimeout,
-				Headers: headers,
+				Url:         pixiv.authTokenUrl,
+				Method:      "POST",
+				Timeout:     pixiv.apiTimeout,
 				CheckStatus: true,
+				UserAgent:   "PixivAndroidApp/5.0.234 (Android 11; Pixel 5)",
 			},
 			map[string]string{
 				"client_id":      pixiv.clientId,

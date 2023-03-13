@@ -31,6 +31,7 @@ var (
 	pixivRatingMode          string
 	pixivArtworkType         string
 	pixivOverwrite           bool
+	pixivUserAgent           string
 	pixivCmd            = &cobra.Command{
 		Use:   "pixiv",
 		Short: "Download from Pixiv",
@@ -53,6 +54,7 @@ var (
 			pixivConfig := api.Config{
 				FfmpegPath:     pixivFfmpegPath,
 				OverwriteFiles: pixivOverwrite,
+				UserAgent:      pixivUserAgent,
 			}
 			pixivConfig.ValidateFfmpeg()
 
@@ -109,7 +111,7 @@ var (
 				}
 				pixivDlOptions.SessionCookies = cookies
 			}
-			pixivDlOptions.ValidateArgs()
+			pixivDlOptions.ValidateArgs(pixivUserAgent)
 
 			utils.PrintWarningMsg()
 			pixiv.PixivDownloadProcess(

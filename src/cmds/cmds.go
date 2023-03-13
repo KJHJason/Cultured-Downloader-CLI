@@ -18,13 +18,15 @@ func init() {
 		cmd           *cobra.Command
 		overwriteVar  *bool
 		cookieFileVar *string
+		userAgentVar  *string
 		textFile      textFilePath
 	}
 	commonCmdFlags := []commonFlags{
 		{
 			cmd: fantiaCmd,
-			overwriteVar: &fantiaOverwrite,
+			overwriteVar:  &fantiaOverwrite,
 			cookieFileVar: &fantiaCookieFile,
+			userAgentVar:  &fantiaUserAgent,
 			textFile: textFilePath {
 				variable: &fantiaDlTextFile,
 				desc: "Path to a text file containing Fanclub and/or post URL(s) to download from Fantia.",
@@ -32,8 +34,9 @@ func init() {
 		},
 		{
 			cmd: pixivFanboxCmd,
-			overwriteVar: &fanboxOverwriteFiles,
+			overwriteVar:  &fanboxOverwriteFiles,
 			cookieFileVar: &fanboxCookieFile,
+			userAgentVar:  &fanboxUserAgent,
 			textFile: textFilePath {
 				variable: &fanboxDlTextFile,
 				desc: "Path to a text file containing creator and/or post URL(s) to download from Pixiv Fanbox.",
@@ -41,8 +44,9 @@ func init() {
 		},
 		{
 			cmd: pixivCmd,
-			overwriteVar: &pixivOverwrite,
+			overwriteVar:  &pixivOverwrite,
 			cookieFileVar: &pixivCookieFile,
+			userAgentVar:  &pixivUserAgent,
 			textFile: textFilePath {
 				variable: &pixivDlTextFile,
 				desc: "Path to a text file containing artwork, illustrator, and tag name URL(s) to download from Pixiv.",
@@ -62,6 +66,12 @@ func init() {
 					"Usually used for Pixiv Fanbox when there are incomplete downloads.",
 				},
 			),
+		)
+		cmd.Flags().StringVar(
+			cmdInfo.userAgentVar,
+			"user_agent",
+			"",
+			"Set a custom User-Agent header to use when communicating with the API(s) or when downloading.",
 		)
 		cmd.Flags().StringVar(
 			cmdInfo.textFile.variable,

@@ -17,9 +17,10 @@ type RequestArgs struct {
 	Timeout int
 
 	// Additional Request Options
-	Headers map[string]string
-	Params  map[string]string
-	Cookies []*http.Cookie
+	Headers            map[string]string
+	Params             map[string]string
+	Cookies            []*http.Cookie
+	UserAgent          string
 	DisableCompression bool
 
 	// HTTP/2 and HTTP/3 Options
@@ -67,6 +68,10 @@ func (args *RequestArgs) ValidateArgs() {
 				utils.DEV_ERROR,
 			),
 		)
+	}
+
+	if args.UserAgent == "" {
+		args.UserAgent = utils.GetUserAgent()
 	}
 
 	if args.Context == nil {

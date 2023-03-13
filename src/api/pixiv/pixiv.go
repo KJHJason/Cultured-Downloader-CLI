@@ -20,6 +20,7 @@ func PixivDownloadProcess(config *api.Config, pixivDl *PixivDl, pixivDlOptions *
 			artworksSlice, ugoiraSlice = getMultipleArtworkDetails(
 				pixivDl.ArtworkIds,
 				utils.DOWNLOAD_PATH,
+				config.UserAgent,
 				pixivDlOptions.SessionCookies,
 			)
 		} else {
@@ -40,6 +41,7 @@ func PixivDownloadProcess(config *api.Config, pixivDl *PixivDl, pixivDlOptions *
 				pixivDl.IllustratorIds,
 				pixivDl.IllustratorPageNums,
 				utils.DOWNLOAD_PATH,
+				config.UserAgent,
 				pixivDlOptions,
 			)
 		} else {
@@ -84,6 +86,7 @@ func PixivDownloadProcess(config *api.Config, pixivDl *PixivDl, pixivDlOptions *
 					tagName,
 					utils.DOWNLOAD_PATH,
 					pixivDl.TagNamesPageNums[idx],
+					config.UserAgent,
 					pixivDlOptions,
 				)
 			} else {
@@ -105,11 +108,14 @@ func PixivDownloadProcess(config *api.Config, pixivDl *PixivDl, pixivDlOptions *
 		headers := GetPixivRequestHeaders()
 		request.DownloadURLsParallel(
 			artworksToDownload,
-			utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
-			pixivDlOptions.SessionCookies,
-			headers,
-			false,
-			config.OverwriteFiles,
+			&request.DlOptions{
+				MaxConcurrency:         utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
+				OverwriteExistingFiles: config.OverwriteFiles,
+				Headers:                headers,
+				Cookies:                pixivDlOptions.SessionCookies,
+				UseHttp3:               false,
+				UserAgent:              config.UserAgent,
+			},
 		)
 	}
 	if len(ugoiraToDownload) > 0 {

@@ -176,6 +176,7 @@ Flags:
                              Example: "12345,67891" (without the quotes)
   -s, --session string       Your _session_id cookie value to use for the requests to Fantia.
       --text_file string     Path to a text file containing Fanclub and/or post URL(s) to download from Fantia.
+      --user_agent string    Set a custom User-Agent header to use when communicating with the API(s) or when downloading.
 ```
 
 ## Pixiv Fanbox Flags
@@ -210,6 +211,7 @@ Flags:
                                 Example: "12345,67891" (without the quotes)
   -s, --session string          Your FANBOXSESSID cookie value to use for the requests to Pixiv Fanbox.
       --text_file string        Path to a text file containing creator and/or post URL(s) to download from Pixiv Fanbox.
+      --user_agent string       Set a custom User-Agent header to use when communicating with the API(s) or when downloading.
 ```
 
 
@@ -289,4 +291,5 @@ Flags:
                                        For more information, see:
                                        - mp4: https://trac.ffmpeg.org/wiki/Encode/H.264#crf
                                        - webm: https://trac.ffmpeg.org/wiki/Encode/VP9#constantq (default 10)
+      --user_agent string              Set a custom User-Agent header to use when communicating with the API(s) or when downloading.
 ```
