@@ -79,9 +79,11 @@ Note:
 ```
   https://fantia.jp/posts/123123
   https://fantia.jp/fanclubs/1234
-  https://fantia.jp/fanclubs/1234; 1-12
+  https://fantia.jp/fanclubs/4321; 1-12
 ```
 - You can add the `; <pageNum>` after the URL as well!
+  - Leave empty if you want to download all pages or follow the format `1` to download page 1 or `1-10` to download pages 1 to 10.
+    - In the example above, the second line will download all pages of the provided Fantia Fanclub URL while the third line will download pages 1 to 12 of the provided Fantia Fanclub URL.
   - Only for:
     - Fantia Fanclub URLs
     - Pixiv Fanbox Creator URLs
