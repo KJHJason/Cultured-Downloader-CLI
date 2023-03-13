@@ -79,6 +79,7 @@ var (
 			}
 			pixivFanboxDlOptions.ValidateArgs()
 
+			utils.PrintWarningMsg()
 			pixivfanbox.PixivFanboxDownloadProcess(
 				&pixivFanboxConfig,
 				&pixivFanboxDl,

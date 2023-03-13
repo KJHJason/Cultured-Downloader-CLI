@@ -111,6 +111,7 @@ var (
 			}
 			pixivDlOptions.ValidateArgs()
 
+			utils.PrintWarningMsg()
 			pixiv.PixivDownloadProcess(
 				&pixivConfig,
 				&pixivDl,

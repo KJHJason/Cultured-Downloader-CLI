@@ -77,6 +77,7 @@ var (
 				)
 			}
 
+			utils.PrintWarningMsg()
 			fantia.FantiaDownloadProcess(
 				&fantiaConfig,
 				&fantiaDl,

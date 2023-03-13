@@ -38,17 +38,20 @@ This program has only been tested on Windows 10. Hence, if you encounter any iss
 
 - What the flag does:
   - Regardless of this flag, the program will overwrite any incomplete downloaded file by verifying against the Content-Length header response.
+    - GDrive downloads are not affected by this flag.
   - If the size of locally downloaded file does not match with the header response, the program will re-download the file.
   - Otherwise, if the Content-Length header is not present in the response, the program will only skip the file if the file already exists.
-  - However, if there's a need to overwrite the skipped files, you can use this flag to do so.
-  - You should only use this for websites like Pixiv Fanbox which does not return a Content-Length header in their response.
+  - However, if there's a need to overwrite the skipped files, you can use this flag to do so like for Pixiv Fanbox which does not return a Content-Length header in their response header.
+  - That said, the program will try to do a clean up of the incomplete downloads by deleting them as of version 1.1.1 and above when you forcefully terminate the program by pressing Ctrl+C so you should not need to use this flag anymore.
 - Causes:
   - This is caused by the antivirus program on your PC, flagging the program as a malware and stopping it from executing normally.
   - This is due to how the programs works, it will try to check the image file size by doing a HEAD request first before doing a GET request for downloading.
     - In the event that the Content-Length is not in the response header, it will re-download the file if the overwrite flag is set to true.
     - Usually, this is not a problem for Fantia and Pixiv, but for Pixiv Fanbox, it will not return the Content-Length in the response header, which is why the program will try to re-download all the files and overwrite any existing files. Hence, the antivirus program will flag the program as a ransomware and stop it from executing normally.
 - Solutions:
-  - Please exclude `cultured-downloader-cli.exe` or the compiled version of the program from your antivirus software as it can be flagged as a ransomware as previously explained above in the Causes.
+  - Avoid using the `--overwrite=true` flag and let the program do its clean up when you forcefully terminate the program by pressing Ctrl+C.
+    - Files that failed to be deleted will be logged so you can manually delete them.
+  - If you still need to use this flag, please exclude `cultured-downloader-cli.exe` or the compiled version of the program from your antivirus software as it can be flagged as a ransomware as previously explained above in the Causes.
     - `go run .` will also NOT work as it will still be blocked by the antivirus program. Hence, you will need to build the program first and then run it.
     - By running `go build . -o cultured-downloader-cli.exe` in the src directory of the project, it will build the program and create an executable file.
 
@@ -64,7 +67,7 @@ This program has only been tested on Windows 10. Hence, if you encounter any iss
 
 The example below assumes you are using [Go](https://go.dev/dl/) to run the program.
 
-Otherwise, instead of `go run cultured_downloader.go`, you can run the executable file by typing `./cultured_downloader.exe` for Windows.
+Otherwise, instead of `go run . cultured_downloader.go`, you can run the executable file by typing `./cultured_downloader.exe` for Windows.
 
 There is also compiled binaries for Linux and macOS in the [releases](https://github.com/KJHJason/Cultured-Downloader-CLI/releases) page.
 
@@ -72,35 +75,47 @@ Note:
 - For flags that require a value, you can either use the `--flag_name value` format or the `--flag_name=value` format.
 - For flags that allows multiple values, you can either use the `--flag_name value1,value2` format or the `--flag_name=value1,value2` format.
 - Quotations like `--flag_name="value1,value2"` are not required but it is recommended to use them.
+- For `--text_file="<path>"`, the contents of the text file should be separated by a new line as seen below,
+```
+  https://fantia.jp/posts/123123
+  https://fantia.jp/fanclubs/1234
+  https://fantia.jp/fanclubs/1234; 1-12
+```
+- You can add the `; <pageNum>` after the URL as well!
+  - Only for:
+    - Fantia Fanclub URLs
+    - Pixiv Fanbox Creator URLs
+    - Pixiv Illustrator URLs
+    - Pixiv Tag URLs
 
 Help:
 ```
-go run cultured_downloader.go -h
+go run . cultured_downloader.go -h
 ```
 
 Downloading from multiple Fantia Fanclub IDs:
 ```
-go run cultured_downloader.go fantia --cookie_file="C:\Users\KJHJason\Desktop\fantia.jp_cookies.txt" --fanclub_id 123456,789123 --page_num 1,1-10 --dl_thumbnails=false
+go run . cultured_downloader.go fantia --cookie_file="C:\Users\KJHJason\Desktop\fantia.jp_cookies.txt" --fanclub_id 123456,789123 --page_num 1,1-10 --dl_thumbnails=false
 ```
 
 Downloading from a Pixiv Fanbox Post ID:
 ```
-go run cultured_downloader.go pixiv_fanbox --session="<add yours here>" --post_id 123456,789123 --gdrive_api_key="<add your api key>"
+go run . cultured_downloader.go pixiv_fanbox --session="<add yours here>" --post_id 123456,789123 --gdrive_api_key="<add your api key>"
 ```
 
 Downloading from a Pixiv Artwork ID (that is a Ugoira):
 ```
-go run cultured_downloader.go pixiv --session "<add yours here>" --artwork_id 12345678 --ugoira_output_format ".gif" --delete_ugoira_zip=false
+go run . cultured_downloader.go pixiv --session "<add yours here>" --artwork_id 12345678 --ugoira_output_format ".gif" --delete_ugoira_zip=false
 ```
 
 Downloading from multiple Pixiv Artwork IDs:
 ```
-go run cultured_downloader.go pixiv --refresh_token="<add yours here>" --artwork_id 12345678,87654321
+go run . cultured_downloader.go pixiv --refresh_token="<add yours here>" --artwork_id 12345678,87654321
 ```
 
 Downloading from Pixiv using a tag name:
 ```
-go run cultured_downloader.go pixiv --refresh_token="<add yours here>" --tag_name "tag1,tag2,tag3" --tag_page_num 1,4,2 --rating_mode safe --search_mode s_tag
+go run . cultured_downloader.go pixiv --refresh_token="<add yours here>" --tag_name "tag1,tag2,tag3" --tag_page_num 1,4,2 --rating_mode safe --search_mode s_tag
 ```
 
 ## Base Flags
@@ -139,7 +154,7 @@ Usage:
   cultured-downloader-cli fantia [flags]
 
 Flags:
-      --cookie_file string   Pass in a file path to your saved Netscape/Mozilla generated cookie file to use when downloading.
+  -c, --cookie_file string   Pass in a file path to your saved Netscape/Mozilla generated cookie file to use when downloading.
                              You can generate a cookie file by using the "Get cookies.txt LOCALLY" extension for your browser.
                              Chrome Extension URL: https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc
       --dl_attachments       Whether to download the attachments of a Fantia post. (default true)
@@ -157,7 +172,8 @@ Flags:
       --post_id strings      Fantia post ID(s) to download.
                              For multiple IDs, separate them with a comma.
                              Example: "12345,67891" (without the quotes)
-      --session string       Your _session_id cookie value to use for the requests to Fantia.
+  -s, --session string       Your _session_id cookie value to use for the requests to Fantia.
+      --text_file string     Path to a text file containing Fanclub and/or post URL(s) to download from Fantia.
 ```
 
 ## Pixiv Fanbox Flags
@@ -169,7 +185,7 @@ Usage:
   cultured-downloader-cli pixiv_fanbox [flags]
 
 Flags:
-      --cookie_file string      Pass in a file path to your saved Netscape/Mozilla generated cookie file to use when downloading.
+  -c, --cookie_file string      Pass in a file path to your saved Netscape/Mozilla generated cookie file to use when downloading.
                                 You can generate a cookie file by using the "Get cookies.txt LOCALLY" extension for your browser.
                                 Chrome Extension URL: https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc
       --creator_id strings      Pixiv Fanbox Creator ID(s) to download from.
@@ -190,7 +206,8 @@ Flags:
       --post_id strings         Pixiv Fanbox post ID(s) to download.
                                 For multiple IDs, separate them with a comma.
                                 Example: "12345,67891" (without the quotes)
-      --session string          Your FANBOXSESSID cookie value to use for the requests to Pixiv Fanbox.
+  -s, --session string          Your FANBOXSESSID cookie value to use for the requests to Pixiv Fanbox.
+      --text_file string        Path to a text file containing creator and/or post URL(s) to download from Pixiv Fanbox.
 ```
 
 
@@ -212,9 +229,9 @@ Flags:
                                        - all: Include both illustrations, ugoira, and manga artworks
                                        Notes:
                                        - If you're using the "-pixiv_refresh_token" flag and are downloading by tag names, only "all" is supported. (default "all")
-      --cookie_file string             Pass in a file path to your saved Netscape/Mozilla generated cookie file to use when downloading.
+  -c, --cookie_file string             Pass in a file path to your saved Netscape/Mozilla generated cookie file to use when downloading.
                                        You can generate a cookie file by using the "Get cookies.txt LOCALLY" extension for your browser.
-                                       Chrome Extension URL: https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc     
+                                       Chrome Extension URL: https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc
       --delete_ugoira_zip              Whether to delete the downloaded ugoira zip file after conversion. (default true)
       --ffmpeg_path string             Configure the path to the FFmpeg executable.
                                        Download Link: https://ffmpeg.org/download.html (default "ffmpeg")
@@ -243,7 +260,7 @@ Flags:
                                        - s_tag: Match any post with SIMILAR tag name
                                        - s_tag_full: Match any post with the SAME tag name
                                        - s_tc: Match any post related by its title or caption (default "s_tag_full")
-      --session string                 Your PHPSESSID cookie value to use for the requests to Pixiv.
+  -s, --session string                 Your PHPSESSID cookie value to use for the requests to Pixiv.
       --sort_order string              Download Order Options: date, popular, popular_male, popular_female
                                        Additionally, you can add the "_d" suffix for a descending order.
                                        Example: "popular_d"
@@ -257,6 +274,7 @@ Flags:
       --tag_page_num strings           Min and max page numbers to search for corresponding to the order of the supplied tag name(s).
                                        Format: "num", "minNum-maxNum", or "" to download all pages
                                        Leave blank to search all pages for each tag name.
+      --text_file string               Path to a text file containing artwork, illustrator, and tag name URL(s) to download from Pixiv.
       --ugoira_output_format string    Output format for the ugoira conversion using FFmpeg.
                                        Accepted Extensions: .gif, .apng, .webp, .webm, .mp4
                                         (default ".gif")
