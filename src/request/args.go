@@ -47,7 +47,7 @@ var (
 		`^https://fantia.jp/posts/[\d]+/download/[\d]+`,
 	)
 
-	HTTP3_SUPPORT_ARR = [4]string{
+	HTTP3_SUPPORT_ARR = [...]string{
 		"https://www.pixiv.net",
 		"https://app-api.pixiv.net",
 

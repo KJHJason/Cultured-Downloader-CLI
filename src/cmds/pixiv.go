@@ -12,6 +12,7 @@ import (
 )
 
 var (
+	pixivDlTextFile          string
 	pixivCookieFile          string
 	pixivFfmpegPath          string
 	pixivStartOauth          bool
@@ -55,13 +56,20 @@ var (
 			}
 			pixivConfig.ValidateFfmpeg()
 
-			utils.ValidatePageNumInput(
-				len(pixivTagNames),
-				pixivPageNums,
-				[]string{
-					"Number of tag names and page numbers must be equal.",
-				},
-			)
+			if pixivDlTextFile != "" {
+				artworkIds, illustratorInfoSlice, tagInfoSlice := parsePixivTextFile(pixivDlTextFile)
+				pixivArtworkIds = append(pixivArtworkIds, artworkIds...)
+
+				for _, illustratorInfo := range illustratorInfoSlice {
+					pixivIllustratorIds = append(pixivIllustratorIds, illustratorInfo.ArtistId)
+					pixivIllustratorPageNums = append(pixivIllustratorPageNums, illustratorInfo.PageNum)
+				}
+
+				for _, tagInfo := range tagInfoSlice {
+					pixivTagNames = append(pixivTagNames, tagInfo.Tag)
+					pixivPageNums = append(pixivPageNums, tagInfo.PageNum)
+				}
+			}
 			pixivDl := pixiv.PixivDl{
 				ArtworkIds:          pixivArtworkIds,
 				IllustratorIds:      pixivIllustratorIds,

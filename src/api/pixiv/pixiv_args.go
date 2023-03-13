@@ -32,6 +32,7 @@ type PixivDl struct {
 func (p *PixivDl) ValidateArgs() {
 	utils.ValidateIds(p.ArtworkIds)
 	utils.ValidateIds(p.IllustratorIds)
+	p.ArtworkIds = utils.RemoveSliceDuplicates(p.ArtworkIds)
 
 	if len(p.IllustratorPageNums) > 0 {
 		utils.ValidatePageNumInput(
@@ -44,6 +45,10 @@ func (p *PixivDl) ValidateArgs() {
 	} else {
 		p.IllustratorPageNums = make([]string, len(p.IllustratorIds))
 	}
+	p.IllustratorIds, p.IllustratorPageNums = utils.RemoveDuplicateIdAndPageNum(
+		p.IllustratorIds,
+		p.IllustratorPageNums,
+	)
 
 	if len(p.TagNamesPageNums) > 0 {
 		utils.ValidatePageNumInput(
@@ -56,6 +61,10 @@ func (p *PixivDl) ValidateArgs() {
 	} else {
 		p.TagNamesPageNums = make([]string, len(p.TagNames))
 	}
+	p.TagNames, p.TagNamesPageNums = utils.RemoveDuplicateIdAndPageNum(
+		p.TagNames,
+		p.TagNamesPageNums,
+	)
 }
 
 // UgoiraDlOptions is the struct that contains the

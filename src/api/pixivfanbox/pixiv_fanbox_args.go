@@ -27,6 +27,8 @@ var creatorIdRegex = regexp.MustCompile(`^[\w.-]+$`)
 // Should be called after initialising the struct.
 func (pf *PixivFanboxDl) ValidateArgs() {
 	utils.ValidateIds(pf.PostIds)
+	pf.PostIds = utils.RemoveSliceDuplicates(pf.PostIds)
+
 	for _, creatorId := range pf.CreatorIds {
 		if !creatorIdRegex.MatchString(creatorId) {
 			color.Red(
@@ -49,6 +51,10 @@ func (pf *PixivFanboxDl) ValidateArgs() {
 	} else {
 		pf.CreatorPageNums = make([]string, len(pf.CreatorIds))
 	}
+	pf.CreatorIds, pf.CreatorPageNums = utils.RemoveDuplicateIdAndPageNum(
+		pf.CreatorIds,
+		pf.CreatorPageNums,
+	)
 }
 
 // PixivFanboxDlOptions is the struct that contains the options for downloading from Pixiv Fanbox.

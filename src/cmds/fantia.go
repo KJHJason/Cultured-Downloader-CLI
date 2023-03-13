@@ -9,6 +9,7 @@ import (
 )
 
 var (
+	fantiaDlTextFile    string
 	fantiaCookieFile    string
 	fantiaSession       string
 	fantiaFanclubIds    []string
@@ -24,6 +25,16 @@ var (
 		Long:  "Supports downloading from Fantia Fanclubs and individual posts.",
 		Run: func(cmd *cobra.Command, args []string) {
 			request.CheckInternetConnection()
+
+			if fantiaDlTextFile != "" {
+				postIds, fanclubInfoSlice := parseFantiaTextFile(fantiaDlTextFile)
+				fantiaPostIds = append(fantiaPostIds, postIds...)
+
+				for _, fanclubInfo := range fanclubInfoSlice {
+					fantiaFanclubIds = append(fantiaFanclubIds, fanclubInfo.FanclubId)
+					fantiaPageNums = append(fantiaPageNums, fanclubInfo.PageNum)
+				}
+			}
 
 			fantiaConfig := api.Config{
 				OverwriteFiles: fantiaOverwrite,

@@ -26,8 +26,9 @@ type FantiaDl struct {
 //
 // Should be called after initialising the struct.
 func (f *FantiaDl) ValidateArgs() {
-	utils.ValidateIds(f.FanclubIds)
 	utils.ValidateIds(f.PostIds)
+	utils.ValidateIds(f.FanclubIds)
+	f.PostIds = utils.RemoveSliceDuplicates(f.PostIds)
 
 	if len(f.FanclubPageNums) > 0 {
 		utils.ValidatePageNumInput(
@@ -40,6 +41,11 @@ func (f *FantiaDl) ValidateArgs() {
 	} else {
 		f.FanclubPageNums = make([]string, len(f.FanclubIds))
 	}
+
+	f.FanclubIds, f.FanclubPageNums = utils.RemoveDuplicateIdAndPageNum(
+		f.FanclubIds,
+		f.FanclubPageNums,
+	)
 }
 
 // FantiaDlOptions is the struct that contains the options for downloading from Fantia.

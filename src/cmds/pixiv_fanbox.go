@@ -10,6 +10,7 @@ import (
 )
 
 var (
+	fanboxDlTextFile     string
 	fanboxCookieFile     string
 	fanboxSession        string
 	fanboxCreatorIds     []string
@@ -38,6 +39,15 @@ var (
 				)
 			}
 
+			if fanboxDlTextFile != "" {
+				postIds, creatorInfoSlice := parsePixivFanboxTextFile(fanboxDlTextFile)
+				fanboxPostIds = append(fanboxPostIds, postIds...)
+
+				for _, creatorInfo := range creatorInfoSlice {
+					fanboxCreatorIds = append(fanboxCreatorIds, creatorInfo.CreatorId)
+					fanboxPageNums = append(fanboxPageNums, creatorInfo.PageNum)
+				}
+			}
 			pixivFanboxDl := pixivfanbox.PixivFanboxDl{
 				CreatorIds:      fanboxCreatorIds,
 				CreatorPageNums: fanboxPageNums,

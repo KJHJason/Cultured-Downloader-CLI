@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -135,8 +134,6 @@ func ParseNetscapeCookieFile(filePath, sessionId, website string) ([]*http.Cooki
 	return cookies, nil
 }
 
-var pageNumsRegex = regexp.MustCompile(`^[1-9]\d*(-[1-9]\d*)?$`)
-
 // check page nums if they are in the correct format.
 //
 // E.g. "1-10" is valid, but "0-9" is not valid because "0" is not accepted
@@ -156,7 +153,7 @@ func ValidatePageNumInput(baseSliceLen int, pageNums []string, errMsgs []string)
 	}
 
 	for _, pageNum := range pageNums {
-		if !pageNumsRegex.MatchString(pageNum) {
+		if !PAGE_NUM_REGEX.MatchString(pageNum) {
 			color.Red("Invalid page number format: %s", pageNum)
 			color.Red("Please follow the format, \"1-10\", as an example.")
 			color.Red("Note that \"0\" are not accepted! E.g. \"0-9\" is invalid.")
@@ -236,6 +233,39 @@ func SliceContains(arr []string, str string) bool {
 		}
 	}
 	return false
+}
+
+type SliceTypes interface {
+	~string | ~*string
+}
+
+// Removes duplicates from the given slice.
+func RemoveSliceDuplicates[T SliceTypes](s []T) []T {
+	var result []T
+	seen := make(map[T]struct{})
+	for _, v := range s {
+		if _, ok := seen[v]; !ok {
+			seen[v] = struct{}{}
+			result = append(result, v)
+		}
+	}
+	return result
+}
+
+// Used for removing duplicate IDs with its corresponding page number from the given slices.
+//
+// Returns the the new idSlice and pageSlice with the duplicates removed.
+func RemoveDuplicateIdAndPageNum[T SliceTypes](idSlice, pageSlice []T) ([]T, []T) {
+	var idResult, pageResult []T
+	seen := make(map[T]struct{})
+	for idx, v := range idSlice {
+		if _, ok := seen[v]; !ok {
+			seen[v] = struct{}{}
+			idResult = append(idResult, v)
+			pageResult = append(pageResult, pageSlice[idx])
+		}
+	}
+	return idResult, pageResult
 }
 
 // Checks if the slice of string contains the target str
