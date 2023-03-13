@@ -65,7 +65,7 @@ var (
 						true,
 					)
 				}
-				pixivFanboxDlOptions.SessionCookies = &cookies
+				pixivFanboxDlOptions.SessionCookies = cookies
 			}
 			pixivFanboxDlOptions.ValidateArgs()
 
@@ -80,9 +80,10 @@ var (
 
 func init() {
 	mutlipleIdsMsg := getMultipleIdsMsg()
-	pixivFanboxCmd.Flags().StringVar(
+	pixivFanboxCmd.Flags().StringVarP(
 		&fanboxSession,
 		"session",
+		"s",
 		"",
 		"Your FANBOXSESSID cookie value to use for the requests to Pixiv Fanbox.",
 	)

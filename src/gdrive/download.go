@@ -58,11 +58,11 @@ func (gdrive *GDrive) DownloadFile(fileInfo map[string]string, filePath string, 
 		}
 	}
 
-	// Create a context that can be cancelled when SIGINT signal is received
+	// Create a context that can be cancelled when SIGINT/SIGTERM signal is received
     ctx, cancel := context.WithCancel(context.Background())
     defer cancel()
 
-    // Catch SIGINT signal and cancel the context when received
+    // Catch SIGINT/SIGTERM signal and cancel the context when received
     sigs := make(chan os.Signal, 1)
     signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
     go func() {
@@ -83,7 +83,7 @@ func (gdrive *GDrive) DownloadFile(fileInfo map[string]string, filePath string, 
 			Url:	 url,
 			Method:	 "GET",
 			Timeout: gdrive.downloadTimeout,
-			Params:	 &params,
+			Params:	 params,
 			Context: ctx,
 		},
 	)

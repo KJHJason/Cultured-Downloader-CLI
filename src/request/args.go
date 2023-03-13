@@ -17,9 +17,9 @@ type RequestArgs struct {
 	Timeout int
 
 	// Additional Request Options
-	Headers *map[string]string
-	Params *map[string]string
-	Cookies *[]http.Cookie
+	Headers map[string]string
+	Params  map[string]string
+	Cookies []*http.Cookie
 	DisableCompression bool
 
 	// HTTP/2 and HTTP/3 Options

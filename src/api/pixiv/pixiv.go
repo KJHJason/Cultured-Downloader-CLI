@@ -11,20 +11,20 @@ import (
 
 // Start the download process for Pixiv
 func PixivDownloadProcess(config *api.Config, pixivDl *PixivDl, pixivDlOptions *PixivDlOptions, pixivUgoiraOptions *UgoiraOptions) {
-	var ugoiraToDownload []Ugoira
+	var ugoiraToDownload []*Ugoira
 	var artworksToDownload []map[string]string
 	if len(pixivDl.ArtworkIds) > 0 {
 		var artworksSlice []map[string]string
-		var ugoiraSlice []Ugoira
+		var ugoiraSlice []*Ugoira
 		if pixivDlOptions.MobileClient == nil {
 			artworksSlice, ugoiraSlice = getMultipleArtworkDetails(
-				&pixivDl.ArtworkIds,
+				pixivDl.ArtworkIds,
 				utils.DOWNLOAD_PATH,
 				pixivDlOptions.SessionCookies,
 			)
 		} else {
 			artworksSlice, ugoiraSlice = pixivDlOptions.MobileClient.getMultipleArtworkDetails(
-				&pixivDl.ArtworkIds,
+				pixivDl.ArtworkIds,
 				utils.DOWNLOAD_PATH,
 			)
 		}
@@ -34,18 +34,18 @@ func PixivDownloadProcess(config *api.Config, pixivDl *PixivDl, pixivDlOptions *
 
 	if len(pixivDl.IllustratorIds) > 0 {
 		var artworksSlice []map[string]string
-		var ugoiraSlice []Ugoira
+		var ugoiraSlice []*Ugoira
 		if pixivDlOptions.MobileClient == nil {
 			artworksSlice, ugoiraSlice = getMultipleIllustratorPosts(
-				&pixivDl.IllustratorIds,
-				&pixivDl.IllustratorPageNums,
+				pixivDl.IllustratorIds,
+				pixivDl.IllustratorPageNums,
 				utils.DOWNLOAD_PATH,
 				pixivDlOptions,
 			)
 		} else {
 			artworksSlice, ugoiraSlice = pixivDlOptions.MobileClient.getMultipleIllustratorPosts(
-				&pixivDl.IllustratorIds,
-				&pixivDl.IllustratorPageNums,
+				pixivDl.IllustratorIds,
+				pixivDl.IllustratorPageNums,
 				utils.DOWNLOAD_PATH,
 				pixivDlOptions.ArtworkType,
 			)
@@ -78,7 +78,7 @@ func PixivDownloadProcess(config *api.Config, pixivDl *PixivDl, pixivDlOptions *
 		hasErr := false
 		for idx, tagName := range pixivDl.TagNames {
 			var artworksSlice []map[string]string
-			var ugoiraSlice []Ugoira
+			var ugoiraSlice []*Ugoira
 			if pixivDlOptions.MobileClient == nil {
 				artworksSlice, ugoiraSlice, hasErr = tagSearch(
 					tagName,
@@ -104,17 +104,17 @@ func PixivDownloadProcess(config *api.Config, pixivDl *PixivDl, pixivDlOptions *
 	if len(artworksToDownload) > 0 {
 		headers := GetPixivRequestHeaders()
 		request.DownloadURLsParallel(
-			&artworksToDownload,
+			artworksToDownload,
 			utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
 			pixivDlOptions.SessionCookies,
-			&headers,
+			headers,
 			false,
 			config.OverwriteFiles,
 		)
 	}
 	if len(ugoiraToDownload) > 0 {
 		downloadMultipleUgoira(
-			&ugoiraToDownload,
+			ugoiraToDownload,
 			config,
 			pixivUgoiraOptions,
 			pixivDlOptions.SessionCookies,

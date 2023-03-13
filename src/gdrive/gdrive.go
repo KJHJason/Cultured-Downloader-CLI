@@ -62,10 +62,10 @@ func (gdrive *GDrive) GDriveKeyIsValid() (bool, error) {
 	params := map[string]string{"key": gdrive.apiKey}
 	res, err := request.CallRequest(
 		&request.RequestArgs{
-			Url: gdrive.apiUrl,
-			Method: "GET",
+			Url:     gdrive.apiUrl,
+			Method:  "GET",
 			Timeout: gdrive.timeout,
-			Params: &params,
+			Params:  params,
 		},
 	)
 	if err != nil {
@@ -165,10 +165,10 @@ func (gdrive *GDrive) GetFolderContents(folderId, logPath string) ([]map[string]
 		}
 		res, err := request.CallRequest(
 			&request.RequestArgs{
-				Url: gdrive.apiUrl,
-				Method: "GET",
+				Url:     gdrive.apiUrl,
+				Method:  "GET",
 				Timeout: gdrive.timeout,
-				Params: &params,
+				Params:  params,
 			},
 		)
 		if err != nil {
@@ -260,7 +260,7 @@ func (gdrive *GDrive) GetFileDetails(fileId, logPath string) (map[string]string,
 			Url:     url,
 			Method:  "GET",
 			Timeout: gdrive.timeout,
-			Params:  &params,
+			Params:  params,
 		},
 	)
 	if err != nil {

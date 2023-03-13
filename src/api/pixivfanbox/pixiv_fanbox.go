@@ -259,9 +259,9 @@ func processFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 
 // Query Pixiv Fanbox's API based on the slice of post IDs and returns a map of
 // urls and a map of GDrive urls to download from
-func getPostDetails(postIds *[]string, pixivFanboxDlOptions *PixivFanboxDlOptions) ([]map[string]string, []map[string]string) {
+func getPostDetails(postIds []string, pixivFanboxDlOptions *PixivFanboxDlOptions) ([]map[string]string, []map[string]string) {
 	maxConcurrency := utils.MAX_API_CALLS
-	postIdsLen := len(*postIds)
+	postIdsLen := len(postIds)
 	if postIdsLen < maxConcurrency {
 		maxConcurrency = postIdsLen
 	}
@@ -275,7 +275,7 @@ func getPostDetails(postIds *[]string, pixivFanboxDlOptions *PixivFanboxDlOption
 		spinner.REQ_SPINNER,
 		"fgHiYellow",
 		fmt.Sprintf(
-			baseMsg, 
+			baseMsg,
 			0,
 		),
 		fmt.Sprintf(
@@ -291,11 +291,11 @@ func getPostDetails(postIds *[]string, pixivFanboxDlOptions *PixivFanboxDlOption
 	progress.Start()
 
 	url := fmt.Sprintf("%s/post.info", utils.PIXIV_FANBOX_API_URL)
-	for _, postId := range *postIds {
+	for _, postId := range postIds {
 		wg.Add(1)
 		queue <- struct{}{}
 		go func(postId string) {
-			defer func() { 
+			defer func() {
 				<-queue
 				wg.Done()
 			}()
@@ -307,21 +307,21 @@ func getPostDetails(postIds *[]string, pixivFanboxDlOptions *PixivFanboxDlOption
 					Method:  "GET",
 					Url:     url,
 					Cookies: pixivFanboxDlOptions.SessionCookies,
-					Headers: &header,
-					Params:  &params,
+					Headers: header,
+					Params:  params,
 				},
 			)
 			if err != nil {
 				errChan <- fmt.Errorf(
-					"pixiv fanbox error %d: failed to get post details for %s, more info => %v", 
-					utils.CONNECTION_ERROR, 
+					"pixiv fanbox error %d: failed to get post details for %s, more info => %v",
+					utils.CONNECTION_ERROR,
 					url,
 					err,
 				)
 			} else if res.StatusCode != 200 {
 				errChan <- fmt.Errorf(
-					"pixiv fanbox error %d: failed to get post details for %s due to a %s response", 
-					utils.CONNECTION_ERROR, 
+					"pixiv fanbox error %d: failed to get post details for %s due to a %s response",
+					utils.CONNECTION_ERROR,
 					url,
 					res.Status,
 				)
@@ -404,11 +404,11 @@ type FanboxCreatorPosts struct {
 }
 
 // GetFanboxCreatorPosts returns a slice of post IDs for a given creator
-func getFanboxPosts(creatorId, pageNum string, cookies *[]http.Cookie) ([]string, error) {
+func getFanboxPosts(creatorId, pageNum string, cookies []*http.Cookie) ([]string, error) {
 	params := map[string]string{"creatorId": creatorId}
 	headers := GetPixivFanboxHeaders()
 	url := fmt.Sprintf(
-		"%s/post.paginateCreator", 
+		"%s/post.paginateCreator",
 		utils.PIXIV_FANBOX_API_URL,
 	)
 	res, err := request.CallRequest(
@@ -416,8 +416,8 @@ func getFanboxPosts(creatorId, pageNum string, cookies *[]http.Cookie) ([]string
 			Method:  "GET",
 			Url:     url,
 			Cookies: cookies,
-			Headers: &headers,
-			Params:  &params,
+			Headers: headers,
+			Params:  params,
 		},
 	)
 	if err != nil || res.StatusCode != 200 {
@@ -491,7 +491,7 @@ func getFanboxPosts(creatorId, pageNum string, cookies *[]http.Cookie) ([]string
 					Method:  "GET",
 					Url:     reqUrl,
 					Cookies: cookies,
-					Headers: &headers,
+					Headers: headers,
 				},
 			)
 			if err != nil || res.StatusCode != 200 {
@@ -541,9 +541,9 @@ func getFanboxPosts(creatorId, pageNum string, cookies *[]http.Cookie) ([]string
 }
 
 // Retrieves all the posts based on the slice of creator IDs and returns a slice of post IDs
-func getCreatorsPosts(creatorIds, pageNums *[]string, cookies *[]http.Cookie) []string {
-	creatorIdsLen := len(*creatorIds)
-	if creatorIdsLen != len(*pageNums) {
+func getCreatorsPosts(creatorIds, pageNums []string, cookies []*http.Cookie) []string {
+	creatorIdsLen := len(creatorIds)
+	if creatorIdsLen != len(pageNums) {
 		panic(
 			fmt.Errorf(
 				"pixiv fanbox error %d: length of creator IDs and page numbers are not equal",
@@ -559,7 +559,7 @@ func getCreatorsPosts(creatorIds, pageNums *[]string, cookies *[]http.Cookie) []
 		spinner.REQ_SPINNER,
 		"fgHiYellow",
 		fmt.Sprintf(
-			baseMsg, 
+			baseMsg,
 			0,
 		),
 		fmt.Sprintf(
@@ -573,10 +573,10 @@ func getCreatorsPosts(creatorIds, pageNums *[]string, cookies *[]http.Cookie) []
 		creatorIdsLen,
 	)
 	progress.Start()
-	for idx, creatorId := range *creatorIds {
+	for idx, creatorId := range creatorIds {
 		retrievedPostIds, err := getFanboxPosts(
 			creatorId,
-			(*pageNums)[idx], 
+			pageNums[idx],
 			cookies,
 		)
 		if err != nil {
@@ -606,7 +606,7 @@ func PixivFanboxDownloadProcess(config *api.Config, pixivFanboxDl *PixivFanboxDl
 	var urlsToDownload, gdriveUrlsToDownload []map[string]string
 	if len(pixivFanboxDl.PostIds) > 0 {
 		urlsSlice, gdriveSlice := getPostDetails(
-			&pixivFanboxDl.PostIds,
+			pixivFanboxDl.PostIds,
 			pixivFanboxDlOptions,
 		)
 		urlsToDownload = append(urlsToDownload, urlsSlice...)
@@ -614,12 +614,12 @@ func PixivFanboxDownloadProcess(config *api.Config, pixivFanboxDl *PixivFanboxDl
 	}
 	if len(pixivFanboxDl.CreatorIds) > 0 {
 		fanboxIds := getCreatorsPosts(
-			&pixivFanboxDl.CreatorIds,
-			&pixivFanboxDl.CreatorPageNums,
+			pixivFanboxDl.CreatorIds,
+			pixivFanboxDl.CreatorPageNums,
 			pixivFanboxDlOptions.SessionCookies,
 		)
 		urlsSlice, gdriveSlice := getPostDetails(
-			&fanboxIds,
+			fanboxIds,
 			pixivFanboxDlOptions,
 		)
 		urlsToDownload = append(urlsToDownload, urlsSlice...)
@@ -629,10 +629,10 @@ func PixivFanboxDownloadProcess(config *api.Config, pixivFanboxDl *PixivFanboxDl
 	if len(urlsToDownload) > 0 {
 		headers := GetPixivFanboxHeaders()
 		request.DownloadURLsParallel(
-			&urlsToDownload,
+			urlsToDownload,
 			utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
 			pixivFanboxDlOptions.SessionCookies,
-			&headers,
+			headers,
 			false,
 			config.OverwriteFiles,
 		)

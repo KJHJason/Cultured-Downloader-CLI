@@ -1,8 +1,8 @@
 package fantia
 
 import (
-	"errors"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"path/filepath"
@@ -10,8 +10,8 @@ import (
 	"sync"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/api"
-	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
+	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/PuerkitoBio/goquery"
 )
@@ -80,11 +80,11 @@ func processFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 	creatorName := postStruct.Fanclub.User.Name
 	postFolderPath := utils.GetPostFolder(
 		filepath.Join(
-			downloadPath, 
+			downloadPath,
 			utils.FANTIA_TITLE,
 		),
-		creatorName, 
-		postId, 
+		creatorName,
+		postId,
 		postTitle,
 	)
 
@@ -149,149 +149,140 @@ func processFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 	return urlsMap, nil
 }
 
-// Query Fantia's API based on the slice of post IDs and returns a map of urls to download from
-func getPostDetails(postIds *[]string, fantiaDlOptions *FantiaDlOptions) []map[string]string {
-	maxConcurrency := utils.MAX_API_CALLS
-	postIdsLen := len(*postIds)
-	if postIdsLen < maxConcurrency {
-		maxConcurrency = postIdsLen
-	}
-	var wg sync.WaitGroup
-	queue := make(chan struct{}, maxConcurrency)
-	resChan := make(chan *http.Response, postIdsLen)
-	errChan := make(chan error, postIdsLen)
-
-	baseMsg := "Getting post details from Fantia [%d/" + fmt.Sprintf("%d]...", postIdsLen)
-	progress := spinner.New(
-		spinner.REQ_SPINNER,
-		"fgHiYellow",
-		fmt.Sprintf(
-			baseMsg,
-			0,
-		),
-		fmt.Sprintf(
-			"Finished getting %d post details from Fantia!", 
-			postIdsLen,
-		),
-		fmt.Sprintf(
-			"Something went wrong while getting %d post details from Fantia.\nPlease refer to the logs for more details.",
-			postIdsLen,
-		),
-		postIdsLen,
-	)
-	url := utils.FANTIA_URL + "/api/v1/posts/"
-	progress.Start()
-	for _, postId := range *postIds {
-		wg.Add(1)
-		queue <- struct{}{}
-		go func(postId string) {
-			defer func() { 
-				<-queue
-				wg.Done()
-			}()
-
-			postApiUrl := url + postId
-			header := map[string]string{
-				"Referer":      fmt.Sprintf("%s/posts/%s", utils.FANTIA_URL, postId),
-				"x-csrf-token": fantiaDlOptions.CsrfToken,
-			}
-			res, err := request.CallRequest(
-				&request.RequestArgs{
-					Method: "GET",
-					Url:    postApiUrl,
-					Cookies: fantiaDlOptions.SessionCookies,
-					Headers: &header,
-					Http2: true,
-				},
-			)
-			if err != nil || res.StatusCode != 200 {
-				errCode := utils.CONNECTION_ERROR
-				if err == nil {
-					errCode = res.StatusCode
-				}
-
-				errMsg := fmt.Sprintf(
-					"fantia error %d: failed to get post details for %s",
-					errCode,
-					postApiUrl,
-				)
-
-				if err != nil {
-					err = fmt.Errorf(
-						"%s, more info => %v",
-						errMsg,
-						err,
-					)
-				} else {
-					err = errors.New(errMsg)
-				}
-
-				errChan <- err
-			} else {
-				resChan <- res
-			}
-			progress.MsgIncrement(baseMsg)
-		}(postId)
-	}
-	close(queue)
-	wg.Wait()
-	close(resChan)
-	close(errChan)
-
-	hasErr := false
-	if len(errChan) > 0 {
-		hasErr = true
-		utils.LogErrors(false, errChan)
-	}
-	progress.Stop(hasErr)
-
-	// parse the responses
-	baseMsg = "Processing received JSON(s) from Fantia [%d/" + fmt.Sprintf("%d]...", len(resChan))
-	progress = spinner.New(
-		spinner.JSON_SPINNER,
-		"fgHiYellow",
-		fmt.Sprintf(
-			baseMsg,
-			0,
-		),
-		fmt.Sprintf(
-			"Finished processing %d JSON(s) from Fantia!",
-			len(resChan),
-		),
-		fmt.Sprintf(
-			"Something went wrong while processing %d JSON(s) from Fantia.\nPlease refer to the logs for more details.",
-			len(resChan),
-		),
-		len(resChan),
-	)
-	progress.Start()
-	var urlsMapSlice []map[string]string
+// Query Fantia's API based on the slice of post IDs and get a map of urls to download from.
+//
+// Note that only the downloading of the URL(s) is/are executed parallelly 
+// to reduce the chance of the signed AWS S3 URL(s) from expiring before the download is
+// executed or completed due to a download queue to avoid resource exhaustion of the user's system.
+func dlFantiaPosts(postIds []string, fantiaDlOptions *FantiaDlOptions, config *api.Config) {
 	var errSlice []error
-	for res := range resChan {
-		urlsSlice, err := processFantiaPost(
-			res, utils.DOWNLOAD_PATH,
+	postIdsLen := len(postIds)
+	url := utils.FANTIA_URL + "/api/v1/posts/"
+	for i, postId := range postIds {
+		count := i + 1
+		msgSuffix := fmt.Sprintf(
+			"[%d/%d]", 
+			count,
+			postIdsLen,
+		)
+		// Now that we have the post ID, we can query Fantia's API
+		// to get the post's contents from the JSON response.
+		progress := spinner.New(
+			spinner.REQ_SPINNER,
+			"fgHiYellow",
+			fmt.Sprintf(
+				"Getting post %s's contents from Fantia %s...",
+				postId,
+				msgSuffix,
+			),
+			fmt.Sprintf(
+				"Finished getting post %s's contents from Fantia %s!",
+				postId,
+				msgSuffix,
+			),
+			fmt.Sprintf(
+				"Something went wrong while getting post %s's cotents from Fantia %s.\nPlease refer to the logs for more details.",
+				postId,
+				msgSuffix,
+			),
+			postIdsLen,
+		)
+		progress.Start()
+
+		postApiUrl := url + postId
+		header := map[string]string{
+			"Referer":      fmt.Sprintf("%s/posts/%s", utils.FANTIA_URL, postId),
+			"x-csrf-token": fantiaDlOptions.CsrfToken,
+		}
+		res, err := request.CallRequest(
+			&request.RequestArgs{
+				Method:  "GET",
+				Url:     postApiUrl,
+				Cookies: fantiaDlOptions.SessionCookies,
+				Headers: header,
+				Http2:   true,
+			},
+		)
+		if err != nil || res.StatusCode != 200 {
+			errCode := utils.CONNECTION_ERROR
+			if err == nil {
+				errCode = res.StatusCode
+			}
+
+			errMsg := fmt.Sprintf(
+				"fantia error %d: failed to get post details for %s",
+				errCode,
+				postApiUrl,
+			)
+
+			if err != nil {
+				err = fmt.Errorf(
+					"%s, more info => %v",
+					errMsg,
+					err,
+				)
+			} else {
+				err = errors.New(errMsg)
+			}
+
+			errSlice = append(errSlice, err)
+			progress.Stop(true)
+			continue
+		}
+		progress.Stop(false)
+
+		// Process the JSON response to get the urls to download
+		progress = spinner.New(
+			spinner.JSON_SPINNER,
+			"fgHiYellow",
+			fmt.Sprintf(
+				"Processing retrieved JSON for post %s from Fantia %s...",
+				postId,
+				msgSuffix,
+			),
+			fmt.Sprintf(
+				"Finished processing retrieved JSON for post %s from Fantia %s!",
+				postId,
+				msgSuffix,
+			),
+			fmt.Sprintf(
+				"Something went wrong while processing retrieved JSON for post %s from Fantia %s.\nPlease refer to the logs for more details.",
+				postId,
+				msgSuffix,
+			),
+			postIdsLen,
+		)
+		progress.Start()
+		urlsToDownload, err := processFantiaPost(
+			res, 
+			utils.DOWNLOAD_PATH,
 			fantiaDlOptions,
 		)
 		if err != nil {
 			errSlice = append(errSlice, err)
-		} else {
-			urlsMapSlice = append(urlsMapSlice, urlsSlice...)
+			progress.Stop(true)
 		}
+		progress.Stop(false)
 
-		progress.MsgIncrement(baseMsg)
+		// Download the urls
+		request.DownloadURLsParallel(
+			urlsToDownload,
+			utils.MAX_CONCURRENT_DOWNLOADS,
+			fantiaDlOptions.SessionCookies,
+			nil,
+			false,
+			config.OverwriteFiles,
+		)
+		fmt.Println()
 	}
 
-	hasErr = false
 	if len(errSlice) > 0 {
-		hasErr = true
 		utils.LogErrors(false, nil, errSlice...)
 	}
-	progress.Stop(hasErr)
-	return urlsMapSlice
 }
 
 // Get all the creator's posts by using goquery to parse the HTML response to get the post IDs
-func getFantiaPosts(creatorId, pageNum string, cookies *[]http.Cookie) ([]string, error) {
+func getFantiaPosts(creatorId, pageNum string, cookies []*http.Cookie) ([]string, error) {
 	var postIds []string
 	minPage, maxPage, hasMax, err := utils.GetMinMaxFromStr(pageNum)
 	if err != nil {
@@ -307,15 +298,15 @@ func getFantiaPosts(creatorId, pageNum string, cookies *[]http.Cookie) ([]string
 			"q[tag]": "",
 		}
 
-		// note that even if the max page is more than 
+		// note that even if the max page is more than
 		// the actual number of pages, the response will still be 200 OK.
 		res, err := request.CallRequest(
 			&request.RequestArgs{
-				Method: "GET",
-				Url:    url,
-				Cookies: cookies,
-				Params: &params,
-				Http3: true,
+				Method:      "GET",
+				Url:         url,
+				Cookies:     cookies,
+				Params:      params,
+				Http3:       true,
 				CheckStatus: true,
 			},
 		)
@@ -335,7 +326,7 @@ func getFantiaPosts(creatorId, pageNum string, cookies *[]http.Cookie) ([]string
 		if err != nil {
 			err = fmt.Errorf(
 				"fantia error %d, failed to parse response body when getting CSRF token from Fantia: %w",
-				utils.HTML_ERROR, 
+				utils.HTML_ERROR,
 				err,
 			)
 			return nil, err
@@ -371,9 +362,9 @@ func getFantiaPosts(creatorId, pageNum string, cookies *[]http.Cookie) ([]string
 }
 
 // Retrieves all the posts based on the slice of creator IDs and returns a slice of post IDs
-func getCreatorsPosts(creatorIds, pageNums *[]string, cookies *[]http.Cookie) []string {
-	creatorIdsLen := len(*creatorIds)
-	if creatorIdsLen != len(*pageNums) {
+func getCreatorsPosts(creatorIds, pageNums []string, cookies []*http.Cookie) []string {
+	creatorIdsLen := len(creatorIds)
+	if creatorIdsLen != len(pageNums) {
 		panic(
 			fmt.Errorf(
 				"fantia error %d: creator IDs and page numbers slices are not the same length",
@@ -410,18 +401,18 @@ func getCreatorsPosts(creatorIds, pageNums *[]string, cookies *[]http.Cookie) []
 		creatorIdsLen,
 	)
 	progress.Start()
-	for idx, creatorId := range *creatorIds {
+	for idx, creatorId := range creatorIds {
 		wg.Add(1)
 		queue <- struct{}{}
 		go func(creatorId string, pageNumIdx int) {
-			defer func() { 
+			defer func() {
 				<-queue
 				wg.Done()
 			}()
 
 			postIds, err := getFantiaPosts(
 				creatorId,
-				(*pageNums)[pageNumIdx],
+				pageNums[pageNumIdx],
 				cookies,
 			)
 			if err != nil {
@@ -458,35 +449,23 @@ func FantiaDownloadProcess(config *api.Config, fantiaDl *FantiaDl, fantiaDlOptio
 		return
 	}
 
-	var urlsToDownload []map[string]string
 	if len(fantiaDl.PostIds) > 0 {
-		urlsSlice := getPostDetails(
-			&fantiaDl.PostIds,
+		dlFantiaPosts(
+			fantiaDl.PostIds,
 			fantiaDlOptions,
+			config,
 		)
-		urlsToDownload = append(urlsToDownload, urlsSlice...)
 	}
 	if len(fantiaDl.FanclubIds) > 0 {
 		fantiaPostIds := getCreatorsPosts(
-			&fantiaDl.FanclubIds,
-			&fantiaDl.FanclubPageNums,
+			fantiaDl.FanclubIds,
+			fantiaDl.FanclubPageNums,
 			fantiaDlOptions.SessionCookies,
 		)
-		urlsSlice := getPostDetails(
-			&fantiaPostIds,
+		dlFantiaPosts(
+			fantiaPostIds,
 			fantiaDlOptions,
-		)
-		urlsToDownload = append(urlsToDownload, urlsSlice...)
-	}
-
-	if len(urlsToDownload) > 0 {
-		request.DownloadURLsParallel(
-			&urlsToDownload,
-			utils.MAX_CONCURRENT_DOWNLOADS,
-			fantiaDlOptions.SessionCookies,
-			nil,
-			false,
-			config.OverwriteFiles,
+			config,
 		)
 	}
 }

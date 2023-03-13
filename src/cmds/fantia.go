@@ -54,7 +54,7 @@ var (
 						true,
 					)
 				}
-				fantiaDlOptions.SessionCookies = &cookies
+				fantiaDlOptions.SessionCookies = cookies
 			}
 
 			err := fantiaDlOptions.ValidateArgs()
@@ -77,9 +77,10 @@ var (
 
 func init() {
 	mutlipleIdsMsg := getMultipleIdsMsg()
-	fantiaCmd.Flags().StringVar(
+	fantiaCmd.Flags().StringVarP(
 		&fantiaSession,
 		"session",
+		"s",
 		"",
 		"Your _session_id cookie value to use for the requests to Fantia.",
 	)

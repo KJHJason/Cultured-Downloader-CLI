@@ -12,9 +12,9 @@ import (
 )
 
 // Returns a cookie with given value and website to be used in requests
-func GetCookie(sessionID, website string) http.Cookie {
+func GetCookie(sessionID, website string) *http.Cookie {
 	if sessionID == "" {
-		return http.Cookie{}
+		return &http.Cookie{}
 	}
 
 	var domain, cookieName string
@@ -40,12 +40,12 @@ func GetCookie(sessionID, website string) http.Cookie {
 		Secure:   true,
 		HttpOnly: true,
 	}
-	return cookie
+	return &cookie
 }
 
 // Verifies the given cookie by making a request to the website
 // and returns true if the cookie is valid
-func VerifyCookie(cookie http.Cookie, website string) (bool, error) {
+func VerifyCookie(cookie *http.Cookie, website string) (bool, error) {
 	// sends a request to the website to verify the cookie
 	var websiteURL string
 	var useHttp3 bool
@@ -74,12 +74,12 @@ func VerifyCookie(cookie http.Cookie, website string) (bool, error) {
 		return false, nil
 	}
 
-	cookies := []http.Cookie{cookie}
+	cookies := []*http.Cookie{cookie}
 	resp, err := request.CallRequest(
 		&request.RequestArgs{
 			Method:      "HEAD",
 			Url:         websiteURL,
-			Cookies:     &cookies,
+			Cookies:     cookies,
 			CheckStatus: true,
 			Http3:       useHttp3,
 			Http2:       !useHttp3,
@@ -98,7 +98,7 @@ func VerifyCookie(cookie http.Cookie, website string) (bool, error) {
 // If the cookie is valid, the cookie will be returned
 //
 // However, if the cookie is invalid, an error message will be printed out and the program will shutdown
-func VerifyAndGetCookie(website, cookieValue string) http.Cookie {
+func VerifyAndGetCookie(website, cookieValue string) *http.Cookie {
 	if _, ok := utils.API_TITLE_MAP[website]; !ok {
 		// Shouldn't happen but could happen during development
 		panic(

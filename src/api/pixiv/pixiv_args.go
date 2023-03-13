@@ -11,10 +11,10 @@ import (
 	"github.com/fatih/color"
 )
 
-// PixivDl contains the IDs of the Pixiv artworks and 
+// PixivDl contains the IDs of the Pixiv artworks and
 // illustrators and Tag Names to download.
 type PixivDl struct {
-	ArtworkIds     []string
+	ArtworkIds []string
 
 	IllustratorIds      []string
 	IllustratorPageNums []string
@@ -30,13 +30,13 @@ type PixivDl struct {
 //
 // Should be called after initialising the struct.
 func (p *PixivDl) ValidateArgs() {
-	utils.ValidateIds(&p.ArtworkIds)
-	utils.ValidateIds(&p.IllustratorIds)
+	utils.ValidateIds(p.ArtworkIds)
+	utils.ValidateIds(p.IllustratorIds)
 
 	if len(p.IllustratorPageNums) > 0 {
 		utils.ValidatePageNumInput(
 			len(p.IllustratorIds),
-			&p.IllustratorPageNums,
+			p.IllustratorPageNums,
 			[]string{
 				"Number of illustrators ID(s) and illustrators' page numbers must be equal.",
 			},
@@ -48,7 +48,7 @@ func (p *PixivDl) ValidateArgs() {
 	if len(p.TagNamesPageNums) > 0 {
 		utils.ValidatePageNumInput(
 			len(p.TagNames),
-			&p.TagNamesPageNums,
+			p.TagNamesPageNums,
 			[]string{
 				"Number of tag names and tag names' page numbers must be equal.",
 			},
@@ -84,7 +84,7 @@ func (u *UgoiraOptions) ValidateArgs() {
 	if u.OutputFormat == ".mp4" && u.Quality < 0 || u.Quality > 51 {
 		color.Red(
 			fmt.Sprintf(
-				"pixiv error %d: Ugoira quality of %d is not allowed", 
+				"pixiv error %d: Ugoira quality of %d is not allowed",
 				utils.INPUT_ERROR,
 				u.Quality,
 			),
@@ -109,7 +109,7 @@ func (u *UgoiraOptions) ValidateArgs() {
 		UGOIRA_ACCEPTED_EXT,
 		[]string{
 			fmt.Sprintf(
-				"pixiv error %d: Output extension \"%s\" is not allowed for ugoira conversion", 
+				"pixiv error %d: Output extension \"%s\" is not allowed for ugoira conversion",
 				utils.INPUT_ERROR,
 				u.OutputFormat,
 			),
@@ -128,7 +128,7 @@ type PixivDlOptions struct {
 	MobileClient *PixivMobile
 	RefreshToken string
 
-	SessionCookies  *[]http.Cookie
+	SessionCookies  []*http.Cookie
 	SessionCookieId string
 }
 
@@ -166,7 +166,7 @@ func (p *PixivDlOptions) ValidateArgs() {
 		ACCEPTED_SORT_ORDER,
 		[]string{
 			fmt.Sprintf(
-				"pixiv error %d: Sort order %s is not allowed", 
+				"pixiv error %d: Sort order %s is not allowed",
 				utils.INPUT_ERROR,
 				p.SortOrder,
 			),
@@ -179,7 +179,7 @@ func (p *PixivDlOptions) ValidateArgs() {
 		ACCEPTED_SEARCH_MODE,
 		[]string{
 			fmt.Sprintf(
-				"pixiv error %d: Search order %s is not allowed", 
+				"pixiv error %d: Search order %s is not allowed",
 				utils.INPUT_ERROR,
 				p.SearchMode,
 			),
@@ -192,7 +192,7 @@ func (p *PixivDlOptions) ValidateArgs() {
 		ACCEPTED_RATING_MODE,
 		[]string{
 			fmt.Sprintf(
-				"pixiv error %d: Rating order %s is not allowed", 
+				"pixiv error %d: Rating order %s is not allowed",
 				utils.INPUT_ERROR,
 				p.RatingMode,
 			),
@@ -205,7 +205,7 @@ func (p *PixivDlOptions) ValidateArgs() {
 		ACCEPTED_ARTWORK_TYPE,
 		[]string{
 			fmt.Sprintf(
-				"pixiv error %d: Artwork type %s is not allowed", 
+				"pixiv error %d: Artwork type %s is not allowed",
 				utils.INPUT_ERROR,
 				p.ArtworkType,
 			),
@@ -213,7 +213,7 @@ func (p *PixivDlOptions) ValidateArgs() {
 	)
 
 	if p.SessionCookieId != "" {
-		p.SessionCookies = &[]http.Cookie{
+		p.SessionCookies = []*http.Cookie{
 			api.VerifyAndGetCookie(utils.PIXIV, p.SessionCookieId),
 		}
 	}
@@ -257,8 +257,8 @@ func (p *PixivDlOptions) ValidateArgs() {
 		default:
 			panic(
 				fmt.Sprintf(
-					"pixiv mobile error %d: invalid search mode \"%s\"", 
-					utils.DEV_ERROR, 
+					"pixiv mobile error %d: invalid search mode \"%s\"",
+					utils.DEV_ERROR,
 					p.SearchMode,
 				),
 			)

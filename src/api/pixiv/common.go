@@ -32,8 +32,8 @@ func GetPixivRequestHeaders() map[string]string {
 // Get the Pixiv illust page URL for the referral header value
 func GetIllustUrl(illustId string) string {
 	return fmt.Sprintf(
-		"%s/artworks/%s", 
-		utils.PIXIV_URL, 
+		"%s/artworks/%s",
+		utils.PIXIV_URL,
 		illustId,
 	)
 }
@@ -90,12 +90,12 @@ func MapDelaysToFilename(ugoiraFramesJson map[string]interface{}) map[string]int
 }
 
 // Converts the Ugoira to the desired output path using FFmpeg
-func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpegPath string, ugoiraQuality int) error {
+func ConvertUgoira(ugoiraInfo *Ugoira, imagesFolderPath, outputPath string, ffmpegPath string, ugoiraQuality int) error {
 	outputExt := filepath.Ext(outputPath)
 	if !utils.SliceContains(UGOIRA_ACCEPTED_EXT, outputExt) {
 		return fmt.Errorf(
-			"pixiv error %d: Output extension %v is not allowed for ugoira conversion", 
-			utils.INPUT_ERROR, 
+			"pixiv error %d: Output extension %v is not allowed for ugoira conversion",
+			utils.INPUT_ERROR,
 			outputExt,
 		)
 	}
@@ -280,9 +280,9 @@ func GetUgoiraFilePaths(ugoireFilePath, ugoiraUrl, outputFormat string) (string,
 }
 
 // Downloads multiple Ugoira artworks and converts them based on the output format
-func downloadMultipleUgoira(downloadInfo *[]Ugoira, config *api.Config, ugoiraOptions *UgoiraOptions, cookies *[]http.Cookie) {
+func downloadMultipleUgoira(downloadInfo []*Ugoira, config *api.Config, ugoiraOptions *UgoiraOptions, cookies []*http.Cookie) {
 	var urlsToDownload []map[string]string
-	for _, ugoira := range *downloadInfo {
+	for _, ugoira := range downloadInfo {
 		filePath, outputFilePath := GetUgoiraFilePaths(
 			ugoira.FilePath,
 			ugoira.Url,
@@ -298,16 +298,16 @@ func downloadMultipleUgoira(downloadInfo *[]Ugoira, config *api.Config, ugoiraOp
 
 	pixivHeaders := GetPixivRequestHeaders()
 	request.DownloadURLsParallel(
-		&urlsToDownload,
+		urlsToDownload,
 		utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
 		cookies,
-		&pixivHeaders,
+		pixivHeaders,
 		false,
 		config.OverwriteFiles,
 	)
 
 	var errSlice []error
-	downloadInfoLen := len(*downloadInfo)
+	downloadInfoLen := len(downloadInfo)
 	baseMsg := "Converting Ugoira to %s [%d/" + fmt.Sprintf("%d]...", downloadInfoLen)
 	progress := spinner.New(
 		spinner.DL_SPINNER,
@@ -329,7 +329,7 @@ func downloadMultipleUgoira(downloadInfo *[]Ugoira, config *api.Config, ugoiraOp
 		downloadInfoLen,
 	)
 	progress.Start()
-	for _, ugoira := range *downloadInfo {
+	for _, ugoira := range downloadInfo {
 		zipFilePath, outputPath := GetUgoiraFilePaths(ugoira.FilePath, ugoira.Url, ugoiraOptions.OutputFormat)
 		if utils.PathExists(outputPath) {
 			progress.MsgIncrement(baseMsg)

@@ -26,13 +26,13 @@ type FantiaDl struct {
 //
 // Should be called after initialising the struct.
 func (f *FantiaDl) ValidateArgs() {
-	utils.ValidateIds(&f.FanclubIds)
-	utils.ValidateIds(&f.PostIds)
+	utils.ValidateIds(f.FanclubIds)
+	utils.ValidateIds(f.PostIds)
 
 	if len(f.FanclubPageNums) > 0 {
 		utils.ValidatePageNumInput(
 			len(f.FanclubIds),
-			&f.FanclubPageNums,
+			f.FanclubPageNums,
 			[]string{
 				"Number of Fantia Fanclub ID(s) and page numbers must be equal.",
 			},
@@ -49,7 +49,7 @@ type FantiaDlOptions struct {
 	DlAttachments   bool
 
 	SessionCookieId string
-	SessionCookies  *[]http.Cookie
+	SessionCookies  []*http.Cookie
 
 	csrfMu          sync.Mutex
 	CsrfToken       string
@@ -122,7 +122,7 @@ func (f *FantiaDlOptions) GetCsrfToken() error {
 // Should be called after initialising the struct.
 func (f *FantiaDlOptions) ValidateArgs() error {
 	if f.SessionCookieId != "" {
-		f.SessionCookies = &[]http.Cookie{
+		f.SessionCookies = []*http.Cookie{
 			api.VerifyAndGetCookie(utils.FANTIA, f.SessionCookieId),
 		}
 	}

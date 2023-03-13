@@ -57,7 +57,7 @@ var (
 
 			utils.ValidatePageNumInput(
 				len(pixivTagNames),
-				&pixivPageNums,
+				pixivPageNums,
 				[]string{
 					"Number of tag names and page numbers must be equal.",
 				},
@@ -99,7 +99,7 @@ var (
 						true,
 					)
 				}
-				pixivDlOptions.SessionCookies = &cookies
+				pixivDlOptions.SessionCookies = cookies
 			}
 			pixivDlOptions.ValidateArgs()
 
@@ -147,9 +147,10 @@ func init() {
 			},
 		),
 	)
-	pixivCmd.Flags().StringVar(
+	pixivCmd.Flags().StringVarP(
 		&pixivSession,
 		"session",
+		"s",
 		"",
 		"Your PHPSESSID cookie value to use for the requests to Pixiv.",
 	)

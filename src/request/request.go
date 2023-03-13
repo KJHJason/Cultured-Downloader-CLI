@@ -15,10 +15,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/fatih/color"
-	"github.com/quic-go/quic-go/http3"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/fatih/color"
+	"github.com/quic-go/quic-go/http3"
 )
 
 // Get a new HTTP/2 or HTTP/3 client based on the request arguments
@@ -79,12 +79,12 @@ func sendRequest(req *http.Request, reqArgs *RequestArgs) (*http.Response, error
 }
 
 // add headers to the request
-func AddHeaders(headers *map[string]string, req *http.Request) {
-	if headers == nil || len(*headers) == 0 {
+func AddHeaders(headers map[string]string, req *http.Request) {
+	if len(headers) == 0 {
 		return
 	}
 
-	for key, value := range *headers {
+	for key, value := range headers {
 		req.Header.Add(key, value)
 	}
 	if req.Header.Get("User-Agent") == "" {
@@ -95,26 +95,26 @@ func AddHeaders(headers *map[string]string, req *http.Request) {
 }
 
 // add cookies to the request
-func AddCookies(reqUrl string, cookies *[]http.Cookie, req *http.Request) {
-	if cookies == nil || len(*cookies) == 0 {
+func AddCookies(reqUrl string, cookies []*http.Cookie, req *http.Request) {
+	if len(cookies) == 0 {
 		return
 	}
 
-	for _, cookie := range *cookies {
+	for _, cookie := range cookies {
 		if strings.Contains(reqUrl, cookie.Domain) {
-			req.AddCookie(&cookie)
+			req.AddCookie(cookie)
 		}
 	}
 }
 
 // add params to the request
-func AddParams(params *map[string]string, req *http.Request) {
-	if params == nil || len(*params) == 0 {
+func AddParams(params map[string]string, req *http.Request) {
+	if len(params) == 0 {
 		return
 	}
 
 	query := req.URL.Query()
-	for key, value := range *params {
+	for key, value := range params {
 		query.Add(key, value)
 	}
 	req.URL.RawQuery = query.Encode()
@@ -128,8 +128,8 @@ func CallRequest(reqArgs *RequestArgs) (*http.Response, error) {
 	reqArgs.ValidateArgs()
 	req, err := http.NewRequestWithContext(
 		reqArgs.Context,
-		reqArgs.Method, 
-		reqArgs.Url, 
+		reqArgs.Method,
+		reqArgs.Url,
 		nil,
 	)
 	if err != nil {
@@ -150,11 +150,11 @@ func CallRequest(reqArgs *RequestArgs) (*http.Response, error) {
 func CheckInternetConnection() {
 	_, err := CallRequest(
 		&RequestArgs{
-			Url: "https://www.google.com",
-			Method: "HEAD",
-			Timeout: 10,
+			Url:         "https://www.google.com",
+			Method:      "HEAD",
+			Timeout:     10,
 			CheckStatus: false,
-			Http3: true,
+			Http3:       true,
 		},
 	)
 	if err != nil {
@@ -170,19 +170,19 @@ func CheckInternetConnection() {
 }
 
 // Sends a request with the given data
-func CallRequestWithData(reqArgs *RequestArgs, data *map[string]string) (*http.Response, error) {
+func CallRequestWithData(reqArgs *RequestArgs, data map[string]string) (*http.Response, error) {
 	form := url.Values{}
-	for key, value := range *data {
+	for key, value := range data {
 		form.Add(key, value)
 	}
-	if len(*data) > 0 {
-		(*reqArgs.Headers)["Content-Type"] = "application/x-www-form-urlencoded"
+	if len(data) > 0 {
+		reqArgs.Headers["Content-Type"] = "application/x-www-form-urlencoded"
 	}
 
 	req, err := http.NewRequestWithContext(
-		reqArgs.Context, 
-		reqArgs.Method, 
-		reqArgs.Url, 
+		reqArgs.Context,
+		reqArgs.Method,
+		reqArgs.Url,
 		strings.NewReader(form.Encode()),
 	)
 	if err != nil {
@@ -199,17 +199,17 @@ func CallRequestWithData(reqArgs *RequestArgs, data *map[string]string) (*http.R
 //
 // Note: If the file already exists, the download process will be skipped
 func DownloadURL(filePath string, queue chan struct{}, reqArgs *RequestArgs, overwriteExistingFile bool) error {
-	// Create a context that can be cancelled when SIGINT signal is received
-    ctx, cancel := context.WithCancel(context.Background())
-    defer cancel()
+	// Create a context that can be cancelled when SIGINT/SIGTERM signal is received
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-    // Catch SIGINT signal and cancel the context when received
-    sigs := make(chan os.Signal, 1)
-    signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
-    go func() {
-        <-sigs
-        cancel()
-    }()
+	// Catch SIGINT/SIGTERM signal and cancel the context when received
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigs
+		cancel()
+	}()
 	defer signal.Stop(sigs)
 
 	queue <- struct{}{}
@@ -268,8 +268,8 @@ func DownloadURL(filePath string, queue chan struct{}, reqArgs *RequestArgs, ove
 		filename = utils.GetLastPartOfURL(filename)
 		filenameWithoutExt := utils.RemoveExtFromFilename(filename)
 		filePath = filepath.Join(
-			filePath, 
-			filenameWithoutExt + strings.ToLower(filepath.Ext(filename)),
+			filePath,
+			filenameWithoutExt+strings.ToLower(filepath.Ext(filename)),
 		)
 	} else {
 		filePathDir := filepath.Dir(filePath)
@@ -321,8 +321,8 @@ func DownloadURL(filePath string, queue chan struct{}, reqArgs *RequestArgs, ove
 					utils.OS_ERROR,
 					filePath,
 					fileErr,
-				), 
-				"", 
+				),
+				"",
 				false,
 			)
 		}
@@ -341,8 +341,8 @@ func DownloadURL(filePath string, queue chan struct{}, reqArgs *RequestArgs, ove
 // DownloadURLsParallel is used to download multiple files from URLs in parallel
 //
 // Note: If the file already exists, the download process will be skipped
-func DownloadURLsParallel(urls *[]map[string]string, maxConcurrency int, cookies *[]http.Cookie, headers *map[string]string, useHttp3, overwriteExistingFiles bool) {
-	urlsLen := len(*urls)
+func DownloadURLsParallel(urls []map[string]string, maxConcurrency int, cookies []*http.Cookie, headers map[string]string, useHttp3, overwriteExistingFiles bool) {
+	urlsLen := len(urls)
 	if urlsLen == 0 {
 		return
 	}
@@ -373,10 +373,10 @@ func DownloadURLsParallel(urls *[]map[string]string, maxConcurrency int, cookies
 		urlsLen,
 	)
 	progress.Start()
-	for _, url := range *urls {
+	for _, url := range urls {
 		wg.Add(1)
 		go func(fileUrl, filePath string) {
-			defer func() { 
+			defer func() {
 				<-queue
 				wg.Done()
 			}()
@@ -384,8 +384,8 @@ func DownloadURLsParallel(urls *[]map[string]string, maxConcurrency int, cookies
 				filePath,
 				queue,
 				&RequestArgs{
-					Url: fileUrl,
-					Method: "GET",
+					Url:     fileUrl,
+					Method:  "GET",
 					Timeout: utils.DOWNLOAD_TIMEOUT,
 					Cookies: cookies,
 					Headers: headers,

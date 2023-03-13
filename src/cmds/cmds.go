@@ -47,9 +47,10 @@ func init() {
 				},
 			),
 		)
-		cmd.Flags().StringVar(
+		cmd.Flags().StringVarP(
 			cmdInfo.cookieFileVar,
 			"cookie_file",
+			"c",
 			"",
 			utils.CombineStringsWithNewline(
 				[]string{
