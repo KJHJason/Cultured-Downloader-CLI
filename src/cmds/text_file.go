@@ -1,7 +1,9 @@
 package cmds
 
 import (
+	"bufio"
 	"os"
+	"io"
 	"fmt"
 	"strings"
 	"regexp"
@@ -87,24 +89,45 @@ var (
 	P_TAG_REGEX_PAGE_NUM_INDEX = P_TAG_URL_REGEX.SubexpIndex(PAGE_NUM_REGEX_GRP_NAME)
 )
 
-// readTextFile reads the text file at the given path and returns a slice of strings split by newline.
+// openTextFile opens the text file at the given path and returns a os.File and a bufio.Reader.
 //
-// If the file cannot be read, the program will exit with an error message.
-func readTextFile(textFilePath, website string) []string {
-	text, err := os.ReadFile(textFilePath)
+// If an error occurs, the program will exit with an error message and status code 1.
+func openTextFile(textFilePath, website string) (*os.File, *bufio.Reader) {
+	f, err := os.Open(textFilePath)
 	if err != nil {
 		errMsg := fmt.Sprintf(
-			"%s error %d: unable to read text file \"%s\", more info => %v",
+			"error %d: failed to open %s cookie file at %s, more info => %v",
+			utils.OS_ERROR,
 			website,
-			utils.INPUT_ERROR, // assume input error instead of os error
 			textFilePath,
 			err,
 		)
 		color.Red(errMsg)
 		os.Exit(1)
 	}
+	return f, bufio.NewReader(f)
+}
 
-	return strings.Split(string(text), "\n")
+// readLine reads a line from the given reader and returns the line as a slice of bytes.
+//
+// If the reader reaches EOF, the second return value will be true. Otherwise, it will be false.
+// However, if an error occurs, the program will exit with an error message and status code 1.
+func readLine(reader *bufio.Reader, textFilePath, website string) ([]byte, bool) {
+	lineBytes, err := utils.ReadLine(reader)
+	if err != nil {
+		if err == io.EOF {
+			return nil, true
+		}
+		errMsg := fmt.Sprintf(
+			"error %d: failed to read fantia text file at %s, more info => %v",
+			utils.OS_ERROR,
+			textFilePath,
+			err,
+		)
+		color.Red(errMsg)
+		os.Exit(1)
+	}
+	return lineBytes, false
 }
 
 type parsedFantiaFanclub struct {
@@ -114,11 +137,21 @@ type parsedFantiaFanclub struct {
 
 // parseFantiaTextFile parses the text file at the given path and returns a slice of post IDs and a slice of parsedFantiaFanclub.
 func parseFantiaTextFile(textFilePath string) ([]string, []*parsedFantiaFanclub) {
-	urlSlice := readTextFile(textFilePath, utils.FANTIA)
+	f, reader := openTextFile(
+		textFilePath, 
+		utils.FANTIA,
+	)
+	defer f.Close() 
+
 	var postIds []string
 	var fanclubIds []*parsedFantiaFanclub
-	for _, url := range urlSlice {
-		url = strings.TrimSpace(url)
+	for {
+		lineBytes, isEof := readLine(reader, textFilePath, utils.FANTIA)
+		if isEof {
+			break
+		}
+
+		url := strings.TrimSpace(string(lineBytes))
 		if url == "" {
 			continue
 		}
@@ -147,11 +180,22 @@ type parsedPixivFanboxCreator struct {
 
 // parsePixivFanboxTextFile parses the text file at the given path and returns a slice of post IDs and a slice of parsedPixivFanboxCreator.
 func parsePixivFanboxTextFile(textFilePath string) ([]string, []*parsedPixivFanboxCreator) {
-	urlSlice := readTextFile(textFilePath, utils.PIXIV_FANBOX)
+	lowercaseFanbox := strings.ToLower(utils.PIXIV_FANBOX_TITLE)
+	f, reader := openTextFile(
+		textFilePath, 
+		lowercaseFanbox,
+	)
+	defer f.Close()
+
 	var postIds []string
 	var creatorIds []*parsedPixivFanboxCreator
-	for _, url := range urlSlice {
-		url = strings.TrimSpace(url)
+	for {
+		lineBytes, isEof := readLine(reader, textFilePath, lowercaseFanbox)
+		if isEof {
+			break
+		}
+
+		url := strings.TrimSpace(string(lineBytes))
 		if url == "" {
 			continue
 		}
@@ -189,12 +233,22 @@ type parsedPixivTag struct {
 
 // parsePixivTextFile parses the text file at the given path and returns a slice of post IDs, a slice of parsedPixivArtist, and a slice of parsedPixivTag.
 func parsePixivTextFile(textFilePath string) ([]string, []*parsedPixivArtist, []*parsedPixivTag) {
-	urlSlice := readTextFile(textFilePath, utils.PIXIV)
+	f, reader := openTextFile(
+		textFilePath, 
+		utils.PIXIV,
+	)
+	defer f.Close()
+
 	var postIds []string
 	var artistIds []*parsedPixivArtist
 	var tags []*parsedPixivTag
-	for _, url := range urlSlice {
-		url = strings.TrimSpace(url)
+	for {
+		lineBytes, isEof := readLine(reader, textFilePath, utils.PIXIV)
+		if isEof {
+			break
+		}
+
+		url := strings.TrimSpace(string(lineBytes))
 		if url == "" {
 			continue
 		}

@@ -27,6 +27,23 @@ func PrintWarningMsg() {
 	fmt.Println()
 }
 
+// Uses bufio.Reader to read a line from a file and returns it as a byte slice
+//
+// Mostly thanks to https://devmarkpro.com/working-big-files-golang
+func ReadLine(reader *bufio.Reader) ([]byte, error) {
+	var err error
+	var isPrefix = true
+	var totalLine, line []byte
+
+	// Read until isPrefix is false as 
+	// that means the line has been fully read
+	for isPrefix && err == nil {
+		line, isPrefix, err = reader.ReadLine()
+		totalLine = append(totalLine, line...)
+	}
+	return totalLine, err
+}
+
 // For the exported cookies in JSON instead of Netscape format
 type ExportedCookies []struct {
 	Domain   string  `json:"domain"`
@@ -70,12 +87,26 @@ func ParseNetscapeCookieFile(filePath, sessionId, website string) ([]*http.Cooki
 			err,
 		)
 	}
+	defer f.Close()
 
 	var cookies []*http.Cookie
 	if ext := filepath.Ext(filePath); ext == ".txt" {
-		scanner := bufio.NewScanner(f)
-		for scanner.Scan() {
-			line := strings.TrimSpace(scanner.Text())
+		reader := bufio.NewReader(f)
+		for {
+			lineBytes, err := ReadLine(reader)
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				return nil, fmt.Errorf(
+					"error %d: reading cookie file at %s, more info => %v",
+					OS_ERROR,
+					filePath,
+					err,
+				)
+			}
+
+			line := strings.TrimSpace(string(lineBytes))
 
 			// skip empty lines and comments
 			if line == "" || strings.HasPrefix(line, "#") {
@@ -125,15 +156,6 @@ func ParseNetscapeCookieFile(filePath, sessionId, website string) ([]*http.Cooki
 				}
 			}
 			cookies = append(cookies, &cookie)
-		}
-
-		if err := scanner.Err(); err != nil {
-			return nil, fmt.Errorf(
-				"error %d: reading cookie file at %s, more info => %v",
-				OS_ERROR,
-				filePath,
-				err,
-			)
 		}
 	} else if ext == ".json" {
 		var exportedCookies ExportedCookies
