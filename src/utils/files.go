@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -99,9 +98,8 @@ func GetPostFolder(downloadPath, creatorName, postId, postTitle string) string {
 }
 
 type ConfigFile struct {
-	DownloadDir        string `json:"download_directory"`
-	Language           string `json:"language"`
-	ClientDigestMethod string `json:"client_digest_method"`
+	DownloadDir string `json:"download_directory"`
+	Language    string `json:"language"`
 }
 
 // Returns the download path from the config file
@@ -139,19 +137,10 @@ func SetDefaultDownloadPath(newDownloadPath string) error {
 	os.MkdirAll(APP_PATH, 0666)
 	configFilePath := filepath.Join(APP_PATH, "config.json")
 	if !PathExists(configFilePath) {
-		os.Create(configFilePath)
-
-		is64Bit := strconv.IntSize == 64
-		digestMethod := "sha256"
-		if is64Bit {
-			digestMethod = "sha512"
-		}
 		config := ConfigFile{
-			DownloadDir:        newDownloadPath,
-			Language:           "en",
-			ClientDigestMethod: digestMethod,
+			DownloadDir: newDownloadPath,
+			Language:    "en",
 		}
-
 		configFile, err := json.MarshalIndent(config, "", "    ")
 		if err != nil {
 			return fmt.Errorf(

@@ -3,14 +3,14 @@ package pixiv
 import (
 	"fmt"
 
-	"github.com/KJHJason/Cultured-Downloader-CLI/api"
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
 
 // Start the download process for Pixiv
-func PixivDownloadProcess(config *api.Config, pixivDl *PixivDl, pixivDlOptions *PixivDlOptions, pixivUgoiraOptions *UgoiraOptions) {
+func PixivDownloadProcess(config *configs.Config, pixivDl *PixivDl, pixivDlOptions *PixivDlOptions, pixivUgoiraOptions *UgoiraOptions) {
 	var ugoiraToDownload []*Ugoira
 	var artworksToDownload []map[string]string
 	if len(pixivDl.ArtworkIds) > 0 {
@@ -20,7 +20,7 @@ func PixivDownloadProcess(config *api.Config, pixivDl *PixivDl, pixivDlOptions *
 			artworksSlice, ugoiraSlice = getMultipleArtworkDetails(
 				pixivDl.ArtworkIds,
 				utils.DOWNLOAD_PATH,
-				config.UserAgent,
+				config,
 				pixivDlOptions.SessionCookies,
 			)
 		} else {
@@ -41,7 +41,7 @@ func PixivDownloadProcess(config *api.Config, pixivDl *PixivDl, pixivDlOptions *
 				pixivDl.IllustratorIds,
 				pixivDl.IllustratorPageNums,
 				utils.DOWNLOAD_PATH,
-				config.UserAgent,
+				config,
 				pixivDlOptions,
 			)
 		} else {
@@ -86,7 +86,7 @@ func PixivDownloadProcess(config *api.Config, pixivDl *PixivDl, pixivDlOptions *
 					tagName,
 					utils.DOWNLOAD_PATH,
 					pixivDl.TagNamesPageNums[idx],
-					config.UserAgent,
+					config,
 					pixivDlOptions,
 				)
 			} else {
@@ -110,12 +110,11 @@ func PixivDownloadProcess(config *api.Config, pixivDl *PixivDl, pixivDlOptions *
 			artworksToDownload,
 			&request.DlOptions{
 				MaxConcurrency:         utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
-				OverwriteExistingFiles: config.OverwriteFiles,
 				Headers:                headers,
 				Cookies:                pixivDlOptions.SessionCookies,
 				UseHttp3:               false,
-				UserAgent:              config.UserAgent,
 			},
+			config,
 		)
 	}
 	if len(ugoiraToDownload) > 0 {

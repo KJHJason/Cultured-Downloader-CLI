@@ -5,6 +5,7 @@ import (
 	"os"
 	"regexp"
 
+	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/fatih/color"
@@ -64,6 +65,10 @@ type PixivFanboxDlOptions struct {
 	DlAttachments bool
 	DlGdrive      bool
 
+	// GDriveClient is the Google Drive client to be 
+	// used in the download process for Pixiv Fanbox posts
+	GDriveClient   *gdrive.GDrive
+
 	SessionCookieId string
 	SessionCookies  []*http.Cookie
 }
@@ -76,5 +81,9 @@ func (pf *PixivFanboxDlOptions) ValidateArgs(userAgent string) {
 		pf.SessionCookies = []*http.Cookie{
 			api.VerifyAndGetCookie(utils.PIXIV_FANBOX, pf.SessionCookieId, userAgent),
 		}
+	}
+
+	if pf.DlGdrive && pf.GDriveClient == nil {
+		pf.DlGdrive = false
 	}
 }

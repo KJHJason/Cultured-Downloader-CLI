@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/KJHJason/Cultured-Downloader-CLI/api"
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
@@ -51,7 +51,7 @@ var (
 				return
 			}
 
-			pixivConfig := api.Config{
+			pixivConfig := &configs.Config{
 				FfmpegPath:     pixivFfmpegPath,
 				OverwriteFiles: pixivOverwrite,
 				UserAgent:      pixivUserAgent,
@@ -72,7 +72,7 @@ var (
 					pixivPageNums = append(pixivPageNums, tagInfo.PageNum)
 				}
 			}
-			pixivDl := pixiv.PixivDl{
+			pixivDl := &pixiv.PixivDl{
 				ArtworkIds:          pixivArtworkIds,
 				IllustratorIds:      pixivIllustratorIds,
 				IllustratorPageNums: pixivIllustratorPageNums,
@@ -81,14 +81,14 @@ var (
 			}
 			pixivDl.ValidateArgs()
 
-			pixivUgoiraOptions := pixiv.UgoiraOptions{
+			pixivUgoiraOptions := &pixiv.UgoiraOptions{
 				DeleteZip:    deleteUgoiraZip,
 				Quality:      ugoiraQuality,
 				OutputFormat: ugoiraOutputFormat,
 			}
 			pixivUgoiraOptions.ValidateArgs()
 
-			pixivDlOptions := pixiv.PixivDlOptions{
+			pixivDlOptions := &pixiv.PixivDlOptions{
 				SortOrder:       pixivSortOrder,
 				SearchMode:      pixivSearchMode,
 				RatingMode:      pixivRatingMode,
@@ -115,10 +115,10 @@ var (
 
 			utils.PrintWarningMsg()
 			pixiv.PixivDownloadProcess(
-				&pixivConfig,
-				&pixivDl,
-				&pixivDlOptions,
-				&pixivUgoiraOptions,
+				pixivConfig,
+				pixivDl,
+				pixivDlOptions,
+				pixivUgoiraOptions,
 			)
 		},
 	}

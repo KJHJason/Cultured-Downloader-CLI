@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"path/filepath"
 
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/fatih/color"
@@ -30,7 +31,7 @@ type GDrive struct {
 }
 
 // Returns a GDrive structure with the given API key and max download workers
-func GetNewGDrive(apiKey, userAgent string, maxDownloadWorkers int) *GDrive {
+func GetNewGDrive(apiKey string, config *configs.Config, maxDownloadWorkers int) *GDrive {
 	gdrive := &GDrive{
 		apiKey:             apiKey,
 		apiUrl:             "https://www.googleapis.com/drive/v3/files",
@@ -39,7 +40,7 @@ func GetNewGDrive(apiKey, userAgent string, maxDownloadWorkers int) *GDrive {
 		maxDownloadWorkers: maxDownloadWorkers,
 	}
 
-	gdriveIsValid, err := gdrive.GDriveKeyIsValid(userAgent)
+	gdriveIsValid, err := gdrive.GDriveKeyIsValid(config.UserAgent)
 	if err != nil {
 		color.Red(err.Error())
 		os.Exit(1)
@@ -150,7 +151,7 @@ type GDriveFolder struct {
 }
 
 // Returns the contents of the given GDrive folder
-func (gdrive *GDrive) GetFolderContents(folderId, logPath, userAgent string) ([]map[string]string, error) {
+func (gdrive *GDrive) GetFolderContents(folderId, logPath string, config *configs.Config) ([]map[string]string, error) {
 	params := map[string]string{
 		"key":    gdrive.apiKey,
 		"q":      fmt.Sprintf("'%s' in parents", folderId),
@@ -170,7 +171,7 @@ func (gdrive *GDrive) GetFolderContents(folderId, logPath, userAgent string) ([]
 				Method:    "GET",
 				Timeout:   gdrive.timeout,
 				Params:    params,
-				UserAgent: userAgent,
+				UserAgent: config.UserAgent,
 			},
 		)
 		if err != nil {
@@ -229,16 +230,16 @@ func (gdrive *GDrive) GetFolderContents(folderId, logPath, userAgent string) ([]
 }
 
 // Retrieves the content of a GDrive folder and its subfolders recursively using GDrive API v3
-func (gdrive *GDrive) GetNestedFolderContents(folderId, logPath, userAgent string) ([]map[string]string, error) {
+func (gdrive *GDrive) GetNestedFolderContents(folderId, logPath string, config *configs.Config) ([]map[string]string, error) {
 	files := []map[string]string{}
-	folderContents, err := gdrive.GetFolderContents(folderId, logPath, userAgent)
+	folderContents, err := gdrive.GetFolderContents(folderId, logPath, config)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, file := range folderContents {
 		if file["mimeType"] == "application/vnd.google-apps.folder" {
-			subFolderFiles, err := gdrive.GetNestedFolderContents(file["id"], logPath, userAgent)
+			subFolderFiles, err := gdrive.GetNestedFolderContents(file["id"], logPath, config)
 			if err != nil {
 				return nil, err
 			}
@@ -251,7 +252,7 @@ func (gdrive *GDrive) GetNestedFolderContents(folderId, logPath, userAgent strin
 }
 
 // Retrieves the file details of the given GDrive file using GDrive API v3
-func (gdrive *GDrive) GetFileDetails(fileId, logPath, userAgent string) (map[string]string, error) {
+func (gdrive *GDrive) GetFileDetails(fileId, logPath string, config *configs.Config) (map[string]string, error) {
 	params := map[string]string{
 		"key":    gdrive.apiKey,
 		"fields": GDRIVE_FILE_FIELDS,
@@ -263,7 +264,7 @@ func (gdrive *GDrive) GetFileDetails(fileId, logPath, userAgent string) (map[str
 			Method:    "GET",
 			Timeout:   gdrive.timeout,
 			Params:    params,
-			UserAgent: userAgent,
+			UserAgent: config.UserAgent,
 		},
 	)
 	if err != nil {

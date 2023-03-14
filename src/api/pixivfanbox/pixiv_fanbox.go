@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/KJHJason/Cultured-Downloader-CLI/api"
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
@@ -259,7 +259,7 @@ func processFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 
 // Query Pixiv Fanbox's API based on the slice of post IDs and returns a map of
 // urls and a map of GDrive urls to download from
-func getPostDetails(postIds []string, userAgent string, pixivFanboxDlOptions *PixivFanboxDlOptions) ([]map[string]string, []map[string]string) {
+func getPostDetails(postIds []string, config *configs.Config, pixivFanboxDlOptions *PixivFanboxDlOptions) ([]map[string]string, []map[string]string) {
 	maxConcurrency := utils.MAX_API_CALLS
 	postIdsLen := len(postIds)
 	if postIdsLen < maxConcurrency {
@@ -309,7 +309,7 @@ func getPostDetails(postIds []string, userAgent string, pixivFanboxDlOptions *Pi
 					Cookies:   pixivFanboxDlOptions.SessionCookies,
 					Headers:   header,
 					Params:    params,
-					UserAgent: userAgent,
+					UserAgent: config.UserAgent,
 				},
 			)
 			if err != nil {
@@ -405,7 +405,7 @@ type FanboxCreatorPosts struct {
 }
 
 // GetFanboxCreatorPosts returns a slice of post IDs for a given creator
-func getFanboxPosts(creatorId, pageNum, userAgent string, cookies []*http.Cookie) ([]string, error) {
+func getFanboxPosts(creatorId, pageNum string, config *configs.Config, cookies []*http.Cookie) ([]string, error) {
 	params := map[string]string{"creatorId": creatorId}
 	headers := GetPixivFanboxHeaders()
 	url := fmt.Sprintf(
@@ -419,7 +419,7 @@ func getFanboxPosts(creatorId, pageNum, userAgent string, cookies []*http.Cookie
 			Cookies:   cookies,
 			Headers:   headers,
 			Params:    params,
-			UserAgent: userAgent,
+			UserAgent: config.UserAgent,
 		},
 	)
 	if err != nil || res.StatusCode != 200 {
@@ -494,7 +494,7 @@ func getFanboxPosts(creatorId, pageNum, userAgent string, cookies []*http.Cookie
 					Url:       reqUrl,
 					Cookies:   cookies,
 					Headers:   headers,
-					UserAgent: userAgent,
+					UserAgent: config.UserAgent,
 				},
 			)
 			if err != nil || res.StatusCode != 200 {
@@ -544,7 +544,7 @@ func getFanboxPosts(creatorId, pageNum, userAgent string, cookies []*http.Cookie
 }
 
 // Retrieves all the posts based on the slice of creator IDs and returns a slice of post IDs
-func getCreatorsPosts(creatorIds, pageNums []string, userAgent string, cookies []*http.Cookie) []string {
+func getCreatorsPosts(creatorIds, pageNums []string, config *configs.Config, cookies []*http.Cookie) []string {
 	creatorIdsLen := len(creatorIds)
 	if creatorIdsLen != len(pageNums) {
 		panic(
@@ -580,7 +580,7 @@ func getCreatorsPosts(creatorIds, pageNums []string, userAgent string, cookies [
 		retrievedPostIds, err := getFanboxPosts(
 			creatorId,
 			pageNums[idx],
-			userAgent,
+			config,
 			cookies,
 		)
 		if err != nil {
@@ -602,7 +602,7 @@ func getCreatorsPosts(creatorIds, pageNums []string, userAgent string, cookies [
 }
 
 // Start the download process for Pixiv Fanbox
-func PixivFanboxDownloadProcess(config *api.Config, pixivFanboxDl *PixivFanboxDl, pixivFanboxDlOptions *PixivFanboxDlOptions) {
+func PixivFanboxDownloadProcess(config *configs.Config, pixivFanboxDl *PixivFanboxDl, pixivFanboxDlOptions *PixivFanboxDlOptions) {
 	if !pixivFanboxDlOptions.DlThumbnails && !pixivFanboxDlOptions.DlImages && !pixivFanboxDlOptions.DlAttachments && !pixivFanboxDlOptions.DlGdrive {
 		return
 	}
@@ -611,7 +611,7 @@ func PixivFanboxDownloadProcess(config *api.Config, pixivFanboxDl *PixivFanboxDl
 	if len(pixivFanboxDl.PostIds) > 0 {
 		urlsSlice, gdriveSlice := getPostDetails(
 			pixivFanboxDl.PostIds,
-			config.UserAgent,
+			config,
 			pixivFanboxDlOptions,
 		)
 		urlsToDownload = append(urlsToDownload, urlsSlice...)
@@ -621,12 +621,12 @@ func PixivFanboxDownloadProcess(config *api.Config, pixivFanboxDl *PixivFanboxDl
 		fanboxIds := getCreatorsPosts(
 			pixivFanboxDl.CreatorIds,
 			pixivFanboxDl.CreatorPageNums,
-			config.UserAgent,
+			config,
 			pixivFanboxDlOptions.SessionCookies,
 		)
 		urlsSlice, gdriveSlice := getPostDetails(
 			fanboxIds,
-			config.UserAgent,
+			config,
 			pixivFanboxDlOptions,
 		)
 		urlsToDownload = append(urlsToDownload, urlsSlice...)
@@ -638,15 +638,14 @@ func PixivFanboxDownloadProcess(config *api.Config, pixivFanboxDl *PixivFanboxDl
 			urlsToDownload,
 			&request.DlOptions{
 				MaxConcurrency:         utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
-				OverwriteExistingFiles: config.OverwriteFiles,
 				Headers:                GetPixivFanboxHeaders(),
 				Cookies:                pixivFanboxDlOptions.SessionCookies,
 				UseHttp3:               false,
-				UserAgent:              config.UserAgent,
 			},
+			config,
 		)
 	}
-	if config.GDriveClient != nil && len(gdriveUrlsToDownload) > 0 {
-		config.GDriveClient.DownloadGdriveUrls(gdriveUrlsToDownload, config.UserAgent)
+	if pixivFanboxDlOptions.GDriveClient != nil && len(gdriveUrlsToDownload) > 0 {
+		pixivFanboxDlOptions.GDriveClient.DownloadGdriveUrls(gdriveUrlsToDownload, config)
 	}
 }

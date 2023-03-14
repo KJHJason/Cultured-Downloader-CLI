@@ -71,7 +71,7 @@ func (args *RequestArgs) ValidateArgs() {
 	}
 
 	if args.UserAgent == "" {
-		args.UserAgent = utils.GetUserAgent()
+		args.UserAgent = utils.USER_AGENT
 	}
 
 	if args.Context == nil {

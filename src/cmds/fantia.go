@@ -2,7 +2,7 @@ package cmds
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/KJHJason/Cultured-Downloader-CLI/api"
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/fantia"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
@@ -37,18 +37,18 @@ var (
 				}
 			}
 
-			fantiaConfig := api.Config{
+			fantiaConfig := &configs.Config{
 				OverwriteFiles: fantiaOverwrite,
 				UserAgent:      fantiaUserAgent,
 			}
-			fantiaDl := fantia.FantiaDl{
+			fantiaDl := &fantia.FantiaDl{
 				FanclubIds:      fantiaFanclubIds,
 				FanclubPageNums: fantiaPageNums,
 				PostIds:         fantiaPostIds,
 			}
 			fantiaDl.ValidateArgs()
 
-			fantiaDlOptions := fantia.FantiaDlOptions{
+			fantiaDlOptions := &fantia.FantiaDlOptions{
 				DlThumbnails:    fantiaDlThumbnails,
 				DlImages:        fantiaDlImages,
 				DlAttachments:   fantiaDlAttachments,
@@ -81,9 +81,9 @@ var (
 
 			utils.PrintWarningMsg()
 			fantia.FantiaDownloadProcess(
-				&fantiaConfig,
-				&fantiaDl,
-				&fantiaDlOptions,
+				fantiaConfig,
+				fantiaDl,
+				fantiaDlOptions,
 			)
 		},
 	}

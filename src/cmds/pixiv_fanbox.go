@@ -2,7 +2,7 @@ package cmds
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/KJHJason/Cultured-Downloader-CLI/api"
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixivfanbox"
 	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
@@ -30,14 +30,15 @@ var (
 		Run: func(cmd *cobra.Command, args []string) {
 			request.CheckInternetConnection()
 
-			pixivFanboxConfig := api.Config{
+			pixivFanboxConfig := &configs.Config{
 				OverwriteFiles: fanboxOverwriteFiles,
 				UserAgent: 	    fanboxUserAgent,
 			}
+			var gdriveClient *gdrive.GDrive
 			if fanboxGdriveApiKey != "" {
-				pixivFanboxConfig.GDriveClient = gdrive.GetNewGDrive(
+				gdriveClient = gdrive.GetNewGDrive(
 					fanboxGdriveApiKey, 
-					fanboxUserAgent,
+					pixivFanboxConfig,
 					utils.MAX_CONCURRENT_DOWNLOADS,
 				)
 			}
@@ -51,18 +52,19 @@ var (
 					fanboxPageNums = append(fanboxPageNums, creatorInfo.PageNum)
 				}
 			}
-			pixivFanboxDl := pixivfanbox.PixivFanboxDl{
+			pixivFanboxDl := &pixivfanbox.PixivFanboxDl{
 				CreatorIds:      fanboxCreatorIds,
 				CreatorPageNums: fanboxPageNums,
 				PostIds:         fanboxPostIds,
 			}
 			pixivFanboxDl.ValidateArgs()
 
-			pixivFanboxDlOptions := pixivfanbox.PixivFanboxDlOptions{
+			pixivFanboxDlOptions := &pixivfanbox.PixivFanboxDlOptions{
 				DlThumbnails:    fanboxDlThumbnails,
 				DlImages:        fanboxDlImages,
 				DlAttachments:   fanboxDlAttachments,
-				DlGdrive:        fanboxDlGdrive && pixivFanboxConfig.GDriveClient != nil,
+				GDriveClient:    gdriveClient,
+				DlGdrive:        fanboxDlGdrive,
 				SessionCookieId: fanboxSession,
 			}
 			if fanboxCookieFile != "" {
@@ -84,9 +86,9 @@ var (
 
 			utils.PrintWarningMsg()
 			pixivfanbox.PixivFanboxDownloadProcess(
-				&pixivFanboxConfig,
-				&pixivFanboxDl,
-				&pixivFanboxDlOptions,
+				pixivFanboxConfig,
+				pixivFanboxDl,
+				pixivFanboxDlOptions,
 			)
 		},
 	}

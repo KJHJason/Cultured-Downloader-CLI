@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/fatih/color"
@@ -350,19 +351,12 @@ type DlOptions struct {
 	// UseHttp3 is a flag to enable HTTP/3
 	// Otherwise, HTTP/2 will be used by default
 	UseHttp3 bool
-
-	// OverwriteExistingFiles is a flag to overwrite existing files
-	// If false, the download process will be skipped if the file already exists
-	OverwriteExistingFiles bool
-
-	// UserAgent is the user agent to be used in the download process
-	UserAgent string
 }
 
 // DownloadURLsParallel is used to download multiple files from URLs in parallel
 //
 // Note: If the file already exists, the download process will be skipped
-func DownloadURLsParallel(urls []map[string]string, dlOptions *DlOptions) {
+func DownloadURLsParallel(urls []map[string]string, dlOptions *DlOptions, config *configs.Config) {
 	urlsLen := len(urls)
 	if urlsLen == 0 {
 		return
@@ -412,9 +406,9 @@ func DownloadURLsParallel(urls []map[string]string, dlOptions *DlOptions) {
 					Headers:   dlOptions.Headers,
 					Http2:     !dlOptions.UseHttp3,
 					Http3:     dlOptions.UseHttp3,
-					UserAgent: dlOptions.UserAgent,
+					UserAgent: config.UserAgent,
 				},
-				dlOptions.OverwriteExistingFiles,
+				config.OverwriteFiles,
 			)
 			if err != nil {
 				errChan <- err

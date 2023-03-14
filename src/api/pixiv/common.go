@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/KJHJason/Cultured-Downloader-CLI/api"
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
@@ -280,7 +280,7 @@ func GetUgoiraFilePaths(ugoireFilePath, ugoiraUrl, outputFormat string) (string,
 }
 
 // Downloads multiple Ugoira artworks and converts them based on the output format
-func downloadMultipleUgoira(downloadInfo []*Ugoira, config *api.Config, ugoiraOptions *UgoiraOptions, cookies []*http.Cookie) {
+func downloadMultipleUgoira(downloadInfo []*Ugoira, config *configs.Config, ugoiraOptions *UgoiraOptions, cookies []*http.Cookie) {
 	var urlsToDownload []map[string]string
 	for _, ugoira := range downloadInfo {
 		filePath, outputFilePath := GetUgoiraFilePaths(
@@ -303,10 +303,9 @@ func downloadMultipleUgoira(downloadInfo []*Ugoira, config *api.Config, ugoiraOp
 			MaxConcurrency:         utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
 			Headers:                pixivHeaders,
 			Cookies:                cookies,
-			OverwriteExistingFiles: config.OverwriteFiles,
 			UseHttp3:               false,
-			UserAgent:              config.UserAgent,
 		},
+		config,
 	)
 
 	var errSlice []error

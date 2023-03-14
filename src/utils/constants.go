@@ -23,29 +23,8 @@ const (
 	HTML_ERROR
 )
 
-var userAgent = map[string]string{
-	"linux":   "Mozilla/5.0 (X11; Linux x86_64)",
-	"darwin":  "Mozilla/5.0 (Macintosh; Intel Mac OS X 12_6)",
-	"windows": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-}
-
-// Returns the user agent based on the user's OS
-func GetUserAgent() string {
-	userAgentOS, ok := userAgent[runtime.GOOS]
-	if !ok {
-		panic(
-			fmt.Errorf(
-				"error %d: Failed to get user agent OS as your OS, \"%s\", is not supported", 
-				OS_ERROR, 
-				runtime.GOOS,
-			),
-		)
-	}
-	return fmt.Sprintf("%s AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36", userAgentOS)
-}
-
 // Returns the path to the application's config directory
-func GetAppPath() string {
+func getAppPath() string {
 	appPath, err := os.UserConfigDir()
 	if err != nil {
 		panic(
@@ -104,8 +83,9 @@ type cookieInfo struct {
 // Although the variables below are not
 // constants, they are not supposed to be changed
 var (
-	USER_AGENT               = GetUserAgent()
-	APP_PATH                 = GetAppPath()
+	USER_AGENT string
+
+	APP_PATH                 = getAppPath()
 	DOWNLOAD_PATH            = GetDefaultDownloadPath()
 
 	SESSION_COOKIE_MAP = map[string]cookieInfo{
@@ -152,3 +132,22 @@ var (
 		PIXIV:        PIXIV_TITLE,
 	}
 )
+
+func init() {
+	var userAgent = map[string]string{
+		"linux":   "Mozilla/5.0 (X11; Linux x86_64)",
+		"darwin":  "Mozilla/5.0 (Macintosh; Intel Mac OS X 12_6)",
+		"windows": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+	}
+	userAgentOS, ok := userAgent[runtime.GOOS]
+	if !ok {
+		panic(
+			fmt.Errorf(
+				"error %d: Failed to get user agent OS as your OS, \"%s\", is not supported", 
+				OS_ERROR, 
+				runtime.GOOS,
+			),
+		)
+	}
+	USER_AGENT = fmt.Sprintf("%s AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36", userAgentOS)
+}
