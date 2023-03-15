@@ -25,5 +25,3 @@ type KemonoRes []struct {
 	Title      string `json:"title"`
 	User       string `json:"user"`
 }
-
-

@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -543,6 +544,35 @@ func LoadJsonFromResponse(res *http.Response, format any) error {
 	body, err := ReadResBody(res)
 	if err != nil {
 		return err
+	}
+
+	// write to file if debug mode is on
+	if DEBUG {
+		var prettyJson bytes.Buffer
+		err := json.Indent(&prettyJson, body, "", "    ")
+		if err != nil {
+			color.Red(
+				fmt.Sprintf(
+					"error %d: failed to indent JSON response body due to %v",
+					JSON_ERROR,
+					err,
+				),
+			)
+		} else {
+			filename := fmt.Sprintf("saved_%s.json", time.Now().Format("2006-01-02_15-04-05"))
+			filePath := filepath.Join("json", filename)
+			os.MkdirAll(filePath, 0666)
+			err = os.WriteFile(filePath, prettyJson.Bytes(), 0666)
+			if err != nil {
+				color.Red(
+					fmt.Sprintf(
+						"error %d: failed to write JSON response body to file due to %v",
+						UNEXPECTED_ERROR,
+						err,
+					),
+				)
+			}
+		}
 	}
 
 	if err = json.Unmarshal(body, &format); err != nil {

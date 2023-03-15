@@ -19,16 +19,16 @@ type UgoiraJson struct {
 }
 
 type PixivMobileIllustJson struct {
-	Id float64   `json:"id"`
+	Id    int    `json:"id"`
 	Title string `json:"title"`
-	Type string  `json:"type"`
+	Type  string `json:"type"`
 
 	User struct {
-		Name string `json:"name"`
+		Name  string `json:"name"`
 	} `json:"user"`
 
 	MetaSinglePage struct {
-		OriginalImageUrl *string `json:"original_image_url"`
+		OriginalImageUrl string `json:"original_image_url"`
 	} `json:"meta_single_page"`
 
 	MetaPages []struct {
@@ -39,9 +39,8 @@ type PixivMobileIllustJson struct {
 }
 
 type PixivMobileArtworkJson struct {
-	Illust PixivMobileIllustJson `json:"illust"`
+	Illust *PixivMobileIllustJson `json:"illust"`
 }
-
 type PixivMobileArtworksJson struct {
 	Illusts []*PixivMobileIllustJson `json:"illusts"`
 	NextUrl *string                  `json:"next_url"`

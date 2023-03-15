@@ -30,11 +30,11 @@ const (
 // to prevent the user's IP reputation from going down, delays are added.
 //
 // More info: https://github.com/Nandaka/PixivUtil2/issues/477
-func PixivSleep() {
+func pixivSleep() {
 	time.Sleep(utils.GetRandomTime(0.5, 1.0))
 }
 
-// Process the artwork details JSON and returns a map of urls 
+// Process the artwork details JSON and returns a map of urls
 // with its file path or a Ugoira struct (One of them will be null depending on the artworkType)
 func processArtworkJson(res *http.Response, artworkType int64, postDownloadDir string) ([]map[string]string, *models.Ugoira, error) {
 	if artworkType == ugoira {
@@ -72,7 +72,7 @@ func processArtworkJson(res *http.Response, artworkType int64, postDownloadDir s
 
 // Retrieves details of an artwork ID and returns
 // the folder path to download the artwork to, the JSON response, and the artwork type
-func GetArtworkDetails(artworkId, downloadPath string, config *configs.Config, cookies []*http.Cookie) ([]map[string]string, *models.Ugoira, error) {
+func getArtworkDetails(artworkId, downloadPath string, config *configs.Config, cookies []*http.Cookie) ([]map[string]string, *models.Ugoira, error) {
 	if artworkId == "" {
 		return nil, nil, nil
 	}
@@ -139,9 +139,9 @@ func GetArtworkDetails(artworkId, downloadPath string, config *configs.Config, c
 	illustratorName := artworkJsonBody.UserName
 	artworkName := artworkJsonBody.Title
 	artworkPostDir := utils.GetPostFolder(
-		filepath.Join(downloadPath, utils.PIXIV_TITLE), 
-		illustratorName, 
-		artworkId, 
+		filepath.Join(downloadPath, utils.PIXIV_TITLE),
+		illustratorName,
+		artworkId,
 		artworkName,
 	)
 
@@ -194,8 +194,8 @@ func GetArtworkDetails(artworkId, downloadPath string, config *configs.Config, c
 	}
 
 	urlsToDl, ugoiraInfo, err := processArtworkJson(
-		artworkUrlsRes, 
-		artworkType, 
+		artworkUrlsRes,
+		artworkType,
 		artworkPostDir,
 	)
 	if err != nil {
@@ -233,10 +233,10 @@ func getMultipleArtworkDetails(artworkIds []string, downloadPath string, config 
 	)
 	progress.Start()
 	for _, artworkId := range artworkIds {
-		artworksToDl, ugoiraInfo, err := GetArtworkDetails(
-			artworkId, 
-			downloadPath, 
-			config, 
+		artworksToDl, ugoiraInfo, err := getArtworkDetails(
+			artworkId,
+			downloadPath,
+			config,
 			cookies,
 		)
 		if err != nil {
@@ -253,7 +253,7 @@ func getMultipleArtworkDetails(artworkIds []string, downloadPath string, config 
 
 		progress.MsgIncrement(baseMsg)
 		if artworkId != lastArtworkId {
-			PixivSleep()
+			pixivSleep()
 		}
 	}
 
@@ -268,7 +268,7 @@ func getMultipleArtworkDetails(artworkIds []string, downloadPath string, config 
 }
 
 // Query Pixiv's API for all the illustrator's posts
-func GetIllustratorPosts(illustratorId, pageNum string, config *configs.Config, pixivDlOptions *PixivDlOptions) ([]string, error) {
+func getIllustratorPosts(illustratorId, pageNum string, config *configs.Config, pixivDlOptions *PixivDlOptions) ([]string, error) {
 	headers := GetPixivRequestHeaders()
 	headers["Referer"] = GetIllustUrl(illustratorId)
 	url := fmt.Sprintf("%s/user/%s/profile/all", utils.PIXIV_API_URL, illustratorId)
@@ -385,7 +385,7 @@ func getMultipleIllustratorPosts(illustratorIds, pageNums []string, downloadPath
 	)
 	progress.Start()
 	for idx, illustratorId := range illustratorIds {
-		artworkIds, err := GetIllustratorPosts(
+		artworkIds, err := getIllustratorPosts(
 			illustratorId,
 			pageNums[idx],
 			config,
@@ -416,7 +416,7 @@ func getMultipleIllustratorPosts(illustratorIds, pageNums []string, downloadPath
 }
 
 // Process the tag search results JSON and returns a slice of artwork IDs
-func ProcessTagJsonResults(res *http.Response) ([]string, error) {
+func processTagJsonResults(res *http.Response) ([]string, error) {
 	var pixivTagJson models.PixivTag
 	resBody, err := utils.ReadResBody(res)
 	if err != nil {
@@ -510,7 +510,7 @@ func tagSearch(tagName, downloadPath, pageNum string, config *configs.Config, dl
 			continue
 		}
 
-		tagArtworkIds, err := ProcessTagJsonResults(res)
+		tagArtworkIds, err := processTagJsonResults(res)
 		if err != nil {
 			errSlice = append(errSlice, err)
 			continue
@@ -522,7 +522,7 @@ func tagSearch(tagName, downloadPath, pageNum string, config *configs.Config, dl
 
 		artworkIds = append(artworkIds, tagArtworkIds...)
 		if page != maxPage {
-			PixivSleep()
+			pixivSleep()
 		}
 	}
 
