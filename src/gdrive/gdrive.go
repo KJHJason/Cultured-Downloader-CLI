@@ -3,10 +3,10 @@ package gdrive
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"regexp"
 	"net/http"
+	"os"
 	"path/filepath"
+	"regexp"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
@@ -89,7 +89,7 @@ func LogFailedGdriveAPICalls(res *http.Response, downloadPath string) {
 		"Error while fetching from GDrive...\n"+
 			"GDrive URL (May not be accurate): https://drive.google.com/file/d/%s/view?usp=sharing\n"+
 			"Status Code: %s\nURL: %s",
-		utils.GetLastPartOfURL(requestUrl),
+		utils.GetLastPartOfUrl(requestUrl),
 		res.Status,
 		requestUrl,
 	)

@@ -19,7 +19,6 @@ type PixivDl struct {
 	IllustratorIds      []string
 	IllustratorPageNums []string
 
-	// Tag names download options
 	TagNames         []string
 	TagNamesPageNums []string
 }

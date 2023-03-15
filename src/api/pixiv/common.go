@@ -9,17 +9,12 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/models"
 	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
-
-type Ugoira struct {
-	Url      string
-	FilePath string
-	Frames   map[string]int64
-}
 
 // Returns a defined request header needed to communicate with Pixiv's API
 func GetPixivRequestHeaders() map[string]string {
@@ -80,17 +75,16 @@ func ConvertPageNumToOffset(minPageNum, maxPageNum int, checkPixivMax bool) (int
 }
 
 // Map the Ugoira frame delays to their respective filenames
-func MapDelaysToFilename(ugoiraFramesJson map[string]interface{}) map[string]int64 {
+func MapDelaysToFilename(ugoiraFramesJson models.UgoiraFramesJson) map[string]int64 {
 	frameInfoMap := map[string]int64{}
-	for _, frame := range ugoiraFramesJson["frames"].([]interface{}) {
-		frameMap := frame.(map[string]interface{})
-		frameInfoMap[frameMap["file"].(string)] = int64(frameMap["delay"].(float64))
+	for _, frame := range ugoiraFramesJson {
+		frameInfoMap[frame.File] = int64(frame.Delay)
 	}
 	return frameInfoMap
 }
 
 // Converts the Ugoira to the desired output path using FFmpeg
-func ConvertUgoira(ugoiraInfo *Ugoira, imagesFolderPath, outputPath string, ffmpegPath string, ugoiraQuality int) error {
+func ConvertUgoira(ugoiraInfo *models.Ugoira, imagesFolderPath, outputPath string, ffmpegPath string, ugoiraQuality int) error {
 	outputExt := filepath.Ext(outputPath)
 	if !utils.SliceContains(UGOIRA_ACCEPTED_EXT, outputExt) {
 		return fmt.Errorf(
@@ -274,13 +268,13 @@ func ConvertUgoira(ugoiraInfo *Ugoira, imagesFolderPath, outputPath string, ffmp
 
 // Returns the ugoira's zip file path and the ugoira's converted file path
 func GetUgoiraFilePaths(ugoireFilePath, ugoiraUrl, outputFormat string) (string, string) {
-	filePath := filepath.Join(ugoireFilePath, utils.GetLastPartOfURL(ugoiraUrl))
+	filePath := filepath.Join(ugoireFilePath, utils.GetLastPartOfUrl(ugoiraUrl))
 	outputFilePath := utils.RemoveExtFromFilename(filePath) + outputFormat
 	return filePath, outputFilePath
 }
 
 // Downloads multiple Ugoira artworks and converts them based on the output format
-func downloadMultipleUgoira(downloadInfo []*Ugoira, config *configs.Config, ugoiraOptions *UgoiraOptions, cookies []*http.Cookie) {
+func downloadMultipleUgoira(downloadInfo []*models.Ugoira, config *configs.Config, ugoiraOptions *UgoiraOptions, cookies []*http.Cookie) {
 	var urlsToDownload []map[string]string
 	for _, ugoira := range downloadInfo {
 		filePath, outputFilePath := GetUgoiraFilePaths(
@@ -297,13 +291,13 @@ func downloadMultipleUgoira(downloadInfo []*Ugoira, config *configs.Config, ugoi
 	}
 
 	pixivHeaders := GetPixivRequestHeaders()
-	request.DownloadURLsParallel(
+	request.DownloadUrls(
 		urlsToDownload,
 		&request.DlOptions{
-			MaxConcurrency:         utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
-			Headers:                pixivHeaders,
-			Cookies:                cookies,
-			UseHttp3:               false,
+			MaxConcurrency: utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
+			Headers:        pixivHeaders,
+			Cookies:        cookies,
+			UseHttp3:       false,
 		},
 		config,
 	)

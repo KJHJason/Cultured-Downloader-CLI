@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
+	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixivfanbox/models"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
@@ -23,14 +24,14 @@ func GetPixivFanboxHeaders() map[string]string {
 }
 
 // Process and detects for any external download links from the post's text content
-func processPixivFanboxText(postBody interface{}, postFolderPath string, downloadGdrive bool) []map[string]string {
-	if postBody == nil {
+func processPixivFanboxText(postBodyStr, postFolderPath string, downloadGdrive bool) []map[string]string {
+	if postBodyStr == "" {
 		return nil
 	}
 
 	// split the text by newlines
 	postBodySlice := strings.FieldsFunc(
-		postBody.(string),
+		postBodyStr,
 		func(c rune) bool {
 			return c == '\n'
 		},
@@ -68,33 +69,31 @@ var pixivFanboxAllowedImageExt = []string{"jpg", "jpeg", "png", "gif"}
 
 // Process the JSON response from Pixiv Fanbox's API and
 // returns a map of urls and a map of GDrive urls to download from
-func processFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath string, pixivFanboxDlOptions *PixivFanboxDlOptions) ([]map[string]string, []map[string]string, error) {
+func processFanboxPost(res *http.Response, downloadPath string, pixivFanboxDlOptions *PixivFanboxDlOptions) ([]map[string]string, []map[string]string, error) {
 	var err error
-	var post interface{}
+	var post models.FanboxPostJson
 	var postJsonBody []byte
-	if postJsonArg == nil {
-		post, postJsonBody, err = utils.LoadJsonFromResponse(res)
-		if err != nil {
-			return nil, nil, err
-		}
-		if post == nil {
-			return nil, nil, nil
-		}
-	} else {
-		post = postJsonArg
+	err = utils.LoadJsonFromResponse(res, &post)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	postJson := post.(map[string]interface{})["body"].(map[string]interface{})
-	postId := postJson["id"].(string)
-	postTitle := postJson["title"].(string)
-	creatorId := postJson["creatorId"].(string)
-	postFolderPath := utils.GetPostFolder(filepath.Join(downloadPath, "Pixiv-Fanbox"), creatorId, postId, postTitle)
+	postJson := post.Body
+	postId := postJson.Id
+	postTitle := postJson.Title
+	creatorId := postJson.CreatorId
+	postFolderPath := utils.GetPostFolder(
+		filepath.Join(downloadPath, "Pixiv-Fanbox"),
+		creatorId,
+		postId,
+		postTitle,
+	)
 
 	var urlsMap []map[string]string
-	thumbnail := postJson["coverImageUrl"]
-	if pixivFanboxDlOptions.DlThumbnails && thumbnail != nil {
+	thumbnail := postJson.CoverImageUrl
+	if pixivFanboxDlOptions.DlThumbnails && thumbnail != "" {
 		urlsMap = append(urlsMap, map[string]string{
-			"url":      thumbnail.(string),
+			"url":      thumbnail,
 			"filepath": postFolderPath,
 		})
 	}
@@ -102,42 +101,68 @@ func processFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 	// Note that Pixiv Fanbox posts have 3 types of formatting (as of now):
 	//	1. With proper formatting and mapping of post content elements ("article")
 	//	2. With a simple formatting that obly contains info about the text and files ("file", "image")
-	postType := postJson["type"].(string)
-	postBody := postJson["body"]
+	postType := postJson.Type
+	postBody := postJson.Body
 	if postBody == nil {
-		return urlsMap, nil, nil
-	}
-	postContent := postBody.(map[string]interface{})
-	if postContent == nil {
 		return urlsMap, nil, nil
 	}
 
 	var gdriveLinks []map[string]string
 	switch postType {
-	case "file", "image":
+	case "file":
 		// process the text in the post
-		postBody := postContent["text"]
-		detectedGdriveLinks := processPixivFanboxText(postBody, postFolderPath, pixivFanboxDlOptions.DlGdrive)
+		filePostJson := postBody.(*models.FanboxFilePostJson)
+		detectedGdriveLinks := processPixivFanboxText(
+			filePostJson.Text,
+			postFolderPath,
+			pixivFanboxDlOptions.DlGdrive,
+		)
+		if detectedGdriveLinks != nil {
+			gdriveLinks = append(gdriveLinks, detectedGdriveLinks...)
+		}
+
+		imageAndAttachmentUrls := filePostJson.Files
+		if (len(imageAndAttachmentUrls) > 0) && (pixivFanboxDlOptions.DlImages || pixivFanboxDlOptions.DlAttachments) {
+			for _, fileInfo := range imageAndAttachmentUrls {
+				fileUrl := fileInfo.Url
+				extension := fileInfo.Extension
+				filename := fileInfo.Name + "." + extension
+
+				var filePath string
+				isImage := utils.SliceContains(pixivFanboxAllowedImageExt, extension)
+				if isImage {
+					filePath = filepath.Join(postFolderPath, utils.IMAGES_FOLDER, filename)
+				} else {
+					filePath = filepath.Join(postFolderPath, utils.ATTACHMENT_FOLDER, filename)
+				}
+
+				if (isImage && pixivFanboxDlOptions.DlImages) || (!isImage && pixivFanboxDlOptions.DlAttachments) {
+					urlsMap = append(urlsMap, map[string]string{
+						"url":      fileUrl,
+						"filepath": filePath,
+					})
+				}
+			}
+		}
+	case "image":
+		// process the text in the post
+		imagePostJson := postBody.(*models.FanboxImagePostJson)
+		detectedGdriveLinks := processPixivFanboxText(
+			imagePostJson.Text,
+			postFolderPath,
+			pixivFanboxDlOptions.DlGdrive,
+		)
 		if detectedGdriveLinks != nil {
 			gdriveLinks = append(gdriveLinks, detectedGdriveLinks...)
 		}
 
 		// retrieve images and attachments url(s)
-		imageAndAttachmentUrls := postContent[postType+"s"]
+		imageAndAttachmentUrls := imagePostJson.Images
 		if (imageAndAttachmentUrls != nil) && (pixivFanboxDlOptions.DlImages || pixivFanboxDlOptions.DlAttachments) {
-			for _, fileInfo := range imageAndAttachmentUrls.([]interface{}) {
-				fileInfoMap := fileInfo.(map[string]interface{})
-
-				var fileUrl, filename, extension string
-				if postType == "image" {
-					fileUrl = fileInfoMap["originalUrl"].(string)
-					extension = fileInfoMap["extension"].(string)
-					filename = utils.GetLastPartOfURL(fileUrl)
-				} else { // postType == "file"
-					fileUrl = fileInfoMap["url"].(string)
-					extension = fileInfoMap["extension"].(string)
-					filename = fileInfoMap["name"].(string) + "." + extension
-				}
+			for _, fileInfo := range imageAndAttachmentUrls {
+				fileUrl := fileInfo.OriginalUrl
+				extension := fileInfo.Extension
+				filename := utils.GetLastPartOfUrl(fileUrl)
 
 				var filePath string
 				isImage := utils.SliceContains(pixivFanboxAllowedImageExt, extension)
@@ -157,24 +182,23 @@ func processFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 		}
 	case "article":
 		// process the text in the post
-		articleContents := postContent["blocks"]
-		if articleContents != nil {
-			articleContentsSlice := articleContents.([]interface{})
+		articleJson := postBody.(*models.FanboxArticleJson)
+		articleBlocks := articleJson.Blocks
+		if len(articleBlocks) > 0 {
 			loggedPassword := false
-			for _, articleBlock := range articleContentsSlice {
-				text := articleBlock.(map[string]interface{})["text"]
-				if text != nil {
-					textStr := text.(string)
-					if utils.DetectPasswordInText(textStr) && !loggedPassword {
+			for _, articleBlock := range articleBlocks {
+				text := articleBlock.Text
+				if text != "" {
+					if utils.DetectPasswordInText(text) && !loggedPassword {
 						// Log the entire post text if it contains a password
 						filePath := filepath.Join(postFolderPath, utils.PASSWORD_FILENAME)
 						if !utils.PathExists(filePath) {
 							loggedPassword = true
 							postBodyStr := "Found potential password in the post:\n\n"
-							for _, articleContent := range articleContentsSlice {
-								articleText := articleContent.(map[string]interface{})["text"]
-								if articleText != nil {
-									postBodyStr += articleText.(string) + "\n"
+							for _, articleContent := range articleBlocks {
+								articleText := articleContent.Text
+								if articleText != "" {
+									postBodyStr += articleText + "\n"
 								}
 							}
 							utils.LogMessageToPath(
@@ -184,19 +208,19 @@ func processFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 						}
 					}
 
-					utils.DetectOtherExtDLLink(textStr, postFolderPath)
-					if utils.DetectGDriveLinks(textStr, postFolderPath, false) && pixivFanboxDlOptions.DlGdrive {
+					utils.DetectOtherExtDLLink(text, postFolderPath)
+					if utils.DetectGDriveLinks(text, postFolderPath, false) && pixivFanboxDlOptions.DlGdrive {
 						gdriveLinks = append(gdriveLinks, map[string]string{
-							"url":      textStr,
+							"url":      text,
 							"filepath": filepath.Join(postFolderPath, utils.GDRIVE_FOLDER),
 						})
 					}
 				}
 
-				articleLinks := articleBlock.(map[string]interface{})["links"]
-				if articleLinks != nil {
-					for _, link := range articleLinks.([]interface{}) {
-						linkUrl := link.(map[string]interface{})["url"].(string)
+				articleLinks := articleBlock.Links
+				if len(articleLinks) > 0 {
+					for _, articleLink := range articleLinks {
+						linkUrl := articleLink.Url
 						utils.DetectOtherExtDLLink(linkUrl, postFolderPath)
 						if utils.DetectGDriveLinks(linkUrl, postFolderPath, true) && pixivFanboxDlOptions.DlGdrive {
 							gdriveLinks = append(gdriveLinks, map[string]string{
@@ -211,25 +235,21 @@ func processFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 		}
 
 		// retrieve images and attachments url(s)
-		images := postContent["imageMap"]
-		if images != nil && pixivFanboxDlOptions.DlImages {
-			imageMap := images.(map[string]interface{})
+		imageMap := articleJson.ImageMap
+		if imageMap != nil && pixivFanboxDlOptions.DlImages {
 			for _, imageInfo := range imageMap {
-				imageUrl := imageInfo.(map[string]interface{})["originalUrl"].(string)
 				urlsMap = append(urlsMap, map[string]string{
-					"url":      imageUrl,
+					"url":      imageInfo.OriginalUrl,
 					"filepath": filepath.Join(postFolderPath, utils.IMAGES_FOLDER),
 				})
 			}
 		}
 
-		attachments := postContent["fileMap"]
-		if attachments != nil && pixivFanboxDlOptions.DlAttachments {
-			attachmentMap := attachments.(map[string]interface{})
+		attachmentMap := articleJson.FileMap
+		if attachmentMap != nil && pixivFanboxDlOptions.DlAttachments {
 			for _, attachmentInfo := range attachmentMap {
-				attachmentInfoMap := attachmentInfo.(map[string]interface{})
-				attachmentUrl := attachmentInfoMap["url"].(string)
-				filename := attachmentInfoMap["name"].(string) + "." + attachmentInfoMap["extension"].(string)
+				attachmentUrl := attachmentInfo.Url
+				filename := attachmentInfo.Name + "." + attachmentInfo.Extension
 				urlsMap = append(urlsMap, map[string]string{
 					"url":      attachmentUrl,
 					"filepath": filepath.Join(postFolderPath, utils.ATTACHMENT_FOLDER, filename),
@@ -238,8 +258,9 @@ func processFanboxPost(res *http.Response, postJsonArg interface{}, downloadPath
 		}
 	case "text": // text post
 		// Usually has no content but try to detect for any external download links
+		textContent := postBody.(*models.FanboxTextPostJson)
 		detectedGdriveLinks := processPixivFanboxText(
-			postContent["text"],
+			textContent.Text,
 			postFolderPath,
 			pixivFanboxDlOptions.DlGdrive,
 		)
@@ -369,7 +390,6 @@ func getPostDetails(postIds []string, config *configs.Config, pixivFanboxDlOptio
 	for res := range resChan {
 		postUrls, postGdriveLinks, err := processFanboxPost(
 			res,
-			nil,
 			utils.DOWNLOAD_PATH,
 			pixivFanboxDlOptions,
 		)
@@ -634,13 +654,13 @@ func PixivFanboxDownloadProcess(config *configs.Config, pixivFanboxDl *PixivFanb
 	}
 
 	if len(urlsToDownload) > 0 {
-		request.DownloadURLsParallel(
+		request.DownloadUrls(
 			urlsToDownload,
 			&request.DlOptions{
-				MaxConcurrency:         utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
-				Headers:                GetPixivFanboxHeaders(),
-				Cookies:                pixivFanboxDlOptions.SessionCookies,
-				UseHttp3:               false,
+				MaxConcurrency: utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
+				Headers:        GetPixivFanboxHeaders(),
+				Cookies:        pixivFanboxDlOptions.SessionCookies,
+				UseHttp3:       false,
 			},
 			config,
 		)

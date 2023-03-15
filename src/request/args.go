@@ -70,6 +70,18 @@ func (args *RequestArgs) ValidateArgs() {
 		)
 	}
 
+	if args.Headers == nil {
+		args.Headers = make(map[string]string)
+	}
+
+	if args.Params == nil {
+		args.Params = make(map[string]string)
+	}
+
+	if args.Cookies == nil {
+		args.Cookies = make([]*http.Cookie, 0)
+	}
+
 	if args.UserAgent == "" {
 		args.UserAgent = utils.USER_AGENT
 	}

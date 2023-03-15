@@ -23,7 +23,7 @@ import (
 )
 
 // Get a new HTTP/2 or HTTP/3 client based on the request arguments
-func getHttpClient(reqArgs *RequestArgs) *http.Client {
+func GetHttpClient(reqArgs *RequestArgs) *http.Client {
 	if reqArgs.Http2 {
 		return &http.Client{
 			Transport: &http.Transport{
@@ -89,7 +89,7 @@ func sendRequest(req *http.Request, reqArgs *RequestArgs) (*http.Response, error
 	var err error
 	var res *http.Response
 
-	client := getHttpClient(reqArgs)
+	client := GetHttpClient(reqArgs)
 	client.Timeout = time.Duration(reqArgs.Timeout) * time.Second
 	for i := 1; i <= utils.RETRY_COUNTER; i++ {
 		res, err = client.Do(req)
@@ -195,10 +195,10 @@ func CallRequestWithData(reqArgs *RequestArgs, data map[string]string) (*http.Re
 	return sendRequest(req, reqArgs)
 }
 
-// DownloadURL is used to download a file from a URL
+// DownloadUrl is used to download a file from a URL
 //
 // Note: If the file already exists, the download process will be skipped
-func DownloadURL(filePath string, queue chan struct{}, reqArgs *RequestArgs, overwriteExistingFile bool) error {
+func DownloadUrl(filePath string, queue chan struct{}, reqArgs *RequestArgs, overwriteExistingFile bool) error {
 	// Create a context that can be cancelled when SIGINT/SIGTERM signal is received
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -265,7 +265,7 @@ func DownloadURL(filePath string, queue chan struct{}, reqArgs *RequestArgs, ove
 			)
 			return err
 		}
-		filename = utils.GetLastPartOfURL(filename)
+		filename = utils.GetLastPartOfUrl(filename)
 		filenameWithoutExt := utils.RemoveExtFromFilename(filename)
 		filePath = filepath.Join(
 			filePath,
@@ -353,10 +353,10 @@ type DlOptions struct {
 	UseHttp3 bool
 }
 
-// DownloadURLsParallel is used to download multiple files from URLs in parallel
+// DownloadUrls is used to download multiple files from URLs concurrently
 //
 // Note: If the file already exists, the download process will be skipped
-func DownloadURLsParallel(urls []map[string]string, dlOptions *DlOptions, config *configs.Config) {
+func DownloadUrls(urls []map[string]string, dlOptions *DlOptions, config *configs.Config) {
 	urlsLen := len(urls)
 	if urlsLen == 0 {
 		return
@@ -395,7 +395,7 @@ func DownloadURLsParallel(urls []map[string]string, dlOptions *DlOptions, config
 				<-queue
 				wg.Done()
 			}()
-			err := DownloadURL(
+			err := DownloadUrl(
 				filePath,
 				queue,
 				&RequestArgs{

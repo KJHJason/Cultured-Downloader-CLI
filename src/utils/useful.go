@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,10 +11,10 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
-	"context"
 
 	"github.com/fatih/color"
 	"github.com/mholt/archiver/v4"
@@ -35,7 +36,7 @@ func ReadLine(reader *bufio.Reader) ([]byte, error) {
 	var isPrefix = true
 	var totalLine, line []byte
 
-	// Read until isPrefix is false as 
+	// Read until isPrefix is false as
 	// that means the line has been fully read
 	for isPrefix && err == nil {
 		line, isPrefix, err = reader.ReadLine()
@@ -227,22 +228,22 @@ func ValidatePageNumInput(baseSliceLen int, pageNums []string, errMsgs []string)
 		os.Exit(1)
 	}
 
-	for _, pageNum := range pageNums {
-		if !PAGE_NUM_REGEX.MatchString(pageNum) {
-			color.Red("Invalid page number format: %s", pageNum)
-			color.Red("Please follow the format, \"1-10\", as an example.")
-			color.Red("Note that \"0\" are not accepted! E.g. \"0-9\" is invalid.")
-			os.Exit(1)
-		}
+	valid, outlier := SliceMatchesRegex(PAGE_NUM_REGEX, pageNums)
+	if !valid {
+		color.Red("Invalid page number format: %s", outlier)
+		color.Red("Please follow the format, \"1-10\", as an example.")
+		color.Red("Note that \"0\" are not accepted! E.g. \"0-9\" is invalid.")
+		os.Exit(1)
 	}
 }
 
 // Returns the min, max, hasMaxNum, and error from the given string of "num" or "min-max"
 //
-// E.g. 
-// 	"1-10" => 1, 10, true, nil
-// 	"1" => 1, 1, true, nil
-//  "" => 1, 1, false, nil (defaults to min = 1, max = inf)
+// E.g.
+//
+//		"1-10" => 1, 10, true, nil
+//		"1" => 1, 1, true, nil
+//	 "" => 1, 1, false, nil (defaults to min = 1, max = inf)
 func GetMinMaxFromStr(numStr string) (int, int, bool, error) {
 	if numStr == "" {
 		// defaults to min = 1, max = inf
@@ -399,7 +400,7 @@ func ExtractFiles(src, dest string, ignoreIfMissing bool) error {
 				"error %d: %s does not exist",
 				OS_ERROR,
 				src,
-			)	
+			)
 		}
 	}
 
@@ -414,7 +415,7 @@ func ExtractFiles(src, dest string, ignoreIfMissing bool) error {
 	defer f.Close()
 
 	format, archiveReader, err := archiver.Identify(
-		filepath.Base(src), 
+		filepath.Base(src),
 		f,
 	)
 	if err == archiver.ErrNoMatch {
@@ -488,8 +489,20 @@ func ExtractFiles(src, dest string, ignoreIfMissing bool) error {
 	)
 }
 
+// Checks if the slice of string all matches the given regex pattern
+//
+// Returns true if all matches, false otherwise with the outlier string
+func SliceMatchesRegex(regex *regexp.Regexp, slice []string) (bool, string) {
+	for _, str := range slice {
+		if !regex.MatchString(str) {
+			return false, str
+		}
+	}
+	return true, ""
+}
+
 // Returns the last part of the given URL string
-func GetLastPartOfURL(url string) string {
+func GetLastPartOfUrl(url string) string {
 	removedParams := strings.SplitN(url, "?", 2)
 	splittedUrl := strings.Split(removedParams[0], "/")
 	return splittedUrl[len(splittedUrl)-1]
@@ -526,23 +539,23 @@ func ReadResBody(res *http.Response) ([]byte, error) {
 }
 
 // Read the response body and unmarshal it into a interface and returns it
-func LoadJsonFromResponse(res *http.Response) (interface{}, []byte, error) {
+func LoadJsonFromResponse(res *http.Response, format any) error {
 	body, err := ReadResBody(res)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 
-	var post interface{}
-	if err = json.Unmarshal(body, &post); err != nil {
+	if err = json.Unmarshal(body, &format); err != nil {
 		err = fmt.Errorf(
-			"error %d: failed to unmarshal json response from %s due to %v",
+			"error %d: failed to unmarshal json response from %s due to %v\nBody: %s",
 			RESPONSE_ERROR,
 			res.Request.URL.String(),
 			err,
+			string(body),
 		)
-		return nil, nil, err
+		return err
 	}
-	return post, body, nil
+	return nil
 }
 
 // Detects if the given string contains any passwords

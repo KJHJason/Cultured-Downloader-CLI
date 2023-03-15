@@ -1,7 +1,6 @@
 package fantia
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,6 +8,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/KJHJason/Cultured-Downloader-CLI/api/fantia/models"
 	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
@@ -16,62 +16,15 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-type fantiaPost struct {
-	Post struct {
-		ID    int    `json:"id"`
-		Title string `json:"title"`
-		Thumb struct {
-			Original string `json:"original"`
-		} `json:"thumb"`
-		Fanclub struct {
-			User struct {
-				Name string `json:"name"`
-			} `json:"user"`
-		} `json:"fanclub"`
-		Status       string `json:"status"`
-		PostContents []struct {
-			// Any attachments such as pdfs that are on their dedicated section
-			AttachmentURI string `json:"attachment_uri"`
-
-			// For images that are uploaded to their own section
-			PostContentPhotos []struct {
-				ID  int `json:"id"`
-				URL struct {
-					Original string `json:"original"`
-				} `json:"url"`
-			} `json:"post_content_photos"`
-
-			// For images that are embedded in the post content
-			Comment string `json:"comment"`
-
-			// for attachments such as pdfs that are embedded in the post content
-			DownloadUri string `json:"download_uri"`
-			Filename    string `json:"filename"`
-		} `json:"post_contents"`
-	} `json:"post"`
-}
-
 // Process the JSON response from Fantia's API and
 // returns a map of urls to download from
 func processFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions *FantiaDlOptions) ([]map[string]string, error) {
 	// processes a fantia post
 	// returns a map containing the post id and the url to download the file from
-	var postJson fantiaPost
-	resBody, err := utils.ReadResBody(res)
+	var postJson models.FantiaPost
+	err := utils.LoadJsonFromResponse(res, &postJson)
 	if err != nil {
-		return nil, fmt.Errorf(
-			"%v\nMore details: failed to read response body for fantia post",
-			err,
-		)
-	}
-
-	err = json.Unmarshal(resBody, &postJson)
-	if err != nil {
-		return nil, fmt.Errorf(
-			"fantia error %d: failed to unmarshal json for fantia post\nJSON: %s",
-			utils.JSON_ERROR,
-			string(resBody),
-		)
+		return nil, err
 	}
 
 	postStruct := postJson.Post
@@ -151,7 +104,7 @@ func processFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 
 // Query Fantia's API based on the slice of post IDs and get a map of urls to download from.
 //
-// Note that only the downloading of the URL(s) is/are executed parallelly 
+// Note that only the downloading of the URL(s) is/are executed concurrently
 // to reduce the chance of the signed AWS S3 URL(s) from expiring before the download is
 // executed or completed due to a download queue to avoid resource exhaustion of the user's system.
 func dlFantiaPosts(postIds []string, fantiaDlOptions *FantiaDlOptions, config *configs.Config) {
@@ -161,7 +114,7 @@ func dlFantiaPosts(postIds []string, fantiaDlOptions *FantiaDlOptions, config *c
 	for i, postId := range postIds {
 		count := i + 1
 		msgSuffix := fmt.Sprintf(
-			"[%d/%d]", 
+			"[%d/%d]",
 			count,
 			postIdsLen,
 		)
@@ -255,7 +208,7 @@ func dlFantiaPosts(postIds []string, fantiaDlOptions *FantiaDlOptions, config *c
 		)
 		progress.Start()
 		urlsToDownload, err := processFantiaPost(
-			res, 
+			res,
 			utils.DOWNLOAD_PATH,
 			fantiaDlOptions,
 		)
@@ -266,13 +219,13 @@ func dlFantiaPosts(postIds []string, fantiaDlOptions *FantiaDlOptions, config *c
 		progress.Stop(false)
 
 		// Download the urls
-		request.DownloadURLsParallel(
+		request.DownloadUrls(
 			urlsToDownload,
 			&request.DlOptions{
-				MaxConcurrency:         utils.MAX_CONCURRENT_DOWNLOADS,
-				Headers:                nil,
-				Cookies:                fantiaDlOptions.SessionCookies,
-				UseHttp3:               false,
+				MaxConcurrency: utils.MAX_CONCURRENT_DOWNLOADS,
+				Headers:        nil,
+				Cookies:        fantiaDlOptions.SessionCookies,
+				UseHttp3:       false,
 			},
 			config,
 		)
@@ -341,7 +294,7 @@ func getFantiaPosts(creatorId, pageNum string, config *configs.Config, cookies [
 		hasHtmlErr := false
 		doc.Find("a.link-block").Each(func(i int, s *goquery.Selection) {
 			if href, exists := s.Attr("href"); exists {
-				postIds = append(postIds, utils.GetLastPartOfURL(href))
+				postIds = append(postIds, utils.GetLastPartOfUrl(href))
 				hasPosts = true
 			} else {
 				hasHtmlErr = true

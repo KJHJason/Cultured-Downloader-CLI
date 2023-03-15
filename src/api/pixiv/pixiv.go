@@ -3,6 +3,7 @@ package pixiv
 import (
 	"fmt"
 
+	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/models"
 	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
@@ -11,11 +12,11 @@ import (
 
 // Start the download process for Pixiv
 func PixivDownloadProcess(config *configs.Config, pixivDl *PixivDl, pixivDlOptions *PixivDlOptions, pixivUgoiraOptions *UgoiraOptions) {
-	var ugoiraToDownload []*Ugoira
+	var ugoiraToDownload []*models.Ugoira
 	var artworksToDownload []map[string]string
 	if len(pixivDl.ArtworkIds) > 0 {
 		var artworksSlice []map[string]string
-		var ugoiraSlice []*Ugoira
+		var ugoiraSlice []*models.Ugoira
 		if pixivDlOptions.MobileClient == nil {
 			artworksSlice, ugoiraSlice = getMultipleArtworkDetails(
 				pixivDl.ArtworkIds,
@@ -35,7 +36,7 @@ func PixivDownloadProcess(config *configs.Config, pixivDl *PixivDl, pixivDlOptio
 
 	if len(pixivDl.IllustratorIds) > 0 {
 		var artworksSlice []map[string]string
-		var ugoiraSlice []*Ugoira
+		var ugoiraSlice []*models.Ugoira
 		if pixivDlOptions.MobileClient == nil {
 			artworksSlice, ugoiraSlice = getMultipleIllustratorPosts(
 				pixivDl.IllustratorIds,
@@ -80,7 +81,7 @@ func PixivDownloadProcess(config *configs.Config, pixivDl *PixivDl, pixivDlOptio
 		hasErr := false
 		for idx, tagName := range pixivDl.TagNames {
 			var artworksSlice []map[string]string
-			var ugoiraSlice []*Ugoira
+			var ugoiraSlice []*models.Ugoira
 			if pixivDlOptions.MobileClient == nil {
 				artworksSlice, ugoiraSlice, hasErr = tagSearch(
 					tagName,
@@ -106,13 +107,13 @@ func PixivDownloadProcess(config *configs.Config, pixivDl *PixivDl, pixivDlOptio
 
 	if len(artworksToDownload) > 0 {
 		headers := GetPixivRequestHeaders()
-		request.DownloadURLsParallel(
+		request.DownloadUrls(
 			artworksToDownload,
 			&request.DlOptions{
-				MaxConcurrency:         utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
-				Headers:                headers,
-				Cookies:                pixivDlOptions.SessionCookies,
-				UseHttp3:               false,
+				MaxConcurrency: utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
+				Headers:        headers,
+				Cookies:        pixivDlOptions.SessionCookies,
+				UseHttp3:       false,
 			},
 			config,
 		)
