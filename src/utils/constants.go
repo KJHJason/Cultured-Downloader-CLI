@@ -69,6 +69,11 @@ const (
 	PIXIV_FANBOX_URL     = "https://www.fanbox.cc"
 	PIXIV_FANBOX_API_URL = "https://api.fanbox.cc"
 
+	KEMONO         = "kemono"
+	KEMONO_TITLE   = "Kemono Party"
+	KEMONO_URL     = "https://kemono.party"
+	KEMONO_API_URL = "https://kemono.party/api"
+
 	PASSWORD_FILENAME = "detected_passwords.txt"
 	ATTACHMENT_FOLDER = "attachments"
 	IMAGES_FOLDER 	  = "images"
@@ -89,24 +94,6 @@ var (
 	APP_PATH                 = getAppPath()
 	DOWNLOAD_PATH            = GetDefaultDownloadPath()
 
-	SESSION_COOKIE_MAP = map[string]cookieInfo{
-		FANTIA: {
-			Domain:   "fantia.jp",
-			Name:     "_session_id",
-			SameSite: http.SameSiteLaxMode,
-		},
-		PIXIV_FANBOX: {
-			Domain:   ".fanbox.cc",
-			Name:     "FANBOXSESSID",
-			SameSite: http.SameSiteNoneMode,
-		},
-		PIXIV: {
-			Domain:   ".pixiv.net",
-			Name:     "PHPSESSID",
-			SameSite: http.SameSiteNoneMode,
-		},
-	}
-
 	PAGE_NUM_REGEX = regexp.MustCompile(
 		fmt.Sprintf(`^%s$`, PAGE_NUM_REGEX_STR),
 	)
@@ -125,13 +112,6 @@ var (
 	// For Pixiv Fanbox
 	PASSWORD_TEXTS              = []string{"パス", "Pass", "pass", "密码"}
 	EXTERNAL_DOWNLOAD_PLATFORMS = []string{"mega", "gigafile", "dropbox", "mediafire"}
-
-	// For readability for the user
-	API_TITLE_MAP = map[string]string{
-		FANTIA:       FANTIA_TITLE,
-		PIXIV_FANBOX: PIXIV_FANBOX_TITLE,
-		PIXIV:        PIXIV_TITLE,
-	}
 )
 
 func init() {

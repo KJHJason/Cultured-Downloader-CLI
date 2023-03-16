@@ -17,18 +17,10 @@ func GetCookie(sessionID, website string) *http.Cookie {
 		return &http.Cookie{}
 	}
 
-	var domain, cookieName string
-	var sameSite http.SameSite
-	if sessionCookieInfo, ok := utils.SESSION_COOKIE_MAP[website]; !ok {
-		// Shouldn't happen but could happen during development
-		panic(
-			fmt.Errorf("error %d, invalid website, \"%s\", in GetCookie", utils.DEV_ERROR, website),
-		)
-	} else {
-		domain = sessionCookieInfo.Domain
-		cookieName = sessionCookieInfo.Name
-		sameSite = sessionCookieInfo.SameSite
-	}
+	sessionCookieInfo := utils.GetSessionCookieInfo(website)
+	domain := sessionCookieInfo.Domain
+	cookieName := sessionCookieInfo.Name
+	sameSite := sessionCookieInfo.SameSite
 
 	cookie := http.Cookie{
 		Name:     cookieName,
@@ -47,18 +39,21 @@ func GetCookie(sessionID, website string) *http.Cookie {
 // and returns true if the cookie is valid
 func VerifyCookie(cookie *http.Cookie, website, userAgent string) (bool, error) {
 	// sends a request to the website to verify the cookie
-	var websiteURL string
+	var websiteUrl string
 	var useHttp3 bool
 	switch website {
 	case utils.FANTIA:
 		useHttp3 = true
-		websiteURL = utils.FANTIA_URL + "/mypage/users/plans"
+		websiteUrl = utils.FANTIA_URL + "/mypage/users/plans"
 	case utils.PIXIV_FANBOX:
 		useHttp3 = false
-		websiteURL = utils.PIXIV_FANBOX_URL + "/creators/supporting"
+		websiteUrl = utils.PIXIV_FANBOX_URL + "/creators/supporting"
 	case utils.PIXIV:
 		useHttp3 = true
-		websiteURL = utils.PIXIV_URL + "/manage/requests"
+		websiteUrl = utils.PIXIV_URL + "/manage/requests"
+	case utils.KEMONO:
+		useHttp3 = false
+		websiteUrl = utils.KEMONO_URL + "/favorites"
 	default:
 		// Shouldn't happen but could happen during development
 		panic(
@@ -78,7 +73,7 @@ func VerifyCookie(cookie *http.Cookie, website, userAgent string) (bool, error) 
 	resp, err := request.CallRequest(
 		&request.RequestArgs{
 			Method:      "HEAD",
-			Url:         websiteURL,
+			Url:         websiteUrl,
 			Cookies:     cookies,
 			CheckStatus: true,
 			Http3:       useHttp3,
@@ -92,7 +87,7 @@ func VerifyCookie(cookie *http.Cookie, website, userAgent string) (bool, error) 
 	resp.Body.Close()
 
 	// check if the cookie is valid
-	return resp.Request.URL.String() == websiteURL, nil
+	return resp.Request.URL.String() == websiteUrl, nil
 }
 
 // Verifies the given cookie by making a request to the website and checks if the cookie is valid
@@ -100,17 +95,6 @@ func VerifyCookie(cookie *http.Cookie, website, userAgent string) (bool, error) 
 //
 // However, if the cookie is invalid, an error message will be printed out and the program will shutdown
 func VerifyAndGetCookie(website, cookieValue, userAgent string) *http.Cookie {
-	if _, ok := utils.API_TITLE_MAP[website]; !ok {
-		// Shouldn't happen but could happen during development
-		panic(
-			fmt.Errorf(
-				"error %d, invalid website, \"%s\", in VerifyAndGetCookie", 
-				utils.DEV_ERROR, 
-				website,
-			),
-		)
-	}
-
 	cookie := GetCookie(cookieValue, website)
 	cookieIsValid, err := VerifyCookie(cookie, website, userAgent)
 	if err != nil {
@@ -121,7 +105,7 @@ func VerifyAndGetCookie(website, cookieValue, userAgent string) *http.Cookie {
 			fmt.Sprintf(
 				"error %d: %s cookie is invalid", 
 				utils.INPUT_ERROR, 
-				utils.API_TITLE_MAP[website],
+				utils.GetReadableSiteStr(website),
 			),
 		)
 		os.Exit(1)

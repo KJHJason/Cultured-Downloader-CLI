@@ -29,6 +29,71 @@ func PrintWarningMsg() {
 	fmt.Println()
 }
 
+// Returns the cookie info for the specified site
+//
+// Will panic if the site does not match any of the cases
+func GetSessionCookieInfo(site string) *cookieInfo {
+	switch site {
+	case FANTIA:
+		return &cookieInfo{
+			Domain:   "fantia.jp",
+			Name:     "_session_id",
+			SameSite: http.SameSiteLaxMode,
+		}
+	case PIXIV_FANBOX:
+		return &cookieInfo{
+			Domain:   ".fanbox.cc",
+			Name:     "FANBOXSESSID",
+			SameSite: http.SameSiteNoneMode,
+		}
+	case PIXIV:
+		return &cookieInfo{
+			Domain:   ".pixiv.net",
+			Name:     "PHPSESSID",
+			SameSite: http.SameSiteNoneMode,
+		}
+	case KEMONO:
+		return &cookieInfo{
+			Domain: "kemono.party",
+			Name:   "session",
+			SameSite: http.SameSiteNoneMode,
+		}
+	default:
+		panic(
+			fmt.Errorf(
+				"error %d, invalid site, \"%s\" in GetSessionCookieInfo",
+				DEV_ERROR,
+				site,
+			),
+		)
+	}
+}
+
+// Returns a readable format of the website name for the user
+//
+// Will panic if the site string doesn't match one of its cases.
+func GetReadableSiteStr(site string) string {
+	switch site {
+	case FANTIA:
+		return FANTIA_TITLE
+	case PIXIV_FANBOX:
+		return PIXIV_FANBOX_TITLE
+	case PIXIV:
+		return PIXIV_TITLE
+	case KEMONO:
+		return KEMONO_TITLE
+	default:
+		// panic since this is a dev error
+		panic(
+			fmt.Errorf(
+				"error %d: invalid website, \"%s\", in GetReadableSiteStr",
+				DEV_ERROR,
+				site,
+			),
+		)
+	}
+}
+
 // Uses bufio.Reader to read a line from a file and returns it as a byte slice
 //
 // Mostly thanks to https://devmarkpro.com/working-big-files-golang
@@ -67,18 +132,9 @@ func ParseNetscapeCookieFile(filePath, sessionId, website string) ([]*http.Cooki
 		)
 	}
 
-	var sessionCookieName string
-	var sessionCookieSameSite http.SameSite
-	if sessionCookieInfo, ok := SESSION_COOKIE_MAP[website]; !ok {
-		return nil, fmt.Errorf(
-			"error %d: invalid website, \"%s\", in ParseNetscapeCookieFile",
-			DEV_ERROR,
-			website,
-		)
-	} else {
-		sessionCookieName = sessionCookieInfo.Name
-		sessionCookieSameSite = sessionCookieInfo.SameSite
-	}
+	sessionCookieInfo := GetSessionCookieInfo(website)
+	sessionCookieName := sessionCookieInfo.Name
+	sessionCookieSameSite := sessionCookieInfo.SameSite
 
 	f, err := os.Open(filePath)
 	if err != nil {
@@ -205,7 +261,7 @@ func ParseNetscapeCookieFile(filePath, sessionId, website string) ([]*http.Cooki
 			"error %d: no session cookie found in cookie file at %s for website %s",
 			INPUT_ERROR,
 			filePath,
-			API_TITLE_MAP[website],
+			GetReadableSiteStr(website),
 		)
 	}
 	return cookies, nil

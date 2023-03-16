@@ -3,8 +3,11 @@ package kemono
 import (
 	"fmt"
 	"os"
+	"net/http"
 	"regexp"
 
+	"github.com/KJHJason/Cultured-Downloader-CLI/api"
+	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/fatih/color"
 )
@@ -63,5 +66,36 @@ func (k *KemonoDl) ValidateArgs() {
 			),
 		)
 		os.Exit(1)
+	}
+}
+
+// KemonoDlOptions is the struct that contains the arguments for Kemono download options.
+type KemonoDlOptions struct {
+	DlThumbnails  bool
+	DlImages      bool
+	DlAttachments bool
+	DlGdrive      bool
+
+	// GDriveClient is the Google Drive client to be 
+	// used in the download process for Pixiv Fanbox posts
+	GDriveClient   *gdrive.GDrive
+
+	SessionCookieId string
+	SessionCookies  []*http.Cookie
+}
+
+// ValidateArgs validates the session cookie ID of the Kemono account to download from.
+// It also validates the Google Drive client if the user wants to download to Google Drive.
+//
+// Should be called after initialising the struct.
+func (k *KemonoDlOptions) ValidateArgs(userAgent string) {
+	if k.SessionCookieId != "" {
+		k.SessionCookies = []*http.Cookie{
+			api.VerifyAndGetCookie(utils.KEMONO, k.SessionCookieId, userAgent),
+		}
+	}
+
+	if k.DlGdrive && k.GDriveClient == nil {
+		k.DlGdrive = false
 	}
 }
