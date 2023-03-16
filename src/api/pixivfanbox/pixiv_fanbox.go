@@ -189,7 +189,7 @@ func processFanboxPost(res *http.Response, downloadPath string, pixivFanboxDlOpt
 			for _, articleBlock := range articleBlocks {
 				text := articleBlock.Text
 				if text != "" {
-					if utils.DetectPasswordInText(text) && !loggedPassword {
+					if !loggedPassword && utils.DetectPasswordInText(text) {
 						// Log the entire post text if it contains a password
 						filePath := filepath.Join(postFolderPath, utils.PASSWORD_FILENAME)
 						if !utils.PathExists(filePath) {
