@@ -9,13 +9,6 @@ import (
 	"github.com/fatih/color"
 )
 
-type KemonoDl struct {
-	CreatorUrls     []string
-	CreatorPageNums []string
-
-	PostUrls []string
-}
-
 const BASE_REGEX_STR = `https://kemono\.party/(?P<service>patreon|fanbox|gumroad|subscribestar|dlsite|fantia|boosty)/user/(?P<creatorId>[\w-]+)`
 var (
 	POST_URL_REGEX = regexp.MustCompile(
@@ -31,6 +24,13 @@ var (
 		),
 	)
 )
+
+type KemonoDl struct {
+	CreatorUrls     []string
+	CreatorPageNums []string
+
+	PostUrls []string
+}
 
 func (k *KemonoDl) ValidateArgs() {
 	utils.ValidatePageNumInput(
