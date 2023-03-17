@@ -12,7 +12,10 @@ import (
 	"github.com/fatih/color"
 )
 
-const BASE_REGEX_STR = `https://kemono\.party/(?P<service>patreon|fanbox|gumroad|subscribestar|dlsite|fantia|boosty)/user/(?P<creatorId>[\w-]+)`
+const (
+	BASE_REGEX_STR = `https://kemono\.party/(?P<service>patreon|fanbox|gumroad|subscribestar|dlsite|fantia|boosty)/user/(?P<creatorId>[\w-]+)`
+	API_MAX_CONCURRENT = 3
+)
 var (
 	POST_URL_REGEX = regexp.MustCompile(
 		fmt.Sprintf(
@@ -71,8 +74,6 @@ func (k *KemonoDl) ValidateArgs() {
 
 // KemonoDlOptions is the struct that contains the arguments for Kemono download options.
 type KemonoDlOptions struct {
-	DlThumbnails  bool
-	DlImages      bool
 	DlAttachments bool
 	DlGdrive      bool
 

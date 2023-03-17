@@ -45,23 +45,12 @@ func GetUserUrl(userId string) string {
 // Convert the page number to the offset as one page will have 60 illustrations.
 //
 // Usually for paginated results from Pixiv's mobile API, checkPixivMax should be set to true.
-func ConvertPageNumToOffset(minPageNum, maxPageNum int, checkPixivMax bool) (int, int) {
-	// Check for negative page numbers
-	if minPageNum < 0 {
-		minPageNum = 1
-	}
-	if maxPageNum < 0 {
-		maxPageNum = 1
-	}
-
-	// Swap the page numbers if the min is greater than the max
-	if minPageNum > maxPageNum {
-		minPageNum, maxPageNum = maxPageNum, minPageNum
-	}
-
-	minOffset := 60 * (minPageNum - 1)
-	maxOffset := 60 * (maxPageNum - minPageNum + 1)
-
+func ConvertPageNumToOffset(minPageNum, maxPageNum, perPage int, checkPixivMax bool) (int, int) {
+	minOffset, maxOffset := utils.ConvertPageNumToOffset(
+		minPageNum, 
+		maxPageNum, 
+		perPage,
+	)
 	if checkPixivMax {
 		// Check if the offset is larger than Pixiv's max offset
 		if maxOffset > 5000 {

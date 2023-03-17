@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixivfanbox/models"
@@ -13,6 +12,7 @@ import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
 )
 
 // Returns a defined request header needed to communicate with Pixiv Fanbox's API
@@ -21,47 +21,6 @@ func GetPixivFanboxHeaders() map[string]string {
 		"Origin":  utils.PIXIV_FANBOX_URL,
 		"Referer": utils.PIXIV_FANBOX_URL,
 	}
-}
-
-// Process and detects for any external download links from the post's text content
-func processPixivFanboxText(postBodyStr, postFolderPath string, downloadGdrive bool) []*request.ToDownload {
-	if postBodyStr == "" {
-		return nil
-	}
-
-	// split the text by newlines
-	postBodySlice := strings.FieldsFunc(
-		postBodyStr,
-		func(c rune) bool {
-			return c == '\n'
-		},
-	)
-	loggedPassword := false
-	var detectedGdriveLinks []*request.ToDownload
-	for _, text := range postBodySlice {
-		if utils.DetectPasswordInText(text) && !loggedPassword {
-			// Log the entire post text if it contains a password
-			filePath := filepath.Join(postFolderPath, utils.PASSWORD_FILENAME)
-			if !utils.PathExists(filePath) {
-				loggedPassword = true
-				postBodyStr := strings.Join(postBodySlice, "\n")
-				utils.LogMessageToPath(
-					"Found potential password in the post:\n\n"+postBodyStr,
-					filePath,
-					utils.ERROR,
-				)
-			}
-		}
-
-		utils.DetectOtherExtDLLink(text, postFolderPath)
-		if utils.DetectGDriveLinks(text, postFolderPath, false) && downloadGdrive {
-			detectedGdriveLinks = append(detectedGdriveLinks, &request.ToDownload{
-				Url:      text,
-				FilePath: filepath.Join(postFolderPath, utils.GDRIVE_FOLDER),
-			})
-		}
-	}
-	return detectedGdriveLinks
 }
 
 // Pixiv Fanbox permitted file extensions based on
@@ -113,7 +72,7 @@ func processFanboxPost(res *http.Response, downloadPath string, pixivFanboxDlOpt
 	case "file":
 		// process the text in the post
 		filePostJson := postBody.(*models.FanboxFilePostJson)
-		detectedGdriveLinks := processPixivFanboxText(
+		detectedGdriveLinks := gdrive.ProcessPostText(
 			filePostJson.Text,
 			postFolderPath,
 			pixivFanboxDlOptions.DlGdrive,
@@ -148,7 +107,7 @@ func processFanboxPost(res *http.Response, downloadPath string, pixivFanboxDlOpt
 	case "image":
 		// process the text in the post
 		imagePostJson := postBody.(*models.FanboxImagePostJson)
-		detectedGdriveLinks := processPixivFanboxText(
+		detectedGdriveLinks := gdrive.ProcessPostText(
 			imagePostJson.Text,
 			postFolderPath,
 			pixivFanboxDlOptions.DlGdrive,
@@ -261,14 +220,11 @@ func processFanboxPost(res *http.Response, downloadPath string, pixivFanboxDlOpt
 	case "text": // text post
 		// Usually has no content but try to detect for any external download links
 		textContent := postBody.(*models.FanboxTextPostJson)
-		detectedGdriveLinks := processPixivFanboxText(
+		gdriveLinks = gdrive.ProcessPostText(
 			textContent.Text,
 			postFolderPath,
 			pixivFanboxDlOptions.DlGdrive,
 		)
-		if detectedGdriveLinks != nil {
-			gdriveLinks = append(gdriveLinks, detectedGdriveLinks...)
-		}
 	default: // unknown post type
 		return nil, nil, fmt.Errorf(
 			"pixiv fanbox error %d: unknown post type, \"%s\"\nPixiv Fanbox post content:\n%s",
@@ -316,13 +272,13 @@ func (pf *PixivFanboxDl) getPostDetails(config *configs.Config, pixivFanboxDlOpt
 	url := fmt.Sprintf("%s/post.info", utils.PIXIV_FANBOX_API_URL)
 	for _, postId := range pf.PostIds {
 		wg.Add(1)
-		queue <- struct{}{}
 		go func(postId string) {
 			defer func() {
 				<-queue
 				wg.Done()
 			}()
 
+			queue <- struct{}{}
 			header := GetPixivFanboxHeaders()
 			params := map[string]string{"postId": postId}
 			res, err := request.CallRequest(
@@ -355,8 +311,8 @@ func (pf *PixivFanboxDl) getPostDetails(config *configs.Config, pixivFanboxDlOpt
 			progress.MsgIncrement(baseMsg)
 		}(postId)
 	}
-	close(queue)
 	wg.Wait()
+	close(queue)
 	close(resChan)
 	close(errChan)
 
@@ -500,12 +456,12 @@ func getFanboxPosts(creatorId, pageNum string, config *configs.Config, dlOption 
 		}
 
 		wg.Add(1)
-		queue <- struct{}{}
 		go func(reqUrl string) {
 			defer func() {
 				<-queue
 				wg.Done()
 			}()
+			queue <- struct{}{}
 			res, err := request.CallRequest(
 				&request.RequestArgs{
 					Method:    "GET",
@@ -538,8 +494,8 @@ func getFanboxPosts(creatorId, pageNum string, config *configs.Config, dlOption 
 			resChan <- &resStruct{json: resJson}
 		}(paginatedUrl)
 	}
-	close(queue)
 	wg.Wait()
+	close(queue)
 	close(resChan)
 
 	// parse the JSON response

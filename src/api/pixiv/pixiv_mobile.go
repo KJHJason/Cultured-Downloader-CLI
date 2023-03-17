@@ -517,7 +517,7 @@ func (pixiv *PixivMobile) getIllustratorPosts(userId, pageNum, downloadPath, art
 	if err != nil {
 		return nil, nil, []error{err}
 	}
-	minOffset, maxOffset := ConvertPageNumToOffset(minPage, maxPage, false)
+	minOffset, maxOffset := ConvertPageNumToOffset(minPage, maxPage, utils.PIXIV_PER_PAGE, false)
 
 	params := map[string]string{
 		"user_id": userId,
@@ -661,7 +661,7 @@ func (pixiv *PixivMobile) tagSearch(tagName, downloadPath, pageNum string, dlOpt
 		)
 		return nil, nil, true
 	}
-	minOffset, maxOffset := ConvertPageNumToOffset(minPage, maxPage, false)
+	minOffset, maxOffset := ConvertPageNumToOffset(minPage, maxPage, utils.PIXIV_PER_PAGE, false)
 
 	var errSlice []error
 	var ugoiraSlice []*models.Ugoira

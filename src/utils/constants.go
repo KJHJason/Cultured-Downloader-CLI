@@ -41,8 +41,8 @@ func getAppPath() string {
 const (
 	DEBUG_MODE                     = false // Will save a copy of all JSON response from the API
 	VERSION                        = "1.1.1"
-	MAX_RETRY_DELAY                = 2.45
-	MIN_RETRY_DELAY                = 0.95
+	MAX_RETRY_DELAY                = 3
+	MIN_RETRY_DELAY                = 1
 	RETRY_COUNTER                  = 4
 	MAX_CONCURRENT_DOWNLOADS       = 5
 	PIXIV_MAX_CONCURRENT_DOWNLOADS = 3
@@ -60,6 +60,7 @@ const (
 
 	PIXIV            = "pixiv"
 	PIXIV_TITLE      = "Pixiv"
+	PIXIV_PER_PAGE   = 60
 	PIXIV_URL        = "https://www.pixiv.net"
 	PIXIV_API_URL    = "https://www.pixiv.net/ajax"
 	PIXIV_MOBILE_URL = "https://app-api.pixiv.net"
@@ -69,10 +70,11 @@ const (
 	PIXIV_FANBOX_URL     = "https://www.fanbox.cc"
 	PIXIV_FANBOX_API_URL = "https://api.fanbox.cc"
 
-	KEMONO         = "kemono"
-	KEMONO_TITLE   = "Kemono Party"
-	KEMONO_URL     = "https://kemono.party"
-	KEMONO_API_URL = "https://kemono.party/api"
+	KEMONO            = "kemono"
+	KEMONO_TITLE      = "Kemono Party"
+	KEMONO_PER_PAGE   = 50
+	KEMONO_URL        = "https://kemono.party"
+	KEMONO_API_URL    = "https://kemono.party/api"
 
 	PASSWORD_FILENAME = "detected_passwords.txt"
 	ATTACHMENT_FOLDER = "attachments"

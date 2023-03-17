@@ -69,6 +69,30 @@ func GetSessionCookieInfo(site string) *cookieInfo {
 	}
 }
 
+// Returns a boolean value indicating whether the specified site supports HTTP/3
+//
+// Usually, the API endpoints of a site do not support HTTP/3, so the isApi parameter must be provided.
+func IsHttp3Supported(site string, isApi bool) bool {
+	switch site {
+	case FANTIA:
+		return !isApi
+	case PIXIV_FANBOX:
+		return false
+	case PIXIV:
+		return !isApi
+	case KEMONO:
+		return false
+	default:
+		panic(
+			fmt.Errorf(
+				"error %d, invalid site, \"%s\" in IsHttp3Supported",
+				DEV_ERROR,
+				site,
+			),
+		)
+	}
+}
+
 // Returns a readable format of the website name for the user
 //
 // Will panic if the site string doesn't match one of its cases.
@@ -265,6 +289,28 @@ func ParseNetscapeCookieFile(filePath, sessionId, website string) ([]*http.Cooki
 		)
 	}
 	return cookies, nil
+}
+
+// Convert the page number to the offset as one page might have x posts.
+//
+// Usually for paginated results like Pixiv's mobile API (60 per page), checkPixivMax should be set to true.
+func ConvertPageNumToOffset(minPageNum, maxPageNum, perPage int) (int, int) {
+	// Check for negative page numbers
+	if minPageNum < 0 {
+		minPageNum = 1
+	}
+	if maxPageNum < 0 {
+		maxPageNum = 1
+	}
+
+	// Swap the page numbers if the min is greater than the max
+	if minPageNum > maxPageNum {
+		minPageNum, maxPageNum = maxPageNum, minPageNum
+	}
+
+	minOffset := perPage * (minPageNum - 1)
+	maxOffset := perPage * (maxPageNum - minPageNum + 1)
+	return minOffset, maxOffset
 }
 
 // check page nums if they are in the correct format.

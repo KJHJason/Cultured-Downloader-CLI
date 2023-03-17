@@ -27,6 +27,47 @@ type gdriveFileToDl struct {
 	FilePath    string
 }
 
+// Process and detects for any external download links from the post's text content
+func ProcessPostText(postBodyStr, postFolderPath string, downloadGdrive bool) []*request.ToDownload {
+	if postBodyStr == "" {
+		return nil
+	}
+
+	// split the text by newlines
+	postBodySlice := strings.FieldsFunc(
+		postBodyStr,
+		func(c rune) bool {
+			return c == '\n'
+		},
+	)
+	loggedPassword := false
+	var detectedGdriveLinks []*request.ToDownload
+	for _, text := range postBodySlice {
+		if utils.DetectPasswordInText(text) && !loggedPassword {
+			// Log the entire post text if it contains a password
+			filePath := filepath.Join(postFolderPath, utils.PASSWORD_FILENAME)
+			if !utils.PathExists(filePath) {
+				loggedPassword = true
+				postBodyStr := strings.Join(postBodySlice, "\n")
+				utils.LogMessageToPath(
+					"Found potential password in the post:\n\n"+postBodyStr,
+					filePath,
+					utils.ERROR,
+				)
+			}
+		}
+
+		utils.DetectOtherExtDLLink(text, postFolderPath)
+		if utils.DetectGDriveLinks(text, postFolderPath, false) && downloadGdrive {
+			detectedGdriveLinks = append(detectedGdriveLinks, &request.ToDownload{
+				Url:      text,
+				FilePath: filepath.Join(postFolderPath, utils.GDRIVE_FOLDER),
+			})
+		}
+	}
+	return detectedGdriveLinks
+}
+
 // Downloads the given GDrive file using GDrive API v3
 //
 // If the md5Checksum has a mismatch, the file will be overwritten and downloaded again
@@ -238,8 +279,8 @@ func (gdrive *GDrive) DownloadMultipleFiles(files []*gdriveFileToDl, config *con
 				progress.MsgIncrement(baseMsg)
 			}(file)
 		}
-		close(queue)
 		wg.Wait()
+		close(queue)
 		close(errChan)
 
 		hasErr := false

@@ -312,20 +312,20 @@ func getIllustratorPosts(illustratorId, pageNum string, config *configs.Config, 
 	if err != nil {
 		return nil, err
 	}
-	minOffset, maxOffset := ConvertPageNumToOffset(minPage, maxPage, false)
+	minOffset, maxOffset := ConvertPageNumToOffset(minPage, maxPage, utils.PIXIV_PER_PAGE, false)
 
 	var artworkIds []string
 	if pixivDlOptions.ArtworkType == "all" || pixivDlOptions.ArtworkType == "illust_and_ugoira" {
 		illusts := jsonBody.Body.Illusts
 		switch t := illusts.(type) {
 		case map[string]interface{}:
-			curPage := 0
+			curOffset := 0
 			for illustId := range t {
-				curPage++
-				if curPage < minOffset {
+				curOffset++
+				if curOffset < minOffset {
 					continue
 				}
-				if hasMax && curPage > maxOffset {
+				if hasMax && curOffset > maxOffset {
 					break
 				}
 
@@ -340,13 +340,13 @@ func getIllustratorPosts(illustratorId, pageNum string, config *configs.Config, 
 		manga := jsonBody.Body.Manga
 		switch t := manga.(type) {
 		case map[string]interface{}:
-			curPage := 0
+			curOffset := 0
 			for mangaId := range t {
-				curPage++
-				if curPage < minOffset {
+				curOffset++
+				if curOffset < minOffset {
 					continue
 				}
-				if hasMax && curPage > maxOffset {
+				if hasMax && curOffset > maxOffset {
 					break
 				}
 

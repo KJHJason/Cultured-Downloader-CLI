@@ -274,7 +274,7 @@ func getCreatorPosts(creatorId, pageNum string, config *configs.Config, dlOption
 				url,
 				err,
 			)
-			return []string{}, err
+			return nil, err
 		}
 
 		// parse the response
@@ -360,13 +360,13 @@ func (f *FantiaDl) getCreatorsPosts(config *configs.Config, dlOption *FantiaDlOp
 	progress.Start()
 	for idx, creatorId := range f.FanclubIds {
 		wg.Add(1)
-		queue <- struct{}{}
 		go func(creatorId string, pageNumIdx int) {
 			defer func() {
 				<-queue
 				wg.Done()
 			}()
 
+			queue <- struct{}{}
 			postIds, err := getCreatorPosts(
 				creatorId,
 				f.FanclubPageNums[pageNumIdx],
@@ -382,8 +382,8 @@ func (f *FantiaDl) getCreatorsPosts(config *configs.Config, dlOption *FantiaDlOp
 			progress.MsgIncrement(baseMsg)
 		}(creatorId, idx)
 	}
-	close(queue)
 	wg.Wait()
+	close(queue)
 	close(resChan)
 	close(errChan)
 

@@ -1,6 +1,6 @@
 package models
 
-type KemonoRes []struct {
+type MainKemonoJson struct {
 	Added       string `json:"added"`
 	Attachments []struct {
 		Name string `json:"name"`
@@ -24,4 +24,18 @@ type KemonoRes []struct {
 	SharedFile bool   `json:"shared_file"`
 	Title      string `json:"title"`
 	User       string `json:"user"`
+}
+
+type KemonoJson []*MainKemonoJson
+
+type KemonoPostToDl struct {
+	Service   string
+	CreatorId string
+	PostId    string
+}
+
+type KemonoCreatorToDl struct {
+	Service   string
+	CreatorId string
+	PageNum   string
 }
