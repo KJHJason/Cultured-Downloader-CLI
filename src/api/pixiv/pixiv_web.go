@@ -36,7 +36,7 @@ func pixivSleep() {
 
 // Process the artwork details JSON and returns a map of urls
 // with its file path or a Ugoira struct (One of them will be null depending on the artworkType)
-func processArtworkJson(res *http.Response, artworkType int64, postDownloadDir string) ([]map[string]string, *models.Ugoira, error) {
+func processArtworkJson(res *http.Response, artworkType int64, postDownloadDir string) ([]*request.ToDownload, *models.Ugoira, error) {
 	if artworkType == ugoira {
 		var ugoiraJson models.PixivWebArtworkUgoiraJson
 		err := utils.LoadJsonFromResponse(res, &ugoiraJson)
@@ -60,11 +60,11 @@ func processArtworkJson(res *http.Response, artworkType int64, postDownloadDir s
 		return nil, nil, err
 	}
 
-	var urlsToDownload []map[string]string
+	var urlsToDownload []*request.ToDownload
 	for _, artworkUrl := range artworkUrls.Body {
-		urlsToDownload = append(urlsToDownload, map[string]string{
-			"url":      artworkUrl.Urls.Original,
-			"filepath": postDownloadDir,
+		urlsToDownload = append(urlsToDownload, &request.ToDownload{
+			Url:      artworkUrl.Urls.Original,
+			FilePath: postDownloadDir,
 		})
 	}
 	return urlsToDownload, nil, nil
@@ -72,7 +72,7 @@ func processArtworkJson(res *http.Response, artworkType int64, postDownloadDir s
 
 // Retrieves details of an artwork ID and returns
 // the folder path to download the artwork to, the JSON response, and the artwork type
-func getArtworkDetails(artworkId, downloadPath string, config *configs.Config, cookies []*http.Cookie) ([]map[string]string, *models.Ugoira, error) {
+func getArtworkDetails(artworkId, downloadPath string, config *configs.Config, cookies []*http.Cookie) ([]*request.ToDownload, *models.Ugoira, error) {
 	if artworkId == "" {
 		return nil, nil, nil
 	}
@@ -206,10 +206,10 @@ func getArtworkDetails(artworkId, downloadPath string, config *configs.Config, c
 
 // Retrieves multiple artwork details based on the given slice of artwork IDs
 // and returns a map to use for downloading and a slice of Ugoira structures
-func getMultipleArtworkDetails(artworkIds []string, downloadPath string, config *configs.Config, cookies []*http.Cookie) ([]map[string]string, []*models.Ugoira) {
+func getMultipleArtworkDetails(artworkIds []string, downloadPath string, config *configs.Config, cookies []*http.Cookie) ([]*request.ToDownload, []*models.Ugoira) {
 	var errSlice []error
 	var ugoiraDetails []*models.Ugoira
-	var artworkDetails []map[string]string
+	var artworkDetails []*request.ToDownload
 	artworkIdsLen := len(artworkIds)
 	lastArtworkId := artworkIds[artworkIdsLen-1]
 
@@ -442,7 +442,7 @@ func processTagJsonResults(res *http.Response) ([]string, error) {
 
 // Query Pixiv's API and search for posts based on the supplied tag name
 // which will return a map and a slice of Ugoira structures for downloads
-func tagSearch(tagName, downloadPath, pageNum string, config *configs.Config, dlOptions *PixivDlOptions) ([]map[string]string, []*models.Ugoira, bool) {
+func tagSearch(tagName, downloadPath, pageNum string, config *configs.Config, dlOptions *PixivDlOptions) ([]*request.ToDownload, []*models.Ugoira, bool) {
 	minPage, maxPage, hasMax, err := utils.GetMinMaxFromStr(pageNum)
 	if err != nil {
 		utils.LogError(err, "", false, utils.ERROR)

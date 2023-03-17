@@ -53,10 +53,12 @@ func DeleteEmptyAndOldLogs() error {
 			return err
 		}
 
-		if !info.IsDir() && path != logFilePath {
-			if info.Size() == 0 || info.ModTime().Before(time.Now().AddDate(0, 0, -30)) {
-				return os.Remove(path)
-			}
+		if info.IsDir() || path == logFilePath {
+			return nil
+		}
+
+		if info.Size() == 0 || info.ModTime().Before(time.Now().AddDate(0, 0, -30)) {
+			return os.Remove(path)
 		}
 
 		return nil

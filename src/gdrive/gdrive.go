@@ -22,6 +22,12 @@ const (
 	GDRIVE_FILE_FIELDS = "id,name,size,mimeType,md5Checksum"
 )
 
+type GDriveToDl struct {
+	Id 	     string
+	Type     string
+	FilePath string
+}
+
 type GDrive struct {
 	apiKey             string // Google Drive API key to use
 	apiUrl             string // https://www.googleapis.com/drive/v3/files
@@ -143,13 +149,13 @@ type GDriveFolder struct {
 }
 
 // Returns the contents of the given GDrive folder
-func (gdrive *GDrive) GetFolderContents(folderId, logPath string, config *configs.Config) ([]map[string]string, error) {
+func (gdrive *GDrive) GetFolderContents(folderId, logPath string, config *configs.Config) ([]*gdriveFileToDl, error) {
 	params := map[string]string{
 		"key":    gdrive.apiKey,
 		"q":      fmt.Sprintf("'%s' in parents", folderId),
 		"fields": fmt.Sprintf("nextPageToken,files(%s)", GDRIVE_FILE_FIELDS),
 	}
-	files := []map[string]string{}
+	var files []*gdriveFileToDl
 	pageToken := ""
 	for {
 		if pageToken != "" {
@@ -203,12 +209,13 @@ func (gdrive *GDrive) GetFolderContents(folderId, logPath string, config *config
 			return nil, err
 		}
 		for _, file := range gdriveFolder.Files {
-			files = append(files, map[string]string{
-				"id":          file.Id,
-				"name":        file.Name,
-				"size":        file.Size,
-				"mimeType":    file.MimeType,
-				"md5Checksum": file.Md5Checksum,
+			files = append(files, &gdriveFileToDl{
+				Id:          file.Id,
+				Name:        file.Name,
+				Size:        file.Size,
+				MimeType:    file.MimeType,
+				Md5Checksum: file.Md5Checksum,
+				FilePath:    "",
 			})
 		}
 
@@ -222,16 +229,16 @@ func (gdrive *GDrive) GetFolderContents(folderId, logPath string, config *config
 }
 
 // Retrieves the content of a GDrive folder and its subfolders recursively using GDrive API v3
-func (gdrive *GDrive) GetNestedFolderContents(folderId, logPath string, config *configs.Config) ([]map[string]string, error) {
-	files := []map[string]string{}
+func (gdrive *GDrive) GetNestedFolderContents(folderId, logPath string, config *configs.Config) ([]*gdriveFileToDl, error) {
+	var files []*gdriveFileToDl
 	folderContents, err := gdrive.GetFolderContents(folderId, logPath, config)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, file := range folderContents {
-		if file["mimeType"] == "application/vnd.google-apps.folder" {
-			subFolderFiles, err := gdrive.GetNestedFolderContents(file["id"], logPath, config)
+		if file.MimeType == "application/vnd.google-apps.folder" {
+			subFolderFiles, err := gdrive.GetNestedFolderContents(file.Id, logPath, config)
 			if err != nil {
 				return nil, err
 			}
@@ -244,7 +251,7 @@ func (gdrive *GDrive) GetNestedFolderContents(folderId, logPath string, config *
 }
 
 // Retrieves the file details of the given GDrive file using GDrive API v3
-func (gdrive *GDrive) GetFileDetails(fileId, logPath string, config *configs.Config) (map[string]string, error) {
+func (gdrive *GDrive) GetFileDetails(fileId, logPath string, config *configs.Config) (*gdriveFileToDl, error) {
 	params := map[string]string{
 		"key":    gdrive.apiKey,
 		"fields": GDRIVE_FILE_FIELDS,
@@ -279,7 +286,7 @@ func (gdrive *GDrive) GetFileDetails(fileId, logPath string, config *configs.Con
 		return nil, err
 	}
 
-	gdriveFile := GDriveFile{}
+	var gdriveFile GDriveFile
 	if err := json.Unmarshal(resBody, &gdriveFile); err != nil {
 		err = fmt.Errorf(
 			"gdrive error %d: failed to unmarshal GDrive file details with ID of %s, more info => %s\nResponse body: %v",
@@ -290,11 +297,13 @@ func (gdrive *GDrive) GetFileDetails(fileId, logPath string, config *configs.Con
 		)
 		return nil, err
 	}
-	return map[string]string{
-		"id":          gdriveFile.Id,
-		"name":        gdriveFile.Name,
-		"size":        gdriveFile.Size,
-		"mimeType":    gdriveFile.MimeType,
-		"md5Checksum": gdriveFile.Md5Checksum,
+
+	return &gdriveFileToDl{
+		Id:          gdriveFile.Id,
+		Name:        gdriveFile.Name,
+		Size:        gdriveFile.Size,
+		MimeType:    gdriveFile.MimeType,
+		Md5Checksum: gdriveFile.Md5Checksum,
+		FilePath:    "",
 	}, nil
 }

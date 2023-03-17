@@ -13,7 +13,7 @@ import (
 // Start the download process for Pixiv
 func PixivDownloadProcess(config *configs.Config, pixivDl *PixivDl, pixivDlOptions *PixivDlOptions, pixivUgoiraOptions *UgoiraOptions) {
 	var ugoiraToDl []*models.Ugoira
-	var artworksToDl []map[string]string
+	var artworksToDl []*request.ToDownload
 	if len(pixivDl.IllustratorIds) > 0 {
 		if pixivDlOptions.MobileClient == nil {
 			artworkIdsSlice := getMultipleIllustratorPosts(
@@ -38,7 +38,7 @@ func PixivDownloadProcess(config *configs.Config, pixivDl *PixivDl, pixivDlOptio
 	}
 
 	if len(pixivDl.ArtworkIds) > 0 {
-		var artworkSlice []map[string]string
+		var artworkSlice []*request.ToDownload
 		var ugoiraSlice []*models.Ugoira
 		if pixivDlOptions.MobileClient == nil {
 			artworkSlice, ugoiraSlice = getMultipleArtworkDetails(
@@ -89,7 +89,7 @@ func PixivDownloadProcess(config *configs.Config, pixivDl *PixivDl, pixivDlOptio
 		progress.Start()
 		hasErr := false
 		for idx, tagName := range pixivDl.TagNames {
-			var artworksSlice []map[string]string
+			var artworksSlice []*request.ToDownload
 			var ugoiraSlice []*models.Ugoira
 			if pixivDlOptions.MobileClient == nil {
 				artworksSlice, ugoiraSlice, hasErr = tagSearch(

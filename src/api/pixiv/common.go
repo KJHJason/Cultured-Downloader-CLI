@@ -275,7 +275,7 @@ func GetUgoiraFilePaths(ugoireFilePath, ugoiraUrl, outputFormat string) (string,
 
 // Downloads multiple Ugoira artworks and converts them based on the output format
 func downloadMultipleUgoira(downloadInfo []*models.Ugoira, config *configs.Config, ugoiraOptions *UgoiraOptions, cookies []*http.Cookie) {
-	var urlsToDownload []map[string]string
+	var urlsToDownload []*request.ToDownload
 	for _, ugoira := range downloadInfo {
 		filePath, outputFilePath := GetUgoiraFilePaths(
 			ugoira.FilePath,
@@ -283,9 +283,9 @@ func downloadMultipleUgoira(downloadInfo []*models.Ugoira, config *configs.Confi
 			ugoiraOptions.OutputFormat,
 		)
 		if !utils.PathExists(outputFilePath) {
-			urlsToDownload = append(urlsToDownload, map[string]string{
-				"url":      ugoira.Url,
-				"filepath": filePath,
+			urlsToDownload = append(urlsToDownload, &request.ToDownload{
+				Url:      ugoira.Url,
+				FilePath: filePath,
 			})
 		}
 	}

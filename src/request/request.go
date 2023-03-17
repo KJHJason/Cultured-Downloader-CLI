@@ -339,26 +339,11 @@ func DownloadUrl(filePath string, queue chan struct{}, reqArgs *RequestArgs, ove
 	return nil
 }
 
-type DlOptions struct {
-	// MaxConcurrency is the maximum number of concurrent downloads
-	MaxConcurrency int
-
-	// Cookies is a list of cookies to be used in the download process
-	Cookies []*http.Cookie
-
-	// Headers is a map of headers to be used in the download process
-	Headers map[string]string
-
-	// UseHttp3 is a flag to enable HTTP/3
-	// Otherwise, HTTP/2 will be used by default
-	UseHttp3 bool
-}
-
 // DownloadUrls is used to download multiple files from URLs concurrently
 //
 // Note: If the file already exists, the download process will be skipped
-func DownloadUrls(urls []map[string]string, dlOptions *DlOptions, config *configs.Config) {
-	urlsLen := len(urls)
+func DownloadUrls(urlInfoSlice []*ToDownload, dlOptions *DlOptions, config *configs.Config) {
+	urlsLen := len(urlInfoSlice)
 	if urlsLen == 0 {
 		return
 	}
@@ -389,7 +374,7 @@ func DownloadUrls(urls []map[string]string, dlOptions *DlOptions, config *config
 		urlsLen,
 	)
 	progress.Start()
-	for _, url := range urls {
+	for _, urlInfo := range urlInfoSlice {
 		wg.Add(1)
 		go func(fileUrl, filePath string) {
 			defer func() {
@@ -418,7 +403,7 @@ func DownloadUrls(urls []map[string]string, dlOptions *DlOptions, config *config
 			if err != context.Canceled {
 				progress.MsgIncrement(baseMsg)
 			}
-		}(url["url"], url["filepath"])
+		}(urlInfo.Url, urlInfo.FilePath)
 	}
 	wg.Wait()
 	close(queue)
