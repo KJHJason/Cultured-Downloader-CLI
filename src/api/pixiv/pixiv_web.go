@@ -359,11 +359,12 @@ func getIllustratorPosts(illustratorId, pageNum string, config *configs.Config, 
 	return artworkIds, nil
 }
 
-// Get posts from multiple illustrators and returns a map and a slice for Ugoira structures for downloads
-func getMultipleIllustratorPosts(illustratorIds, pageNums []string, downloadPath string, config *configs.Config, pixivDlOptions *PixivDlOptions) ([]map[string]string, []*models.Ugoira) {
+// Get posts from multiple illustrators and returns a slice of artwork IDs
+func getMultipleIllustratorPosts(illustratorIds, pageNums []string, downloadPath string, config *configs.Config, pixivDlOptions *PixivDlOptions) []string {
 	var errSlice []error
 	var artworkIdsSlice []string
 	illustratorIdsLen := len(illustratorIds)
+	lastIllustratorIdx := illustratorIdsLen - 1
 
 	baseMsg := "Getting artwork details from illustrator(s) on Pixiv [%d/" + fmt.Sprintf("%d]...", illustratorIdsLen)
 	progress := spinner.New(
@@ -396,6 +397,10 @@ func getMultipleIllustratorPosts(illustratorIds, pageNums []string, downloadPath
 		} else {
 			artworkIdsSlice = append(artworkIdsSlice, artworkIds...)
 		}
+
+		if idx != lastIllustratorIdx {
+			pixivSleep()
+		}
 		progress.MsgIncrement(baseMsg)
 	}
 
@@ -406,13 +411,7 @@ func getMultipleIllustratorPosts(illustratorIds, pageNums []string, downloadPath
 	}
 	progress.Stop(hasErr)
 
-	artworksSlice, ugoiraSlice := getMultipleArtworkDetails(
-		artworkIdsSlice,
-		downloadPath,
-		config,
-		pixivDlOptions.SessionCookies,
-	)
-	return artworksSlice, ugoiraSlice
+	return artworkIdsSlice
 }
 
 // Process the tag search results JSON and returns a slice of artwork IDs

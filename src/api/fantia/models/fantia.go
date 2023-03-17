@@ -2,9 +2,10 @@ package models
 
 type FantiaPost struct {
 	Post struct {
-		ID    int    `json:"id"`
-		Title string `json:"title"`
-		Thumb struct {
+		ID      int    `json:"id"`
+		Comment string `json:"comment"` // the main post content
+		Title   string `json:"title"`
+		Thumb   struct {
 			Original string `json:"original"`
 		} `json:"thumb"`
 		Fanclub struct {
@@ -25,7 +26,8 @@ type FantiaPost struct {
 				} `json:"url"`
 			} `json:"post_content_photos"`
 
-			// For images that are embedded in the post content
+			// For images that are embedded in the post content blocks.
+			// Could also contain links to other external file hosting providers.
 			Comment string `json:"comment"`
 
 			// for attachments such as pdfs that are embedded in the post content

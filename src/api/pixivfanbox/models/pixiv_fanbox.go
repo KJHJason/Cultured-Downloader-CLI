@@ -1,5 +1,17 @@
 package models
 
+type CreatorPaginatedPostsJson struct {
+	Body []string `json:"body"`
+}
+
+type FanboxCreatorPostsJson struct {
+	Body struct {
+		Items []struct {
+			Id string `json:"id"`
+		} `json:"items"`
+	} `json:"body"`
+}
+
 type FanboxPostJson struct {
 	Body struct {
 		Id            string      `json:"id"`

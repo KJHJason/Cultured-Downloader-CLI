@@ -107,11 +107,11 @@ func processFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 // Note that only the downloading of the URL(s) is/are executed concurrently
 // to reduce the chance of the signed AWS S3 URL(s) from expiring before the download is
 // executed or completed due to a download queue to avoid resource exhaustion of the user's system.
-func dlFantiaPosts(postIds []string, fantiaDlOptions *FantiaDlOptions, config *configs.Config) {
+func (f *FantiaDl) dlFantiaPosts(fantiaDlOptions *FantiaDlOptions, config *configs.Config) {
 	var errSlice []error
-	postIdsLen := len(postIds)
+	postIdsLen := len(f.PostIds)
 	url := utils.FANTIA_URL + "/api/v1/posts/"
-	for i, postId := range postIds {
+	for i, postId := range f.PostIds {
 		count := i + 1
 		msgSuffix := fmt.Sprintf(
 			"[%d/%d]",
@@ -238,7 +238,7 @@ func dlFantiaPosts(postIds []string, fantiaDlOptions *FantiaDlOptions, config *c
 }
 
 // Get all the creator's posts by using goquery to parse the HTML response to get the post IDs
-func getFantiaPosts(creatorId, pageNum string, config *configs.Config, cookies []*http.Cookie) ([]string, error) {
+func getCreatorPosts(creatorId, pageNum string, config *configs.Config, dlOption *FantiaDlOptions) ([]string, error) {
 	var postIds []string
 	minPage, maxPage, hasMax, err := utils.GetMinMaxFromStr(pageNum)
 	if err != nil {
@@ -260,7 +260,7 @@ func getFantiaPosts(creatorId, pageNum string, config *configs.Config, cookies [
 			&request.RequestArgs{
 				Method:      "GET",
 				Url:         url,
-				Cookies:     cookies,
+				Cookies:     dlOption.SessionCookies,
 				Params:      params,
 				Http3:       true,
 				CheckStatus: true,
@@ -318,10 +318,10 @@ func getFantiaPosts(creatorId, pageNum string, config *configs.Config, cookies [
 	return postIds, nil
 }
 
-// Retrieves all the posts based on the slice of creator IDs and returns a slice of post IDs
-func getCreatorsPosts(creatorIds, pageNums []string, config *configs.Config, cookies []*http.Cookie) []string {
-	creatorIdsLen := len(creatorIds)
-	if creatorIdsLen != len(pageNums) {
+// Retrieves all the posts based on the slice of creator IDs and updates its PostIds slice
+func (f *FantiaDl) getCreatorsPosts(config *configs.Config, dlOption *FantiaDlOptions) {
+	creatorIdsLen := len(f.FanclubIds)
+	if creatorIdsLen != len(f.FanclubPageNums) {
 		panic(
 			fmt.Errorf(
 				"fantia error %d: creator IDs and page numbers slices are not the same length",
@@ -358,7 +358,7 @@ func getCreatorsPosts(creatorIds, pageNums []string, config *configs.Config, coo
 		creatorIdsLen,
 	)
 	progress.Start()
-	for idx, creatorId := range creatorIds {
+	for idx, creatorId := range f.FanclubIds {
 		wg.Add(1)
 		queue <- struct{}{}
 		go func(creatorId string, pageNumIdx int) {
@@ -367,11 +367,11 @@ func getCreatorsPosts(creatorIds, pageNums []string, config *configs.Config, coo
 				wg.Done()
 			}()
 
-			postIds, err := getFantiaPosts(
+			postIds, err := getCreatorPosts(
 				creatorId,
-				pageNums[pageNumIdx],
+				f.FanclubPageNums[pageNumIdx],
 				config,
-				cookies,
+				dlOption,
 			)
 			if err != nil {
 				errChan <- err
@@ -394,11 +394,10 @@ func getCreatorsPosts(creatorIds, pageNums []string, config *configs.Config, coo
 	}
 	progress.Stop(hasErr)
 
-	var postIds []string
 	for postIdsRes := range resChan {
-		postIds = append(postIds, postIdsRes...)
+		f.PostIds = append(f.PostIds, postIdsRes...)
 	}
-	return postIds
+	f.PostIds = utils.RemoveSliceDuplicates(f.PostIds)
 }
 
 // Start the download process for Fantia
@@ -407,22 +406,14 @@ func FantiaDownloadProcess(config *configs.Config, fantiaDl *FantiaDl, fantiaDlO
 		return
 	}
 
-	if len(fantiaDl.PostIds) > 0 {
-		dlFantiaPosts(
-			fantiaDl.PostIds,
-			fantiaDlOptions,
+	if len(fantiaDl.FanclubIds) > 0 {
+		fantiaDl.getCreatorsPosts(
 			config,
+			fantiaDlOptions,
 		)
 	}
-	if len(fantiaDl.FanclubIds) > 0 {
-		fantiaPostIds := getCreatorsPosts(
-			fantiaDl.FanclubIds,
-			fantiaDl.FanclubPageNums,
-			config,
-			fantiaDlOptions.SessionCookies,
-		)
-		dlFantiaPosts(
-			fantiaPostIds,
+	if len(fantiaDl.PostIds) > 0 {
+		fantiaDl.dlFantiaPosts(
 			fantiaDlOptions,
 			config,
 		)

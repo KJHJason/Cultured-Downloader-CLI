@@ -297,10 +297,9 @@ func ValidatePageNumInput(baseSliceLen int, pageNums []string, errMsgs []string)
 // Returns the min, max, hasMaxNum, and error from the given string of "num" or "min-max"
 //
 // E.g.
-//
-//		"1-10" => 1, 10, true, nil
-//		"1" => 1, 1, true, nil
-//	 "" => 1, 1, false, nil (defaults to min = 1, max = inf)
+//	"1-10" => 1, 10, true, nil
+//	"1" => 1, 1, true, nil
+//	"" => 1, 1, false, nil (defaults to min = 1, max = inf)
 func GetMinMaxFromStr(numStr string) (int, int, bool, error) {
 	if numStr == "" {
 		// defaults to min = 1, max = inf
