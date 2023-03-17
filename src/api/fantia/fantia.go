@@ -233,7 +233,7 @@ func (f *FantiaDl) dlFantiaPosts(fantiaDlOptions *FantiaDlOptions, config *confi
 	}
 
 	if len(errSlice) > 0 {
-		utils.LogErrors(false, nil, errSlice...)
+		utils.LogErrors(false, nil, utils.ERROR, errSlice...)
 	}
 }
 
@@ -390,7 +390,7 @@ func (f *FantiaDl) getCreatorsPosts(config *configs.Config, dlOption *FantiaDlOp
 	hasErr := false
 	if len(errChan) > 0 {
 		hasErr = true
-		utils.LogErrors(false, errChan)
+		utils.LogErrors(false, errChan, utils.ERROR)
 	}
 	progress.Stop(hasErr)
 

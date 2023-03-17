@@ -303,7 +303,9 @@ func (pixiv *PixivMobile) StartOauthFlow() error {
 }
 
 // Returns the Ugoira structure with the necessary information to download the ugoira
-func (pixiv *PixivMobile) getUgoiraMetadata(illustId, postDownloadDir string) *models.Ugoira {
+//
+// Will return an error which has been logged if unexpected error occurs like connection error, json marshal error, etc.
+func (pixiv *PixivMobile) getUgoiraMetadata(illustId, postDownloadDir string) (*models.Ugoira, error) {
 	ugoiraUrl := pixiv.baseUrl + "/v1/ugoira/metadata"
 	params := map[string]string{"illust_id": illustId}
 	additionalHeaders := pixiv.getHeaders(
@@ -319,14 +321,20 @@ func (pixiv *PixivMobile) getUgoiraMetadata(illustId, postDownloadDir string) *m
 		},
 	)
 	if err != nil {
-		errMsg := "Pixiv: Failed to get ugoira metadata for " + illustId
-		utils.LogMessageToPath(errMsg, postDownloadDir)
+		errMsg := fmt.Sprintf(
+			"pixiv movile error %d: Failed to get ugoira metadata for %s",
+			utils.CONNECTION_ERROR,
+			illustId,
+		)
+		utils.LogMessageToPath(errMsg, postDownloadDir, utils.ERROR)
+		return nil, err
 	}
 
 	var ugoiraJson models.UgoiraJson
 	err = utils.LoadJsonFromResponse(res, &ugoiraJson)
 	if err != nil {
-		utils.LogMessageToPath(err.Error(), postDownloadDir)
+		utils.LogMessageToPath(err.Error(), postDownloadDir, utils.ERROR)
+		return nil, err
 	}
 
 	ugoiraMetadata := ugoiraJson.Metadata
@@ -339,7 +347,7 @@ func (pixiv *PixivMobile) getUgoiraMetadata(illustId, postDownloadDir string) *m
 		Url:      ugoiraDlUrl,
 		Frames:   frameInfoMap,
 		FilePath: postDownloadDir,
-	}
+	}, nil
 }
 
 // Process the artwork JSON and returns a slice of map that contains the urls of the images and the file path
@@ -405,13 +413,19 @@ func (pixiv *PixivMobile) processMultipleArtworkJson(resJson *models.PixivMobile
 // and get its metadata (the URL to download the ugoira from and its frames' delay)
 //
 // Returns the filtered slice of map that contains the artworks details to download and a slice of Ugoira structures
-func (pixiv *PixivMobile) checkForUgoira(artworksToDownload []map[string]string) ([]map[string]string, []*models.Ugoira) {
+func (pixiv *PixivMobile) checkForUgoira(artworksToDownload []map[string]string) ([]map[string]string, []*models.Ugoira, []error) {
+	var errSlice []error
 	var filteredArtworks []map[string]string
 	var ugoiraSlice []*models.Ugoira
 	lastIdx := len(artworksToDownload) - 1
 	for idx, artwork := range artworksToDownload {
 		if _, ok := artwork["artwork_id"]; ok {
-			ugoiraInfo := pixiv.getUgoiraMetadata(artwork["artwork_id"], artwork["filepath"])
+			ugoiraInfo, err := pixiv.getUgoiraMetadata(artwork["artwork_id"], artwork["filepath"])
+			if err != nil {
+				errSlice = append(errSlice, err)
+				continue
+			}
+
 			if idx != lastIdx {
 				pixiv.Sleep()
 			}
@@ -420,11 +434,11 @@ func (pixiv *PixivMobile) checkForUgoira(artworksToDownload []map[string]string)
 			filteredArtworks = append(filteredArtworks, artwork)
 		}
 	}
-	return filteredArtworks, ugoiraSlice
+	return filteredArtworks, ugoiraSlice, errSlice
 }
 
 // Query Pixiv's API (mobile) to get the JSON of an artwork ID
-func (pixiv *PixivMobile) getArtworkDetails(artworkId, downloadPath string) ([]map[string]string, []*models.Ugoira, error) {
+func (pixiv *PixivMobile) getArtworkDetails(artworkId, downloadPath string) ([]map[string]string, []*models.Ugoira, []error) {
 	artworkUrl := pixiv.baseUrl + "/v1/illust/detail"
 	params := map[string]string{"illust_id": artworkId}
 
@@ -443,21 +457,21 @@ func (pixiv *PixivMobile) getArtworkDetails(artworkId, downloadPath string) ([]m
 			artworkId,
 			err,
 		)
-		return nil, nil, err
+		return nil, nil, []error{err}
 	}
 
 	var artworkJson models.PixivMobileArtworkJson
 	err = utils.LoadJsonFromResponse(res, &artworkJson)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, []error{err}
 	}
 
 	artworkDetails := pixiv.processArtworkJson(
 		artworkJson.Illust,
 		downloadPath,
 	)
-	artworkDetails, ugoiraSlice := pixiv.checkForUgoira(artworkDetails)
-	return artworkDetails, ugoiraSlice, nil
+	artworkDetails, ugoiraSlice, errSlice := pixiv.checkForUgoira(artworkDetails)
+	return artworkDetails, ugoiraSlice, errSlice
 }
 
 func (pixiv *PixivMobile) getMultipleArtworkDetails(artworkIds []string, downloadPath string) ([]map[string]string, []*models.Ugoira) {
@@ -489,7 +503,7 @@ func (pixiv *PixivMobile) getMultipleArtworkDetails(artworkIds []string, downloa
 	for idx, artworkId := range artworkIds {
 		artworkDetails, ugoiraInfo, err := pixiv.getArtworkDetails(artworkId, downloadPath)
 		if err != nil {
-			errSlice = append(errSlice, err)
+			errSlice = append(errSlice, err...)
 			progress.MsgIncrement(baseMsg)
 			continue
 		}
@@ -505,7 +519,7 @@ func (pixiv *PixivMobile) getMultipleArtworkDetails(artworkIds []string, downloa
 	hasErr := false
 	if len(errSlice) > 0 {
 		hasErr = true
-		utils.LogErrors(false, nil, errSlice...)
+		utils.LogErrors(false, nil, utils.ERROR, errSlice...)
 	}
 	progress.Stop(hasErr)
 
@@ -513,10 +527,10 @@ func (pixiv *PixivMobile) getMultipleArtworkDetails(artworkIds []string, downloa
 }
 
 // Query Pixiv's API (mobile) to get all the posts JSON(s) of a user ID
-func (pixiv *PixivMobile) getIllustratorPosts(userId, pageNum, downloadPath, artworkType string) ([]map[string]string, []*models.Ugoira, error) {
+func (pixiv *PixivMobile) getIllustratorPosts(userId, pageNum, downloadPath, artworkType string) ([]map[string]string, []*models.Ugoira, []error) {
 	minPage, maxPage, hasMax, err := utils.GetMinMaxFromStr(pageNum)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, []error{err}
 	}
 	minOffset, maxOffset := ConvertPageNumToOffset(minPage, maxPage, false)
 
@@ -552,13 +566,13 @@ startLoop:
 				userId,
 				err,
 			)
-			return nil, nil, err
+			return nil, nil, []error{err}
 		}
 
 		var resJson models.PixivMobileArtworksJson
 		err = utils.LoadJsonFromResponse(res, &resJson)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, []error{err}
 		}
 
 		artworksToDownload = append(
@@ -585,8 +599,8 @@ startLoop:
 		goto startLoop
 	}
 
-	artworksToDownload, ugoiraSlice := pixiv.checkForUgoira(artworksToDownload)
-	return artworksToDownload, ugoiraSlice, nil
+	artworksToDownload, ugoiraSlice, errSlice := pixiv.checkForUgoira(artworksToDownload)
+	return artworksToDownload, ugoiraSlice, errSlice
 }
 
 func (pixiv *PixivMobile) getMultipleIllustratorPosts(userIds, pageNums []string, downloadPath, artworkType string) ([]map[string]string, []*models.Ugoira) {
@@ -623,7 +637,7 @@ func (pixiv *PixivMobile) getMultipleIllustratorPosts(userIds, pageNums []string
 			artworkType,
 		)
 		if err != nil {
-			errSlice = append(errSlice, err)
+			errSlice = append(errSlice, err...)
 			progress.MsgIncrement(baseMsg)
 			continue
 		}
@@ -639,7 +653,7 @@ func (pixiv *PixivMobile) getMultipleIllustratorPosts(userIds, pageNums []string
 	hasErr := false
 	if len(errSlice) > 0 {
 		hasErr = true
-		utils.LogErrors(false, nil, errSlice...)
+		utils.LogErrors(false, nil, utils.ERROR, errSlice...)
 	}
 	progress.Stop(hasErr)
 
@@ -656,6 +670,7 @@ func (pixiv *PixivMobile) tagSearch(tagName, downloadPath, pageNum string, dlOpt
 			err,
 			"",
 			false,
+			utils.ERROR,
 		)
 		return nil, nil, true
 	}
@@ -688,6 +703,7 @@ func (pixiv *PixivMobile) tagSearch(tagName, downloadPath, pageNum string, dlOpt
 				),
 				"",
 				false,
+				utils.ERROR,
 			)
 			return nil, nil, true
 		}
@@ -695,7 +711,7 @@ func (pixiv *PixivMobile) tagSearch(tagName, downloadPath, pageNum string, dlOpt
 		var resJson models.PixivMobileArtworksJson
 		err = utils.LoadJsonFromResponse(res, &resJson)
 		if err != nil {
-			utils.LogError(err, "", false)
+			utils.LogError(err, "", false, utils.ERROR)
 			return nil, nil, true
 		}
 
@@ -715,6 +731,6 @@ func (pixiv *PixivMobile) tagSearch(tagName, downloadPath, pageNum string, dlOpt
 		}
 	}
 
-	artworksToDownload, ugoiraSlice := pixiv.checkForUgoira(artworksToDownload)
-	return artworksToDownload, ugoiraSlice, false
+	artworksToDownload, ugoiraSlice, errSlice := pixiv.checkForUgoira(artworksToDownload)
+	return artworksToDownload, ugoiraSlice, len(errSlice) > 0
 }

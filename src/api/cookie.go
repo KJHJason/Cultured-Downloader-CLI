@@ -98,7 +98,20 @@ func VerifyAndGetCookie(website, cookieValue, userAgent string) *http.Cookie {
 	cookie := GetCookie(cookieValue, website)
 	cookieIsValid, err := VerifyCookie(cookie, website, userAgent)
 	if err != nil {
-		utils.LogError(err, "Error occurred when trying to verify cookie.", true)
+		utils.LogError(
+			err, 
+			"error occurred when trying to verify cookie.", 
+			true,
+			utils.ERROR,
+		)
+		color.Red(
+			fmt.Sprintf(
+				"error %d: could not verify %s cookie.\nPlease refer to the log file for more details.",
+				utils.INPUT_ERROR,
+				utils.GetReadableSiteStr(website),
+			),
+		)
+		os.Exit(1)
 	}
 	if cookieValue != "" && !cookieIsValid {
 		color.Red(

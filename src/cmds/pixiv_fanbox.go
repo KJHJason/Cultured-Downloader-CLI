@@ -1,12 +1,12 @@
 package cmds
 
 import (
-	"github.com/spf13/cobra"
-	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixivfanbox"
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -32,12 +32,12 @@ var (
 
 			pixivFanboxConfig := &configs.Config{
 				OverwriteFiles: fanboxOverwriteFiles,
-				UserAgent: 	    fanboxUserAgent,
+				UserAgent:      fanboxUserAgent,
 			}
 			var gdriveClient *gdrive.GDrive
 			if fanboxGdriveApiKey != "" {
 				gdriveClient = gdrive.GetNewGDrive(
-					fanboxGdriveApiKey, 
+					fanboxGdriveApiKey,
 					pixivFanboxConfig,
 					utils.MAX_CONCURRENT_DOWNLOADS,
 				)
@@ -69,8 +69,8 @@ var (
 			}
 			if fanboxCookieFile != "" {
 				cookies, err := utils.ParseNetscapeCookieFile(
-					fanboxCookieFile, 
-					fanboxSession, 
+					fanboxCookieFile,
+					fanboxSession,
 					utils.PIXIV_FANBOX,
 				)
 				if err != nil {
@@ -78,6 +78,7 @@ var (
 						err,
 						"",
 						true,
+						utils.ERROR,
 					)
 				}
 				pixivFanboxDlOptions.SessionCookies = cookies

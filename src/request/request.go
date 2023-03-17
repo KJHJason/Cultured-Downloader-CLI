@@ -324,6 +324,7 @@ func DownloadUrl(filePath string, queue chan struct{}, reqArgs *RequestArgs, ove
 				),
 				"",
 				false,
+				utils.ERROR,
 			)
 		}
 
@@ -331,7 +332,7 @@ func DownloadUrl(filePath string, queue chan struct{}, reqArgs *RequestArgs, ove
 			return err
 		}
 		errorMsg := fmt.Sprintf("failed to download %s due to %v", reqArgs.Url, err)
-		utils.LogError(err, errorMsg, false)
+		utils.LogError(err, errorMsg, false, utils.ERROR)
 		return nil
 	}
 	file.Close()
@@ -426,7 +427,7 @@ func DownloadUrls(urls []map[string]string, dlOptions *DlOptions, config *config
 	hasErr := false
 	if len(errChan) > 0 {
 		hasErr = true
-		if kill := utils.LogErrors(false, errChan); kill {
+		if kill := utils.LogErrors(false, errChan, utils.ERROR); kill {
 			progress.KillProgram(
 				"Stopped downloading files (incomplete downloads will be deleted)...",
 			)

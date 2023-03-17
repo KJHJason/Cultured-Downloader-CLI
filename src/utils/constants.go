@@ -39,7 +39,7 @@ func getAppPath() string {
 }
 
 const (
-	DEBUG                          = false // Will save a copy of all JSON response from the API
+	DEBUG_MODE                     = false // Will save a copy of all JSON response from the API
 	VERSION                        = "1.1.1"
 	MAX_RETRY_DELAY                = 2.45
 	MIN_RETRY_DELAY                = 0.95

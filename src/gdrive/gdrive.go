@@ -83,7 +83,7 @@ func (gdrive *GDrive) GDriveKeyIsValid(userAgent string) (bool, error) {
 }
 
 // Logs any failed GDrive API calls to the given log path
-func LogFailedGdriveAPICalls(res *http.Response, downloadPath string) {
+func LogFailedGdriveAPICalls(res *http.Response, downloadPath string, level int) {
 	requestUrl := res.Request.URL.String()
 	errorMsg := fmt.Sprintf(
 		"Error while fetching from GDrive...\n"+
@@ -94,7 +94,7 @@ func LogFailedGdriveAPICalls(res *http.Response, downloadPath string) {
 		requestUrl,
 	)
 	if downloadPath != "" {
-		utils.LogError(nil, errorMsg, false)
+		utils.LogError(nil, errorMsg, false, level)
 		return
 	}
 
@@ -117,21 +117,13 @@ func LogFailedGdriveAPICalls(res *http.Response, downloadPath string) {
 			utils.OS_ERROR,
 			err,
 		)
-		utils.LogError(err, "", false)
+		utils.LogError(err, "", false, utils.ERROR)
 		return
 	}
 	defer file.Close()
 
-	// write to file
-	_, err = file.WriteString(errorMsg)
-	if err != nil {
-		err = fmt.Errorf(
-			"gdrive error %d: failed to write to log file, more info => %v",
-			utils.OS_ERROR,
-			err,
-		)
-		utils.LogError(err, "", false)
-	}
+	pathLogger := utils.NewLogger(file)
+	pathLogger.LogBasedOnLvl(level, errorMsg)
 }
 
 type GDriveFile struct {
@@ -278,7 +270,7 @@ func (gdrive *GDrive) GetFileDetails(fileId, logPath string, config *configs.Con
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		LogFailedGdriveAPICalls(res, logPath)
+		LogFailedGdriveAPICalls(res, logPath, utils.ERROR)
 		return nil, nil
 	}
 

@@ -1,11 +1,11 @@
 package cmds
 
 import (
-	"github.com/spf13/cobra"
-	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/fantia"
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -56,8 +56,8 @@ var (
 			}
 			if fantiaCookieFile != "" {
 				cookies, err := utils.ParseNetscapeCookieFile(
-					fantiaCookieFile, 
-					fantiaSession, 
+					fantiaCookieFile,
+					fantiaSession,
 					utils.FANTIA,
 				)
 				if err != nil {
@@ -65,6 +65,7 @@ var (
 						err,
 						"",
 						true,
+						utils.ERROR,
 					)
 				}
 				fantiaDlOptions.SessionCookies = cookies
@@ -76,6 +77,7 @@ var (
 					err,
 					"",
 					true,
+					utils.ERROR,
 				)
 			}
 

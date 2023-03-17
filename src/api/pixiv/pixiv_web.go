@@ -260,7 +260,7 @@ func getMultipleArtworkDetails(artworkIds []string, downloadPath string, config 
 	hasErr := false
 	if len(errSlice) > 0 {
 		hasErr = true
-		utils.LogErrors(false, nil, errSlice...)
+		utils.LogErrors(false, nil, utils.ERROR, errSlice...)
 	}
 	progress.Stop(hasErr)
 
@@ -407,7 +407,7 @@ func getMultipleIllustratorPosts(illustratorIds, pageNums []string, downloadPath
 	hasErr := false
 	if len(errSlice) > 0 {
 		hasErr = true
-		utils.LogErrors(false, nil, errSlice...)
+		utils.LogErrors(false, nil, utils.ERROR, errSlice...)
 	}
 	progress.Stop(hasErr)
 
@@ -445,7 +445,7 @@ func processTagJsonResults(res *http.Response) ([]string, error) {
 func tagSearch(tagName, downloadPath, pageNum string, config *configs.Config, dlOptions *PixivDlOptions) ([]map[string]string, []*models.Ugoira, bool) {
 	minPage, maxPage, hasMax, err := utils.GetMinMaxFromStr(pageNum)
 	if err != nil {
-		utils.LogError(err, "", false)
+		utils.LogError(err, "", false, utils.ERROR)
 		return nil, nil, true
 	}
 
@@ -528,7 +528,7 @@ func tagSearch(tagName, downloadPath, pageNum string, config *configs.Config, dl
 	hasErr := false
 	if len(errSlice) > 0 {
 		hasErr = true
-		utils.LogErrors(false, nil, errSlice...)
+		utils.LogErrors(false, nil, utils.ERROR, errSlice...)
 	}
 
 	artworkSlice, ugoiraSlice := getMultipleArtworkDetails(

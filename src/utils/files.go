@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"github.com/fatih/color"
 )
@@ -36,13 +35,8 @@ func GetFileSize(filePath string) (int64, error) {
 	return -1, nil
 }
 
-var logToPathMutex = sync.Mutex{}
-
 // Thread-safe logging function that logs to the provided file path
-func LogMessageToPath(message, filePath string) {
-	logToPathMutex.Lock()
-	defer logToPathMutex.Unlock()
-
+func LogMessageToPath(message, filePath string, level int) {
 	os.MkdirAll(filepath.Dir(filePath), 0666)
 	logFile, err := os.OpenFile(
 		filePath,
@@ -62,17 +56,8 @@ func LogMessageToPath(message, filePath string) {
 	}
 	defer logFile.Close()
 
-	_, err = logFile.WriteString(message)
-	if err != nil {
-		errMsg := fmt.Sprintf(
-			"error %d: failed to write to log file, more info => %v\nfile path: %s\noriginal message: %s",
-			OS_ERROR,
-			err,
-			filePath,
-			message,
-		)
-		color.Red(errMsg)
-	}
+	pathLogger := NewLogger(logFile)
+	pathLogger.LogBasedOnLvl(level, message)
 }
 
 // Removes any illegal characters in a path name

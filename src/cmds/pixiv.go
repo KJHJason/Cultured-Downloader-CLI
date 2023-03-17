@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/spf13/cobra"
-	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv"
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -32,7 +32,7 @@ var (
 	pixivArtworkType         string
 	pixivOverwrite           bool
 	pixivUserAgent           string
-	pixivCmd            = &cobra.Command{
+	pixivCmd                 = &cobra.Command{
 		Use:   "pixiv",
 		Short: "Download from Pixiv",
 		Long:  "Supports downloading from Pixiv by artwork ID, illustrator ID, tag name, and more.",
@@ -46,6 +46,7 @@ var (
 						err,
 						"",
 						true,
+						utils.ERROR,
 					)
 				}
 				return
@@ -98,8 +99,8 @@ var (
 			}
 			if pixivCookieFile != "" {
 				cookies, err := utils.ParseNetscapeCookieFile(
-					pixivCookieFile, 
-					pixivSession, 
+					pixivCookieFile,
+					pixivSession,
 					utils.PIXIV,
 				)
 				if err != nil {
@@ -107,6 +108,7 @@ var (
 						err,
 						"",
 						true,
+						utils.ERROR,
 					)
 				}
 				pixivDlOptions.SessionCookies = cookies

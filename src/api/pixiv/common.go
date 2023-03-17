@@ -371,7 +371,7 @@ func downloadMultipleUgoira(downloadInfo []*models.Ugoira, config *configs.Confi
 	hasErr := false
 	if len(errSlice) > 0 {
 		hasErr = true
-		utils.LogErrors(false, nil, errSlice...)
+		utils.LogErrors(false, nil, utils.ERROR, errSlice...)
 	}
 	progress.Stop(hasErr)
 }

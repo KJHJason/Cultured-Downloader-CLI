@@ -8,8 +8,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixivfanbox/models"
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
@@ -48,6 +48,7 @@ func processPixivFanboxText(postBodyStr, postFolderPath string, downloadGdrive b
 				utils.LogMessageToPath(
 					"Found potential password in the post:\n\n"+postBodyStr,
 					filePath,
+					utils.ERROR,
 				)
 			}
 		}
@@ -204,6 +205,7 @@ func processFanboxPost(res *http.Response, downloadPath string, pixivFanboxDlOpt
 							utils.LogMessageToPath(
 								postBodyStr,
 								filePath,
+								utils.ERROR,
 							)
 						}
 					}
@@ -278,7 +280,7 @@ func processFanboxPost(res *http.Response, downloadPath string, pixivFanboxDlOpt
 	return urlsMap, gdriveLinks, nil
 }
 
-// Query Pixiv Fanbox's API based on the slice of post IDs and 
+// Query Pixiv Fanbox's API based on the slice of post IDs and
 // returns a map of urls and a map of GDrive urls to download from.
 func (pf *PixivFanboxDl) getPostDetails(config *configs.Config, pixivFanboxDlOptions *PixivFanboxDlOptions) ([]map[string]string, []map[string]string) {
 	maxConcurrency := utils.MAX_API_CALLS
@@ -361,7 +363,7 @@ func (pf *PixivFanboxDl) getPostDetails(config *configs.Config, pixivFanboxDlOpt
 	hasErr := false
 	if len(errChan) > 0 {
 		hasErr = true
-		utils.LogErrors(false, errChan)
+		utils.LogErrors(false, errChan, utils.ERROR)
 	}
 	progress.Stop(hasErr)
 
@@ -405,7 +407,7 @@ func (pf *PixivFanboxDl) getPostDetails(config *configs.Config, pixivFanboxDlOpt
 	hasErr = false
 	if len(errSlice) > 0 {
 		hasErr = true
-		utils.LogErrors(false, nil, errSlice...)
+		utils.LogErrors(false, nil, utils.ERROR, errSlice...)
 	}
 	progress.Stop(hasErr)
 
@@ -517,9 +519,14 @@ func getFanboxPosts(creatorId, pageNum string, config *configs.Config, dlOption 
 				if err == nil {
 					res.Body.Close()
 				}
-				utils.LogError(err, fmt.Sprintf("failed to get post for %s", reqUrl), false)
+				utils.LogError(
+					err,
+					fmt.Sprintf("failed to get post for %s", reqUrl),
+					false,
+					utils.ERROR,
+				)
 				return
-			} 
+			}
 
 			var resJson *models.FanboxCreatorPostsJson
 			err = utils.LoadJsonFromResponse(res, &resJson)
@@ -550,7 +557,7 @@ func getFanboxPosts(creatorId, pageNum string, config *configs.Config, dlOption 
 	}
 
 	if len(errSlice) > 0 {
-		utils.LogErrors(false, nil, errSlice...)
+		utils.LogErrors(false, nil, utils.ERROR, errSlice...)
 	}
 	return postIds, nil
 }
@@ -605,7 +612,7 @@ func (pf *PixivFanboxDl) getCreatorsPosts(config *configs.Config, dlOptions *Pix
 	hasErr := false
 	if len(errSlice) > 0 {
 		hasErr = true
-		utils.LogErrors(false, nil, errSlice...)
+		utils.LogErrors(false, nil, utils.ERROR, errSlice...)
 	}
 	progress.Stop(hasErr)
 	pf.PostIds = utils.RemoveSliceDuplicates(pf.PostIds)

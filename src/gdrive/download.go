@@ -60,16 +60,16 @@ func (gdrive *GDrive) DownloadFile(fileInfo map[string]string, filePath string, 
 	}
 
 	// Create a context that can be cancelled when SIGINT/SIGTERM signal is received
-    ctx, cancel := context.WithCancel(context.Background())
-    defer cancel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-    // Catch SIGINT/SIGTERM signal and cancel the context when received
-    sigs := make(chan os.Signal, 1)
-    signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
-    go func() {
-        <-sigs
-        cancel()
-    }()
+	// Catch SIGINT/SIGTERM signal and cancel the context when received
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigs
+		cancel()
+	}()
 	defer signal.Stop(sigs)
 
 	queue <- struct{}{}
@@ -81,10 +81,10 @@ func (gdrive *GDrive) DownloadFile(fileInfo map[string]string, filePath string, 
 	url := fmt.Sprintf("%s/%s", gdrive.apiUrl, fileInfo["id"])
 	res, err := request.CallRequest(
 		&request.RequestArgs{
-			Url:	   url,
-			Method:	   "GET",
+			Url:       url,
+			Method:    "GET",
 			Timeout:   gdrive.downloadTimeout,
-			Params:	   params,
+			Params:    params,
 			Context:   ctx,
 			UserAgent: config.UserAgent,
 		},
@@ -94,7 +94,7 @@ func (gdrive *GDrive) DownloadFile(fileInfo map[string]string, filePath string, 
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		LogFailedGdriveAPICalls(res, filePath)
+		LogFailedGdriveAPICalls(res, filePath, utils.ERROR)
 		return nil
 	}
 
@@ -119,9 +119,10 @@ func (gdrive *GDrive) DownloadFile(fileInfo map[string]string, filePath string, 
 					utils.OS_ERROR,
 					filePath,
 					fileErr,
-				), 
-				"", 
+				),
+				"",
 				false,
+				utils.ERROR,
 			)
 		}
 
@@ -158,7 +159,7 @@ func (gdrive *GDrive) DownloadMultipleFiles(files []map[string]string, config *c
 				file["name"], file["id"], file["mimeType"],
 			)
 		}
-		utils.LogError(nil, noticeMsg, false)
+		utils.LogError(nil, noticeMsg, false, utils.INFO)
 	}
 
 	if len(allowedForDownload) > 0 {
@@ -192,7 +193,7 @@ func (gdrive *GDrive) DownloadMultipleFiles(files []map[string]string, config *c
 		for _, file := range allowedForDownload {
 			wg.Add(1)
 			go func(file map[string]string) {
-				defer func() { 
+				defer func() {
 					<-queue
 					wg.Done()
 				}()
@@ -211,9 +212,9 @@ func (gdrive *GDrive) DownloadMultipleFiles(files []map[string]string, config *c
 						)
 					}
 					errChan <- map[string]string{
-						"err":	    errorMsg,
+						"err": errorMsg,
 						"filepath": filepath.Join(
-							file["filepath"], 
+							file["filepath"],
 							GDRIVE_ERROR_FILENAME,
 						),
 					}
@@ -240,7 +241,8 @@ func (gdrive *GDrive) DownloadMultipleFiles(files []map[string]string, config *c
 
 				utils.LogMessageToPath(
 					errMap["err"],
-					errMap["filepath"], 
+					errMap["filepath"],
+					utils.ERROR,
 				)
 			}
 
@@ -273,7 +275,7 @@ func GetFileIdAndTypeFromUrl(url string) (string, string) {
 			utils.DEV_ERROR,
 			url,
 		)
-		utils.LogError(err, "", false)
+		utils.LogError(err, "", false, utils.ERROR)
 		return "", ""
 	}
 	return matched[utils.GDRIVE_REGEX_ID_INDEX], fileType
@@ -328,7 +330,7 @@ func (gdrive *GDrive) DownloadGdriveUrls(gdriveUrls []map[string]string, config 
 			)
 			if err != nil {
 				errMapSlice = append(errMapSlice, map[string]string{
-					"err":	    err.Error(),
+					"err":      err.Error(),
 					"filepath": gdriveId["filepath"],
 				})
 			} else if fileInfo != nil {
@@ -337,17 +339,17 @@ func (gdrive *GDrive) DownloadGdriveUrls(gdriveUrls []map[string]string, config 
 			}
 			progress.MsgIncrement(baseMsg)
 			continue
-		} 
+		}
 
 		if gdriveId["type"] == "folder" {
 			filesInfo, err := gdrive.GetNestedFolderContents(
-				gdriveId["id"], 
+				gdriveId["id"],
 				gdriveId["filepath"],
 				config,
 			)
 			if err != nil {
 				errMapSlice = append(errMapSlice, map[string]string{
-					"err":	    err.Error(),
+					"err":      err.Error(),
 					"filepath": gdriveId["filepath"],
 				})
 			} else {
@@ -358,7 +360,7 @@ func (gdrive *GDrive) DownloadGdriveUrls(gdriveUrls []map[string]string, config 
 			}
 			progress.MsgIncrement(baseMsg)
 			continue
-		} 
+		}
 
 		errMsg := fmt.Sprintf(
 			"gdrive error %d: unknown Google Drive URL type, \"%s\"",
@@ -366,7 +368,7 @@ func (gdrive *GDrive) DownloadGdriveUrls(gdriveUrls []map[string]string, config 
 			gdriveId["type"],
 		)
 		errMapSlice = append(errMapSlice, map[string]string{
-			"err":	    errMsg,
+			"err":      errMsg,
 			"filepath": gdriveId["filepath"],
 		})
 		progress.MsgIncrement(baseMsg)
@@ -378,7 +380,8 @@ func (gdrive *GDrive) DownloadGdriveUrls(gdriveUrls []map[string]string, config 
 		for _, errMap := range errMapSlice {
 			utils.LogMessageToPath(
 				errMap["err"],
-				errMap["filepath"], 
+				errMap["filepath"],
+				utils.ERROR,
 			)
 		}
 	}

@@ -602,7 +602,7 @@ func LoadJsonFromResponse(res *http.Response, format any) error {
 	}
 
 	// write to file if debug mode is on
-	if DEBUG {
+	if DEBUG_MODE {
 		var prettyJson bytes.Buffer
 		err := json.Indent(&prettyJson, body, "", "    ")
 		if err != nil {
@@ -673,7 +673,7 @@ func DetectGDriveLinks(text, postFolderPath string, isUrl bool) bool {
 		"Google Drive link detected: %s\n\n",
 		text,
 	)
-	LogMessageToPath(gdriveText, gdriveFilepath)
+	LogMessageToPath(gdriveText, gdriveFilepath, INFO)
 	return true
 }
 
@@ -687,7 +687,7 @@ func DetectOtherExtDLLink(text, postFolderPath string) bool {
 				"Detected a link that points to an external file hosting in post's description:\n%s\n\n",
 				text,
 			)
-			LogMessageToPath(otherExtText, otherExtFilepath)
+			LogMessageToPath(otherExtText, otherExtFilepath, INFO)
 			return true
 		}
 	}
