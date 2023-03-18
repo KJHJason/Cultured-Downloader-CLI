@@ -107,61 +107,10 @@ func (pf *PixivFanboxDl) getPostDetails(config *configs.Config, pixivFanboxDlOpt
 		utils.LogErrors(false, errChan, utils.ERROR)
 	}
 	progress.Stop(hasErr)
-
-	// parse the responses
-	var errSlice []error
-	var urlsMap, gdriveUrls []*request.ToDownload
-	baseMsg = "Processing received JSON(s) from Pixiv Fanbox [%d/" + fmt.Sprintf("%d]...", len(resChan))
-	progress = spinner.New(
-		spinner.JSON_SPINNER,
-		"fgHiYellow",
-		fmt.Sprintf(
-			baseMsg,
-			0,
-		),
-		fmt.Sprintf(
-			"Finished processing %d JSON(s) from Pixiv Fanbox!",
-			len(resChan),
-		),
-		fmt.Sprintf(
-			"Something went wrong while processing %d JSON(s) from Pixiv Fanbox.\nPlease refer to the logs for more details.",
-			len(resChan),
-		),
-		len(resChan),
-	)
-	progress.Start()
-	for res := range resChan {
-		postUrls, postGdriveLinks, err := processFanboxPost(
-			res,
-			utils.DOWNLOAD_PATH,
-			pixivFanboxDlOptions,
-		)
-		if err != nil {
-			errSlice = append(errSlice, err)
-		} else {
-			urlsMap = append(urlsMap, postUrls...)
-			gdriveUrls = append(gdriveUrls, postGdriveLinks...)
-		}
-		progress.MsgIncrement(baseMsg)
-	}
-
-	hasErr = false
-	if len(errSlice) > 0 {
-		hasErr = true
-		utils.LogErrors(false, nil, utils.ERROR, errSlice...)
-	}
-	progress.Stop(hasErr)
-
-	return urlsMap, gdriveUrls
+	return processMultiplePostJson(resChan, pixivFanboxDlOptions)
 }
 
-type resStruct struct {
-	json *models.FanboxCreatorPostsJson
-	err  error
-}
-
-// GetFanboxCreatorPosts returns a slice of post IDs for a given creator
-func getFanboxPosts(creatorId, pageNum string, config *configs.Config, dlOption *PixivFanboxDlOptions) ([]string, error) {
+func getCreatorPaginatedPosts(creatorId string, config *configs.Config, dlOption *PixivFanboxDlOptions) ([]string, error) {
 	params := map[string]string{"creatorId": creatorId}
 	headers := GetPixivFanboxHeaders()
 	url := fmt.Sprintf(
@@ -217,13 +166,27 @@ func getFanboxPosts(creatorId, pageNum string, config *configs.Config, dlOption 
 		)
 		return nil, err
 	}
-	paginatedUrls := resJson.Body
+	return resJson.Body, nil
+}
+
+type resStruct struct {
+	json *models.FanboxCreatorPostsJson
+	err  error
+}
+
+// GetFanboxCreatorPosts returns a slice of post IDs for a given creator
+func getFanboxPosts(creatorId, pageNum string, config *configs.Config, dlOption *PixivFanboxDlOptions) ([]string, error) {
+	paginatedUrls, err := getCreatorPaginatedPosts(creatorId, config, dlOption)
+	if err != nil {
+		return nil, err
+	}
 
 	minPage, maxPage, hasMax, err := utils.GetMinMaxFromStr(pageNum)
 	if err != nil {
 		return nil, err
 	}
 
+	headers := GetPixivFanboxHeaders()
 	var wg sync.WaitGroup
 	maxConcurrency := utils.MAX_API_CALLS
 	if len(paginatedUrls) < maxConcurrency {
@@ -273,10 +236,9 @@ func getFanboxPosts(creatorId, pageNum string, config *configs.Config, dlOption 
 			err = utils.LoadJsonFromResponse(res, &resJson)
 			if err != nil {
 				resChan <- &resStruct{err: err}
-				return
+			} else {
+				resChan <- &resStruct{json: resJson}
 			}
-
-			resChan <- &resStruct{json: resJson}
 		}(paginatedUrl)
 	}
 	wg.Wait()

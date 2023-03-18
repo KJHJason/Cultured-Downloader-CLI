@@ -9,6 +9,7 @@ import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
+	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 )
 
 // Pixiv Fanbox permitted file extensions based on
@@ -17,7 +18,7 @@ var pixivFanboxAllowedImageExt = []string{"jpg", "jpeg", "png", "gif"}
 
 // Process the JSON response from Pixiv Fanbox's API and
 // returns a map of urls and a map of GDrive urls to download from
-func processFanboxPost(res *http.Response, downloadPath string, pixivFanboxDlOptions *PixivFanboxDlOptions) ([]*request.ToDownload, []*request.ToDownload, error) {
+func processFanboxPostJson(res *http.Response, downloadPath string, pixivFanboxDlOptions *PixivFanboxDlOptions) ([]*request.ToDownload, []*request.ToDownload, error) {
 	var err error
 	var post models.FanboxPostJson
 	var postJsonBody []byte
@@ -222,4 +223,51 @@ func processFanboxPost(res *http.Response, downloadPath string, pixivFanboxDlOpt
 		)
 	}
 	return urlsMap, gdriveLinks, nil
+}
+
+func processMultiplePostJson(resChan chan *http.Response, pixivFanboxDlOptions *PixivFanboxDlOptions) ([]*request.ToDownload, []*request.ToDownload) {
+	// parse the responses
+	var errSlice []error
+	var urlsMap, gdriveUrls []*request.ToDownload
+	baseMsg := "Processing received JSON(s) from Pixiv Fanbox [%d/" + fmt.Sprintf("%d]...", len(resChan))
+	progress := spinner.New(
+		spinner.JSON_SPINNER,
+		"fgHiYellow",
+		fmt.Sprintf(
+			baseMsg,
+			0,
+		),
+		fmt.Sprintf(
+			"Finished processing %d JSON(s) from Pixiv Fanbox!",
+			len(resChan),
+		),
+		fmt.Sprintf(
+			"Something went wrong while processing %d JSON(s) from Pixiv Fanbox.\nPlease refer to the logs for more details.",
+			len(resChan),
+		),
+		len(resChan),
+	)
+	progress.Start()
+	for res := range resChan {
+		postUrls, postGdriveLinks, err := processFanboxPostJson(
+			res,
+			utils.DOWNLOAD_PATH,
+			pixivFanboxDlOptions,
+		)
+		if err != nil {
+			errSlice = append(errSlice, err)
+		} else {
+			urlsMap = append(urlsMap, postUrls...)
+			gdriveUrls = append(gdriveUrls, postGdriveLinks...)
+		}
+		progress.MsgIncrement(baseMsg)
+	}
+
+	hasErr := false
+	if len(errSlice) > 0 {
+		hasErr = true
+		utils.LogErrors(false, nil, utils.ERROR, errSlice...)
+	}
+	progress.Stop(hasErr)
+	return urlsMap, gdriveUrls
 }

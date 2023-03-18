@@ -8,8 +8,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"sort"
-	"strconv"
 	"syscall"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/common"
@@ -40,156 +38,26 @@ func ConvertUgoira(ugoiraInfo *models.Ugoira, imagesFolderPath, outputPath strin
 		)
 	}
 
-	// sort the ugoira frames by their filename which are %6d.imageExt
-	sortedFilenames := make([]string, 0, len(ugoiraInfo.Frames))
-	for fileName := range ugoiraInfo.Frames {
-		sortedFilenames = append(sortedFilenames, fileName)
-	}
-	sort.Strings(sortedFilenames)
-
-	// write the frames' variable delays to a text file
-	baseFmtStr := "file '%s'\nduration %f\n"
-	delaysText := "ffconcat version 1.0\n"
-	for _, frameName := range sortedFilenames {
-		delay := ugoiraInfo.Frames[frameName]
-		delaySec := float64(delay) / 1000
-		delaysText += fmt.Sprintf(
-			baseFmtStr,
-			filepath.Join(imagesFolderPath, frameName), delaySec,
-		)
-	}
-	// copy the last frame and add it to the end of the delays text file
-	// https://video.stackexchange.com/questions/20588/ffmpeg-flash-frames-last-still-image-in-concat-sequence
-	lastFilename := sortedFilenames[len(sortedFilenames)-1]
-	delaysText += fmt.Sprintf(
-		"file '%s'\nduration %f",
-		filepath.Join(imagesFolderPath, lastFilename),
-		0.001,
-	)
-
-	concatDelayFilePath := filepath.Join(imagesFolderPath, "delays.txt")
-	f, err := os.Create(concatDelayFilePath)
+	concatDelayFilePath, sortedFilenames, err := writeDelays(ugoiraInfo, imagesFolderPath)
 	if err != nil {
-		return fmt.Errorf(
-			"pixiv error %d: failed to create delays.txt, more info => %v",
-			utils.OS_ERROR,
-			err,
-		)
+		return err
 	}
 
-	_, err = f.WriteString(delaysText)
-	if err != nil {
-		f.Close()
-		return fmt.Errorf(
-			"pixiv error %d: failed to write delay string to delays.txt, more info => %v",
-			utils.OS_ERROR,
-			err,
-		)
-	}
-	f.Close()
-
-	// FFmpeg flags: https://www.ffmpeg.org/ffmpeg.html
-	args := []string{
-		"-y",           // overwrite output file if it exists
-		"-an",          // disable audio
-		"-f", "concat", // input is a concat file
-		"-safe", "0", // allow absolute paths in the concat file
-		"-i", concatDelayFilePath, // input file
-	}
-	if outputExt == ".webm" || outputExt == ".mp4" {
-		// if converting the ugoira to a webm or .mp4 file
-		// then set the output video codec to vp9 or h264 respectively
-		// 	- webm: https://trac.ffmpeg.org/wiki/Encode/VP9
-		// 	- mp4: https://trac.ffmpeg.org/wiki/Encode/H.264
-		encodingMap := map[string]string{
-			".webm": "libvpx-vp9",
-			".mp4":  "libx264",
-		}
-		if outputExt == ".mp4" {
-			// if converting to an mp4 file
-			// crf range is 0-51 for .mp4 files
-			if ugoiraQuality > 51 {
-				ugoiraQuality = 51
-			} else if ugoiraQuality < 0 {
-				ugoiraQuality = 0
-			}
-			args = append(
-				args,
-				"-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2", // pad the video to be even
-				"-crf", strconv.Itoa(ugoiraQuality), // set the quality
-			)
-		} else {
-			// crf range is 0-63 for .webm files
-			if ugoiraQuality == 0 || ugoiraQuality < 0 {
-				args = append(args, "-lossless", "1")
-			} else if ugoiraQuality > 63 {
-				args = append(args, "-crf", "63")
-			} else {
-				args = append(args, "-crf", strconv.Itoa(ugoiraQuality))
-			}
-		}
-
-		args = append(
-			args,
-			"-pix_fmt", "yuv420p", // set the pixel format to yuv420p
-			"-c:v", encodingMap[outputExt], // video codec
-			"-vsync", "passthrough", // Prevents frame dropping
-		)
-	} else if outputExt == ".gif" {
-		// Generate a palette for the gif using FFmpeg for better quality
-		palettePath := filepath.Join(imagesFolderPath, "palette.png")
-		ffmpegImages := "%" + fmt.Sprintf(
-			"%dd%s", // Usually it's %6d.extension but just in case, measure the length of the filename
-			len(utils.RemoveExtFromFilename(sortedFilenames[0])),
-			filepath.Ext(sortedFilenames[0]),
-		)
-		imagePaletteCmd := exec.Command(
-			ffmpegPath,
-			"-i", filepath.Join(imagesFolderPath, ffmpegImages),
-			"-vf", "palettegen",
-			palettePath,
-		)
-		// imagePaletteCmd.Stderr = os.Stderr
-		// imagePaletteCmd.Stdout = os.Stdout
-		err = imagePaletteCmd.Run()
-		if err != nil {
-			err = fmt.Errorf(
-				"pixiv error %d: failed to generate palette for ugoira gif, more info => %v",
-				utils.CMD_ERROR,
-				err,
-			)
-			return err
-		}
-		args = append(
-			args,
-			"-loop", "0", // loop the gif
-			"-i", palettePath,
-			"-filter_complex", "paletteuse",
-		)
-	} else if outputExt == ".apng" {
-		args = append(
-			args,
-			"-plays", "0", // loop the apng
-			"-vf",
-			"setpts=PTS-STARTPTS,hqdn3d=1.5:1.5:6:6", // set the setpts filter and apply some denoising
-		)
-	} else { // outputExt == ".webp"
-		args = append(
-			args,
-			"-pix_fmt", "yuv420p", // set the pixel format to yuv420p
-			"-loop", "0", // loop the webp
-			"-vsync", "passthrough", // Prevents frame dropping
-			"-lossless", "1", // lossless compression
-		)
-	}
-	if outputExt != ".webp" {
-		args = append(args, "-quality", "best")
-	}
-
-	args = append(
-		args,
-		outputPath,
+	args, err := getFfmpegFlagsForUgoira(
+		&ffmpegOptions{
+			ffmpegPath:          ffmpegPath,
+			outputExt:           outputExt,
+			concatDelayFilePath: concatDelayFilePath,
+			sortedFilenames:     sortedFilenames,
+			outputPath:          outputPath,
+			ugoiraQuality:       ugoiraQuality,
+		},
+		imagesFolderPath,
 	)
+	if err != nil {
+		return err
+	}
+
 	// convert the frames to a gif or a video
 	cmd := exec.Command(ffmpegPath, args...)
 	// cmd.Stderr = os.Stderr
@@ -219,35 +87,7 @@ func GetUgoiraFilePaths(ugoireFilePath, ugoiraUrl, outputFormat string) (string,
 	return filePath, outputFilePath
 }
 
-// Downloads multiple Ugoira artworks and converts them based on the output format
-func DownloadMultipleUgoira(downloadInfo []*models.Ugoira, config *configs.Config, ugoiraOptions *UgoiraOptions, cookies []*http.Cookie) {
-	var urlsToDownload []*request.ToDownload
-	for _, ugoira := range downloadInfo {
-		filePath, outputFilePath := GetUgoiraFilePaths(
-			ugoira.FilePath,
-			ugoira.Url,
-			ugoiraOptions.OutputFormat,
-		)
-		if !utils.PathExists(outputFilePath) {
-			urlsToDownload = append(urlsToDownload, &request.ToDownload{
-				Url:      ugoira.Url,
-				FilePath: filePath,
-			})
-		}
-	}
-
-	pixivHeaders := pixivcommon.GetPixivRequestHeaders()
-	request.DownloadUrls(
-		urlsToDownload,
-		&request.DlOptions{
-			MaxConcurrency: utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
-			Headers:        pixivHeaders,
-			Cookies:        cookies,
-			UseHttp3:       false,
-		},
-		config,
-	)
-
+func convertMultipleUgoira(downloadInfo []*models.Ugoira, config *configs.Config, ugoiraOptions *UgoiraOptions, cookies []*http.Cookie) {
 	// Create a context that can be cancelled when SIGINT/SIGTERM signal is received
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -343,4 +183,36 @@ func DownloadMultipleUgoira(downloadInfo []*models.Ugoira, config *configs.Confi
 		utils.LogErrors(false, nil, utils.ERROR, errSlice...)
 	}
 	progress.Stop(hasErr)
+}
+
+// Downloads multiple Ugoira artworks and converts them based on the output format
+func DownloadMultipleUgoira(downloadInfo []*models.Ugoira, config *configs.Config, ugoiraOptions *UgoiraOptions, cookies []*http.Cookie) {
+	var urlsToDownload []*request.ToDownload
+	for _, ugoira := range downloadInfo {
+		filePath, outputFilePath := GetUgoiraFilePaths(
+			ugoira.FilePath,
+			ugoira.Url,
+			ugoiraOptions.OutputFormat,
+		)
+		if !utils.PathExists(outputFilePath) {
+			urlsToDownload = append(urlsToDownload, &request.ToDownload{
+				Url:      ugoira.Url,
+				FilePath: filePath,
+			})
+		}
+	}
+
+	pixivHeaders := pixivcommon.GetPixivRequestHeaders()
+	request.DownloadUrls(
+		urlsToDownload,
+		&request.DlOptions{
+			MaxConcurrency: utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
+			Headers:        pixivHeaders,
+			Cookies:        cookies,
+			UseHttp3:       false,
+		},
+		config,
+	)
+
+	convertMultipleUgoira(downloadInfo, config, ugoiraOptions, cookies)
 }
