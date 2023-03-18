@@ -39,7 +39,7 @@ func PixivFanboxDownloadProcess(config *configs.Config, pixivFanboxDl *PixivFanb
 			config,
 		)
 	}
-	if pixivFanboxDlOptions.GDriveClient != nil && len(gdriveUrlsToDownload) > 0 {
-		pixivFanboxDlOptions.GDriveClient.DownloadGdriveUrls(gdriveUrlsToDownload, config)
+	if pixivFanboxDlOptions.GdriveClient != nil && len(gdriveUrlsToDownload) > 0 {
+		pixivFanboxDlOptions.GdriveClient.DownloadGdriveUrls(gdriveUrlsToDownload, config)
 	}
 }

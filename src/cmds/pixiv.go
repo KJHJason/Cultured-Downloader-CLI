@@ -190,7 +190,7 @@ func init() {
 		"session",
 		"s",
 		"",
-		"Your PHPSESSID cookie value to use for the requests to Pixiv.",
+		"Your \"PHPSESSID\" cookie value to use for the requests to Pixiv.",
 	)
 	pixivCmd.Flags().BoolVar(
 		&deleteUgoiraZip,

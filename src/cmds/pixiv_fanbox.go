@@ -63,7 +63,7 @@ var (
 				DlThumbnails:    fanboxDlThumbnails,
 				DlImages:        fanboxDlImages,
 				DlAttachments:   fanboxDlAttachments,
-				GDriveClient:    gdriveClient,
+				GdriveClient:    gdriveClient,
 				DlGdrive:        fanboxDlGdrive,
 				SessionCookieId: fanboxSession,
 			}
@@ -102,7 +102,7 @@ func init() {
 		"session",
 		"s",
 		"",
-		"Your FANBOXSESSID cookie value to use for the requests to Pixiv Fanbox.",
+		"Your \"FANBOXSESSID\" cookie value to use for the requests to Pixiv Fanbox.",
 	)
 	pixivFanboxCmd.Flags().StringSliceVar(
 		&fanboxCreatorIds,

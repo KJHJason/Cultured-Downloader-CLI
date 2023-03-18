@@ -98,7 +98,7 @@ func init() {
 		"session",
 		"s",
 		"",
-		"Your _session_id cookie value to use for the requests to Fantia.",
+		"Your \"_session_id\" cookie value to use for the requests to Fantia.",
 	)
 	fantiaCmd.Flags().StringSliceVar(
 		&fantiaFanclubIds,

@@ -5,16 +5,18 @@
 </h1>
 
 <div align="center">
+    <img src="https://img.shields.io/github/license/KJHJason/Cultured-Downloader-CLI" alt="license">
     <a href="https://github.com/KJHJason/Cultured-Downloader-CLI/releases">
-        <img src="https://img.shields.io/github/v/release/KJHJason/Cultured-Downloader-CLI?include_prereleases&label=Latest%20Release">
+        <img src="https://img.shields.io/github/v/release/KJHJason/Cultured-Downloader-CLI?include_prereleases&label=Latest%20Release" alt="latest release version">
     </a>
     <a href="https://github.com/KJHJason/Cultured-Downloader-CLI/issues">
-        <img src="https://img.shields.io/github/issues/KJHJason/Cultured-Downloader-CLI">
+        <img src="https://img.shields.io/github/issues/KJHJason/Cultured-Downloader-CLI" alt="issues">
     </a>
     <a href="https://github.com/KJHJason/Cultured-Downloader-CLI/pulls">
-        <img src="https://img.shields.io/github/issues-pr/KJHJason/Cultured-Downloader-CLI">
+        <img src="https://img.shields.io/github/issues-pr/KJHJason/Cultured-Downloader-CLI" alt="pull requests">
     </a>
-    <img src="https://img.shields.io/github/downloads/KJHJason/Cultured-Downloader-CLI/latest/total">
+    <img src="https://img.shields.io/github/downloads/KJHJason/Cultured-Downloader-CLI/latest/total" alt="latest release downloads">
+    <img src="https://img.shields.io/codeclimate/maintainability/KJHJason/Cultured-Downloader-CLI" alt="Code Climate maintainability">
 </div>
 
 ## Introduction
