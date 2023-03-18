@@ -1,14 +1,11 @@
 package utils
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/fatih/color"
 )
@@ -38,13 +35,8 @@ func GetFileSize(filePath string) (int64, error) {
 	return -1, nil
 }
 
-var logToPathMutex = sync.Mutex{}
-
 // Thread-safe logging function that logs to the provided file path
-func LogMessageToPath(message, filePath string) {
-	logToPathMutex.Lock()
-	defer logToPathMutex.Unlock()
-
+func LogMessageToPath(message, filePath string, level int) {
 	os.MkdirAll(filepath.Dir(filePath), 0666)
 	logFile, err := os.OpenFile(
 		filePath,
@@ -64,17 +56,8 @@ func LogMessageToPath(message, filePath string) {
 	}
 	defer logFile.Close()
 
-	_, err = logFile.WriteString(message)
-	if err != nil {
-		errMsg := fmt.Sprintf(
-			"error %d: failed to write to log file, more info => %v\nfile path: %s\noriginal message: %s",
-			OS_ERROR,
-			err,
-			filePath,
-			message,
-		)
-		color.Red(errMsg)
-	}
+	pathLogger := NewLogger(logFile)
+	pathLogger.LogBasedOnLvl(level, message)
 }
 
 // Removes any illegal characters in a path name
@@ -100,9 +83,8 @@ func GetPostFolder(downloadPath, creatorName, postId, postTitle string) string {
 }
 
 type ConfigFile struct {
-	DownloadDir        string `json:"download_directory"`
-	Language           string `json:"language"`
-	ClientDigestMethod string `json:"client_digest_method"`
+	DownloadDir string `json:"download_directory"`
+	Language    string `json:"language"`
 }
 
 // Returns the download path from the config file
@@ -131,16 +113,6 @@ func GetDefaultDownloadPath() string {
 	return config.DownloadDir
 }
 
-// Pretify a JSON bytes input by indenting it with 4 whitespaces
-func PretifyJSON(jsonBytes []byte) ([]byte, error) {
-	var prettyJSON bytes.Buffer
-	err := json.Indent(&prettyJSON, jsonBytes, "", "    ")
-	if err != nil {
-		return []byte{}, err
-	}
-	return prettyJSON.Bytes(), nil
-}
-
 // Configure and saves the config file with updated download path
 func SetDefaultDownloadPath(newDownloadPath string) error {
 	if !PathExists(newDownloadPath) {
@@ -150,32 +122,14 @@ func SetDefaultDownloadPath(newDownloadPath string) error {
 	os.MkdirAll(APP_PATH, 0666)
 	configFilePath := filepath.Join(APP_PATH, "config.json")
 	if !PathExists(configFilePath) {
-		os.Create(configFilePath)
-
-		is64Bit := strconv.IntSize == 64
-		digestMethod := "sha256"
-		if is64Bit {
-			digestMethod = "sha512"
-		}
 		config := ConfigFile{
-			DownloadDir:        newDownloadPath,
-			Language:           "en",
-			ClientDigestMethod: digestMethod,
+			DownloadDir: newDownloadPath,
+			Language:    "en",
 		}
-
-		configFile, err := json.Marshal(config)
+		configFile, err := json.MarshalIndent(config, "", "    ")
 		if err != nil {
 			return fmt.Errorf(
 				"error %d: failed to marshal config file, more info => %v",
-				JSON_ERROR,
-				err,
-			)
-		}
-
-		configFile, err = PretifyJSON(configFile)
-		if err != nil {
-			return fmt.Errorf(
-				"error %d: failed to pretify config file, more info => %v",
 				JSON_ERROR,
 				err,
 			)
@@ -216,20 +170,10 @@ func SetDefaultDownloadPath(newDownloadPath string) error {
 		}
 
 		config.DownloadDir = newDownloadPath
-		configFile, err = json.Marshal(config)
+		configFile, err = json.MarshalIndent(config, "", "    ")
 		if err != nil {
 			return fmt.Errorf(
 				"error %d: failed to marshal config file, more info => %v",
-				JSON_ERROR,
-				err,
-			)
-		}
-
-		// indent the file
-		configFile, err = PretifyJSON(configFile)
-		if err != nil {
-			return fmt.Errorf(
-				"error %d: failed to pretify config file, more info => %v",
 				JSON_ERROR,
 				err,
 			)

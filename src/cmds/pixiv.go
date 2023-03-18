@@ -4,32 +4,35 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/spf13/cobra"
-	"github.com/KJHJason/Cultured-Downloader-CLI/api"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv"
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/spf13/cobra"
 )
 
 var (
-	pixivCookieFile     string
-	pixivFfmpegPath     string
-	pixivStartOauth     bool
-	pixivRefreshToken   string
-	pixivSession        string
-	deleteUgoiraZip     bool
-	ugoiraQuality       int
-	ugoiraOutputFormat  string
-	pixivArtworkIds     []string
-	pixivIllustratorIds []string
-	pixivTagNames       []string
-	pixivPageNums       []string
-	pixivSortOrder      string
-	pixivSearchMode     string
-	pixivRatingMode     string
-	pixivArtworkType    string
-	pixivOverwrite      bool
-	pixivCmd            = &cobra.Command{
+	pixivDlTextFile          string
+	pixivCookieFile          string
+	pixivFfmpegPath          string
+	pixivStartOauth          bool
+	pixivRefreshToken        string
+	pixivSession             string
+	deleteUgoiraZip          bool
+	ugoiraQuality            int
+	ugoiraOutputFormat       string
+	pixivArtworkIds          []string
+	pixivIllustratorIds      []string
+	pixivIllustratorPageNums []string
+	pixivTagNames            []string
+	pixivPageNums            []string
+	pixivSortOrder           string
+	pixivSearchMode          string
+	pixivRatingMode          string
+	pixivArtworkType         string
+	pixivOverwrite           bool
+	pixivUserAgent           string
+	pixivCmd                 = &cobra.Command{
 		Use:   "pixiv",
 		Short: "Download from Pixiv",
 		Long:  "Supports downloading from Pixiv by artwork ID, illustrator ID, tag name, and more.",
@@ -43,40 +46,50 @@ var (
 						err,
 						"",
 						true,
+						utils.ERROR,
 					)
 				}
 				return
 			}
 
-			pixivConfig := api.Config{
+			pixivConfig := &configs.Config{
 				FfmpegPath:     pixivFfmpegPath,
 				OverwriteFiles: pixivOverwrite,
+				UserAgent:      pixivUserAgent,
 			}
 			pixivConfig.ValidateFfmpeg()
 
-			utils.ValidatePageNumInput(
-				len(pixivTagNames),
-				&pixivPageNums,
-				[]string{
-					"Number of tag names and page numbers must be equal.",
-				},
-			)
-			pixivDl := pixiv.PixivDl{
-				ArtworkIds:       pixivArtworkIds,
-				IllustratorIds:   pixivIllustratorIds,
-				TagNames:         pixivTagNames,
-				TagNamesPageNums: pixivPageNums,
+			if pixivDlTextFile != "" {
+				artworkIds, illustratorInfoSlice, tagInfoSlice := parsePixivTextFile(pixivDlTextFile)
+				pixivArtworkIds = append(pixivArtworkIds, artworkIds...)
+
+				for _, illustratorInfo := range illustratorInfoSlice {
+					pixivIllustratorIds = append(pixivIllustratorIds, illustratorInfo.ArtistId)
+					pixivIllustratorPageNums = append(pixivIllustratorPageNums, illustratorInfo.PageNum)
+				}
+
+				for _, tagInfo := range tagInfoSlice {
+					pixivTagNames = append(pixivTagNames, tagInfo.Tag)
+					pixivPageNums = append(pixivPageNums, tagInfo.PageNum)
+				}
+			}
+			pixivDl := &pixiv.PixivDl{
+				ArtworkIds:          pixivArtworkIds,
+				IllustratorIds:      pixivIllustratorIds,
+				IllustratorPageNums: pixivIllustratorPageNums,
+				TagNames:            pixivTagNames,
+				TagNamesPageNums:    pixivPageNums,
 			}
 			pixivDl.ValidateArgs()
 
-			pixivUgoiraOptions := pixiv.UgoiraOptions{
+			pixivUgoiraOptions := &pixiv.UgoiraOptions{
 				DeleteZip:    deleteUgoiraZip,
 				Quality:      ugoiraQuality,
 				OutputFormat: ugoiraOutputFormat,
 			}
 			pixivUgoiraOptions.ValidateArgs()
 
-			pixivDlOptions := pixiv.PixivDlOptions{
+			pixivDlOptions := &pixiv.PixivDlOptions{
 				SortOrder:       pixivSortOrder,
 				SearchMode:      pixivSearchMode,
 				RatingMode:      pixivRatingMode,
@@ -86,8 +99,8 @@ var (
 			}
 			if pixivCookieFile != "" {
 				cookies, err := utils.ParseNetscapeCookieFile(
-					pixivCookieFile, 
-					pixivSession, 
+					pixivCookieFile,
+					pixivSession,
 					utils.PIXIV,
 				)
 				if err != nil {
@@ -95,17 +108,19 @@ var (
 						err,
 						"",
 						true,
+						utils.ERROR,
 					)
 				}
 				pixivDlOptions.SessionCookies = cookies
 			}
-			pixivDlOptions.ValidateArgs()
+			pixivDlOptions.ValidateArgs(pixivUserAgent)
 
+			utils.PrintWarningMsg()
 			pixiv.PixivDownloadProcess(
-				&pixivConfig,
-				&pixivDl,
-				&pixivDlOptions,
-				&pixivUgoiraOptions,
+				pixivConfig,
+				pixivDl,
+				pixivDlOptions,
+				pixivUgoiraOptions,
 			)
 		},
 	}
@@ -145,9 +160,10 @@ func init() {
 			},
 		),
 	)
-	pixivCmd.Flags().StringVar(
+	pixivCmd.Flags().StringVarP(
 		&pixivSession,
 		"session",
+		"s",
 		"",
 		"Your PHPSESSID cookie value to use for the requests to Pixiv.",
 	)
@@ -212,6 +228,18 @@ func init() {
 		),
 	)
 	pixivCmd.Flags().StringSliceVar(
+		&pixivIllustratorPageNums,
+		"illustrator_page_num",
+		[]string{},
+		utils.CombineStringsWithNewline(
+			[]string{
+				"Min and max page numbers to search for corresponding to the order of the supplied illustrator ID(s).",
+				"Format: \"num\", \"minNum-maxNum\", or \"\" to download all pages",
+				"Leave blank to download all pages from each illustrator.",
+			},
+		),
+	)
+	pixivCmd.Flags().StringSliceVar(
 		&pixivTagNames,
 		"tag_name",
 		[]string{},
@@ -229,9 +257,9 @@ func init() {
 		[]string{},
 		utils.CombineStringsWithNewline(
 			[]string{
-				"Min and max page numbers to search for corresponding to the order of the supplied tag names.",
-				"Format: \"num\" or \"minNum-maxNum\"",
-				"Example: \"1\" or \"1-10\"",
+				"Min and max page numbers to search for corresponding to the order of the supplied tag name(s).",
+				"Format: \"num\", \"minNum-maxNum\", or \"\" to download all pages",
+				"Leave blank to search all pages for each tag name.",
 			},
 		),
 	)

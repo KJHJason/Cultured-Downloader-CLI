@@ -9,17 +9,12 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/KJHJason/Cultured-Downloader-CLI/api"
+	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/models"
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
-
-type Ugoira struct {
-	Url      string
-	FilePath string
-	Frames   map[string]int64
-}
 
 // Returns a defined request header needed to communicate with Pixiv's API
 func GetPixivRequestHeaders() map[string]string {
@@ -32,8 +27,8 @@ func GetPixivRequestHeaders() map[string]string {
 // Get the Pixiv illust page URL for the referral header value
 func GetIllustUrl(illustId string) string {
 	return fmt.Sprintf(
-		"%s/artworks/%s", 
-		utils.PIXIV_URL, 
+		"%s/artworks/%s",
+		utils.PIXIV_URL,
 		illustId,
 	)
 }
@@ -47,21 +42,45 @@ func GetUserUrl(userId string) string {
 	)
 }
 
+// Convert the page number to the offset as one page will have 60 illustrations.
+//
+// Usually for paginated results from Pixiv's mobile API, checkPixivMax should be set to true.
+func ConvertPageNumToOffset(minPageNum, maxPageNum, perPage int, checkPixivMax bool) (int, int) {
+	minOffset, maxOffset := utils.ConvertPageNumToOffset(
+		minPageNum, 
+		maxPageNum, 
+		perPage,
+	)
+	if checkPixivMax {
+		// Check if the offset is larger than Pixiv's max offset
+		if maxOffset > 5000 {
+			maxOffset = 5000
+		}
+		if minOffset > 5000 {
+			minOffset = 5000
+		}
+	}
+	return minOffset, maxOffset
+}
+
 // Map the Ugoira frame delays to their respective filenames
-func MapDelaysToFilename(ugoiraFramesJson map[string]interface{}) map[string]int64 {
+func MapDelaysToFilename(ugoiraFramesJson models.UgoiraFramesJson) map[string]int64 {
 	frameInfoMap := map[string]int64{}
-	for _, frame := range ugoiraFramesJson["frames"].([]interface{}) {
-		frameMap := frame.(map[string]interface{})
-		frameInfoMap[frameMap["file"].(string)] = int64(frameMap["delay"].(float64))
+	for _, frame := range ugoiraFramesJson {
+		frameInfoMap[frame.File] = int64(frame.Delay)
 	}
 	return frameInfoMap
 }
 
 // Converts the Ugoira to the desired output path using FFmpeg
-func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpegPath string, ugoiraQuality int) error {
+func ConvertUgoira(ugoiraInfo *models.Ugoira, imagesFolderPath, outputPath string, ffmpegPath string, ugoiraQuality int) error {
 	outputExt := filepath.Ext(outputPath)
 	if !utils.SliceContains(UGOIRA_ACCEPTED_EXT, outputExt) {
-		return fmt.Errorf("pixiv error %d: Output extension %v is not allowed for ugoira conversion", utils.INPUT_ERROR, outputExt)
+		return fmt.Errorf(
+			"pixiv error %d: Output extension %v is not allowed for ugoira conversion",
+			utils.INPUT_ERROR,
+			outputExt,
+		)
 	}
 
 	// sort the ugoira frames by their filename which are %6d.imageExt
@@ -238,41 +257,42 @@ func ConvertUgoira(ugoiraInfo Ugoira, imagesFolderPath, outputPath string, ffmpe
 
 // Returns the ugoira's zip file path and the ugoira's converted file path
 func GetUgoiraFilePaths(ugoireFilePath, ugoiraUrl, outputFormat string) (string, string) {
-	filePath := filepath.Join(ugoireFilePath, utils.GetLastPartOfURL(ugoiraUrl))
+	filePath := filepath.Join(ugoireFilePath, utils.GetLastPartOfUrl(ugoiraUrl))
 	outputFilePath := utils.RemoveExtFromFilename(filePath) + outputFormat
 	return filePath, outputFilePath
 }
 
 // Downloads multiple Ugoira artworks and converts them based on the output format
-func downloadMultipleUgoira(
-	downloadInfo *[]Ugoira, config *api.Config, ugoiraOptions *UgoiraOptions, cookies []http.Cookie,
-) {
-	var urlsToDownload []map[string]string
-	for _, ugoira := range *downloadInfo {
+func downloadMultipleUgoira(downloadInfo []*models.Ugoira, config *configs.Config, ugoiraOptions *UgoiraOptions, cookies []*http.Cookie) {
+	var urlsToDownload []*request.ToDownload
+	for _, ugoira := range downloadInfo {
 		filePath, outputFilePath := GetUgoiraFilePaths(
 			ugoira.FilePath,
 			ugoira.Url,
 			ugoiraOptions.OutputFormat,
 		)
 		if !utils.PathExists(outputFilePath) {
-			urlsToDownload = append(urlsToDownload, map[string]string{
-				"url":      ugoira.Url,
-				"filepath": filePath,
+			urlsToDownload = append(urlsToDownload, &request.ToDownload{
+				Url:      ugoira.Url,
+				FilePath: filePath,
 			})
 		}
 	}
 
-	request.DownloadURLsParallel(
-		&urlsToDownload,
-		utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
-		cookies,
-		GetPixivRequestHeaders(),
-		nil,
-		config.OverwriteFiles,
+	pixivHeaders := GetPixivRequestHeaders()
+	request.DownloadUrls(
+		urlsToDownload,
+		&request.DlOptions{
+			MaxConcurrency: utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
+			Headers:        pixivHeaders,
+			Cookies:        cookies,
+			UseHttp3:       false,
+		},
+		config,
 	)
 
 	var errSlice []error
-	downloadInfoLen := len(*downloadInfo)
+	downloadInfoLen := len(downloadInfo)
 	baseMsg := "Converting Ugoira to %s [%d/" + fmt.Sprintf("%d]...", downloadInfoLen)
 	progress := spinner.New(
 		spinner.DL_SPINNER,
@@ -294,7 +314,7 @@ func downloadMultipleUgoira(
 		downloadInfoLen,
 	)
 	progress.Start()
-	for _, ugoira := range *downloadInfo {
+	for _, ugoira := range downloadInfo {
 		zipFilePath, outputPath := GetUgoiraFilePaths(ugoira.FilePath, ugoira.Url, ugoiraOptions.OutputFormat)
 		if utils.PathExists(outputPath) {
 			progress.MsgIncrement(baseMsg)
@@ -340,7 +360,7 @@ func downloadMultipleUgoira(
 	hasErr := false
 	if len(errSlice) > 0 {
 		hasErr = true
-		utils.LogErrors(false, nil, errSlice...)
+		utils.LogErrors(false, nil, utils.ERROR, errSlice...)
 	}
 	progress.Stop(hasErr)
 }

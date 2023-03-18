@@ -1,6 +1,7 @@
 package spinner
 
 import (
+	"os"
 	"fmt"
 	"sync"
 	"time"
@@ -205,6 +206,15 @@ func (s* Spinner) MsgIncrement(baseMsg string) {
 	)
 }
 
+func (s *Spinner) stopSpinner() {
+	s.active = false
+	if s.count != 0 {
+		s.count = 0
+	}
+	s.stop <- struct{}{}
+	close(s.stop)
+}
+
 // Stop stops the spinner and prints an outcome message
 func (s *Spinner) Stop(hasErr bool) {
 	s.mu.Lock()
@@ -213,13 +223,7 @@ func (s *Spinner) Stop(hasErr bool) {
 		return
 	}
 
-	s.active = false
-	if s.count != 0 {
-		s.count = 0
-	}
-	s.stop <- struct{}{}
-	close(s.stop)
-
+	s.stopSpinner()
 	if hasErr {
 		color.Red(
 			"\r✗ %s%s\n",
@@ -233,4 +237,24 @@ func (s *Spinner) Stop(hasErr bool) {
 			CLEAR_LINE,
 		)
 	}
+}
+
+// KillProgram stops the spinner, 
+// prints the given message and exits the program with code 2.
+//
+// Used for Ctrl + C interrupts.
+func (s *Spinner) KillProgram(msg string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.active {
+		os.Exit(2)
+	}
+
+	s.stopSpinner()
+	color.Red(
+		"\r✗ %s%s\n",
+		msg,
+		CLEAR_LINE,
+	)
+	os.Exit(2)
 }

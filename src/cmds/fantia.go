@@ -1,14 +1,15 @@
 package cmds
 
 import (
-	"github.com/spf13/cobra"
-	"github.com/KJHJason/Cultured-Downloader-CLI/api"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/fantia"
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/spf13/cobra"
 )
 
 var (
+	fantiaDlTextFile    string
 	fantiaCookieFile    string
 	fantiaSession       string
 	fantiaFanclubIds    []string
@@ -18,6 +19,7 @@ var (
 	fantiaDlImages      bool
 	fantiaDlAttachments bool
 	fantiaOverwrite     bool
+	fantiaUserAgent     string
 	fantiaCmd           = &cobra.Command{
 		Use:   "fantia",
 		Short: "Download from Fantia",
@@ -25,17 +27,28 @@ var (
 		Run: func(cmd *cobra.Command, args []string) {
 			request.CheckInternetConnection()
 
-			fantiaConfig := api.Config{
-				OverwriteFiles: fantiaOverwrite,
+			if fantiaDlTextFile != "" {
+				postIds, fanclubInfoSlice := parseFantiaTextFile(fantiaDlTextFile)
+				fantiaPostIds = append(fantiaPostIds, postIds...)
+
+				for _, fanclubInfo := range fanclubInfoSlice {
+					fantiaFanclubIds = append(fantiaFanclubIds, fanclubInfo.FanclubId)
+					fantiaPageNums = append(fantiaPageNums, fanclubInfo.PageNum)
+				}
 			}
-			fantiaDl := fantia.FantiaDl{
+
+			fantiaConfig := &configs.Config{
+				OverwriteFiles: fantiaOverwrite,
+				UserAgent:      fantiaUserAgent,
+			}
+			fantiaDl := &fantia.FantiaDl{
 				FanclubIds:      fantiaFanclubIds,
 				FanclubPageNums: fantiaPageNums,
 				PostIds:         fantiaPostIds,
 			}
 			fantiaDl.ValidateArgs()
 
-			fantiaDlOptions := fantia.FantiaDlOptions{
+			fantiaDlOptions := &fantia.FantiaDlOptions{
 				DlThumbnails:    fantiaDlThumbnails,
 				DlImages:        fantiaDlImages,
 				DlAttachments:   fantiaDlAttachments,
@@ -43,8 +56,8 @@ var (
 			}
 			if fantiaCookieFile != "" {
 				cookies, err := utils.ParseNetscapeCookieFile(
-					fantiaCookieFile, 
-					fantiaSession, 
+					fantiaCookieFile,
+					fantiaSession,
 					utils.FANTIA,
 				)
 				if err != nil {
@@ -52,24 +65,27 @@ var (
 						err,
 						"",
 						true,
+						utils.ERROR,
 					)
 				}
 				fantiaDlOptions.SessionCookies = cookies
 			}
 
-			err := fantiaDlOptions.ValidateArgs()
+			err := fantiaDlOptions.ValidateArgs(fantiaUserAgent)
 			if err != nil {
 				utils.LogError(
 					err,
 					"",
 					true,
+					utils.ERROR,
 				)
 			}
 
+			utils.PrintWarningMsg()
 			fantia.FantiaDownloadProcess(
-				&fantiaConfig,
-				&fantiaDl,
-				&fantiaDlOptions,
+				fantiaConfig,
+				fantiaDl,
+				fantiaDlOptions,
 			)
 		},
 	}
@@ -77,9 +93,10 @@ var (
 
 func init() {
 	mutlipleIdsMsg := getMultipleIdsMsg()
-	fantiaCmd.Flags().StringVar(
+	fantiaCmd.Flags().StringVarP(
 		&fantiaSession,
 		"session",
+		"s",
 		"",
 		"Your _session_id cookie value to use for the requests to Fantia.",
 	)
@@ -101,8 +118,8 @@ func init() {
 		utils.CombineStringsWithNewline(
 			[]string{
 				"Min and max page numbers to search for corresponding to the order of the supplied Fantia Fanclub ID(s).",
-				"Format: \"num\" or \"minNum-maxNum\"",
-				"Example: \"1\" or \"1-10\"",
+				"Format: \"num\", \"minNum-maxNum\", or \"\" to download all pages",
+				"Leave blank to download all pages from each Fantia Fanclub.",
 			},
 		),
 	)

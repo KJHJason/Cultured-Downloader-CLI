@@ -1,15 +1,16 @@
 package cmds
 
 import (
-	"github.com/spf13/cobra"
-	"github.com/KJHJason/Cultured-Downloader-CLI/api"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixivfanbox"
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/spf13/cobra"
 )
 
 var (
+	fanboxDlTextFile     string
 	fanboxCookieFile     string
 	fanboxSession        string
 	fanboxCreatorIds     []string
@@ -21,6 +22,7 @@ var (
 	fanboxDlGdrive       bool
 	fanboxGdriveApiKey   string
 	fanboxOverwriteFiles bool
+	fanboxUserAgent      string
 	pixivFanboxCmd       = &cobra.Command{
 		Use:   "pixiv_fanbox",
 		Short: "Download from Pixiv Fanbox",
@@ -28,34 +30,47 @@ var (
 		Run: func(cmd *cobra.Command, args []string) {
 			request.CheckInternetConnection()
 
-			pixivFanboxConfig := api.Config{
+			pixivFanboxConfig := &configs.Config{
 				OverwriteFiles: fanboxOverwriteFiles,
+				UserAgent:      fanboxUserAgent,
 			}
+			var gdriveClient *gdrive.GDrive
 			if fanboxGdriveApiKey != "" {
-				pixivFanboxConfig.GDriveClient = gdrive.GetNewGDrive(
-					fanboxGdriveApiKey, 
+				gdriveClient = gdrive.GetNewGDrive(
+					fanboxGdriveApiKey,
+					pixivFanboxConfig,
 					utils.MAX_CONCURRENT_DOWNLOADS,
 				)
 			}
 
-			pixivFanboxDl := pixivfanbox.PixivFanboxDl{
+			if fanboxDlTextFile != "" {
+				postIds, creatorInfoSlice := parsePixivFanboxTextFile(fanboxDlTextFile)
+				fanboxPostIds = append(fanboxPostIds, postIds...)
+
+				for _, creatorInfo := range creatorInfoSlice {
+					fanboxCreatorIds = append(fanboxCreatorIds, creatorInfo.CreatorId)
+					fanboxPageNums = append(fanboxPageNums, creatorInfo.PageNum)
+				}
+			}
+			pixivFanboxDl := &pixivfanbox.PixivFanboxDl{
 				CreatorIds:      fanboxCreatorIds,
 				CreatorPageNums: fanboxPageNums,
 				PostIds:         fanboxPostIds,
 			}
 			pixivFanboxDl.ValidateArgs()
 
-			pixivFanboxDlOptions := pixivfanbox.PixivFanboxDlOptions{
+			pixivFanboxDlOptions := &pixivfanbox.PixivFanboxDlOptions{
 				DlThumbnails:    fanboxDlThumbnails,
 				DlImages:        fanboxDlImages,
 				DlAttachments:   fanboxDlAttachments,
-				DlGdrive:        fanboxDlGdrive && pixivFanboxConfig.GDriveClient != nil,
+				GDriveClient:    gdriveClient,
+				DlGdrive:        fanboxDlGdrive,
 				SessionCookieId: fanboxSession,
 			}
 			if fanboxCookieFile != "" {
 				cookies, err := utils.ParseNetscapeCookieFile(
-					fanboxCookieFile, 
-					fanboxSession, 
+					fanboxCookieFile,
+					fanboxSession,
 					utils.PIXIV_FANBOX,
 				)
 				if err != nil {
@@ -63,16 +78,18 @@ var (
 						err,
 						"",
 						true,
+						utils.ERROR,
 					)
 				}
 				pixivFanboxDlOptions.SessionCookies = cookies
 			}
-			pixivFanboxDlOptions.ValidateArgs()
+			pixivFanboxDlOptions.ValidateArgs(fanboxUserAgent)
 
+			utils.PrintWarningMsg()
 			pixivfanbox.PixivFanboxDownloadProcess(
-				&pixivFanboxConfig,
-				&pixivFanboxDl,
-				&pixivFanboxDlOptions,
+				pixivFanboxConfig,
+				pixivFanboxDl,
+				pixivFanboxDlOptions,
 			)
 		},
 	}
@@ -80,9 +97,10 @@ var (
 
 func init() {
 	mutlipleIdsMsg := getMultipleIdsMsg()
-	pixivFanboxCmd.Flags().StringVar(
+	pixivFanboxCmd.Flags().StringVarP(
 		&fanboxSession,
 		"session",
+		"s",
 		"",
 		"Your FANBOXSESSID cookie value to use for the requests to Pixiv Fanbox.",
 	)
@@ -103,9 +121,9 @@ func init() {
 		[]string{},
 		utils.CombineStringsWithNewline(
 			[]string{
-				"Min and max page numbers to search for corresponding to the order of the supplied Pixiv Fanbox Creator ID(s).",
-				"Format: \"num\" or \"minNum-maxNum\"",
-				"Example: \"1\" or \"1-10\"",
+				"Min and max page numbers to search for corresponding to the order of the supplied Pixiv Fanbox creator ID(s).",
+				"Format: \"num\", \"minNum-maxNum\", or \"\" to download all pages",
+				"Leave blank to download all pages from each creator.",
 			},
 		),
 	)

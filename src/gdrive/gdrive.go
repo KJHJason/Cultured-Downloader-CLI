@@ -3,11 +3,12 @@ package gdrive
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"regexp"
 	"net/http"
+	"os"
 	"path/filepath"
+	"regexp"
 
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/fatih/color"
@@ -21,6 +22,12 @@ const (
 	GDRIVE_FILE_FIELDS = "id,name,size,mimeType,md5Checksum"
 )
 
+type GDriveToDl struct {
+	Id 	     string
+	Type     string
+	FilePath string
+}
+
 type GDrive struct {
 	apiKey             string // Google Drive API key to use
 	apiUrl             string // https://www.googleapis.com/drive/v3/files
@@ -30,7 +37,7 @@ type GDrive struct {
 }
 
 // Returns a GDrive structure with the given API key and max download workers
-func GetNewGDrive(apiKey string, maxDownloadWorkers int) *GDrive {
+func GetNewGDrive(apiKey string, config *configs.Config, maxDownloadWorkers int) *GDrive {
 	gdrive := &GDrive{
 		apiKey:             apiKey,
 		apiUrl:             "https://www.googleapis.com/drive/v3/files",
@@ -39,7 +46,7 @@ func GetNewGDrive(apiKey string, maxDownloadWorkers int) *GDrive {
 		maxDownloadWorkers: maxDownloadWorkers,
 	}
 
-	gdriveIsValid, err := gdrive.GDriveKeyIsValid()
+	gdriveIsValid, err := gdrive.GDriveKeyIsValid(config.UserAgent)
 	if err != nil {
 		color.Red(err.Error())
 		os.Exit(1)
@@ -53,14 +60,22 @@ func GetNewGDrive(apiKey string, maxDownloadWorkers int) *GDrive {
 // Checks if the given Google Drive API key is valid
 //
 // Will return true if the given Google Drive API key is valid
-func (gdrive *GDrive) GDriveKeyIsValid() (bool, error) {
+func (gdrive *GDrive) GDriveKeyIsValid(userAgent string) (bool, error) {
 	match, _ := regexp.MatchString(`^AIza[\w-]{35}$`, gdrive.apiKey)
 	if !match {
 		return false, nil
 	}
 
 	params := map[string]string{"key": gdrive.apiKey}
-	res, err := request.CallRequest("GET", gdrive.apiUrl, gdrive.timeout, nil, nil, params, false)
+	res, err := request.CallRequest(
+		&request.RequestArgs{
+			Url:       gdrive.apiUrl,
+			Method:    "GET",
+			Timeout:   gdrive.timeout,
+			Params:    params,
+			UserAgent: userAgent,
+		},
+	)
 	if err != nil {
 		err = fmt.Errorf(
 			"gdrive error %d: failed to check if Google Drive API key is valid, more info => %v",
@@ -74,18 +89,18 @@ func (gdrive *GDrive) GDriveKeyIsValid() (bool, error) {
 }
 
 // Logs any failed GDrive API calls to the given log path
-func LogFailedGdriveAPICalls(res *http.Response, downloadPath string) {
+func LogFailedGdriveAPICalls(res *http.Response, downloadPath string, level int) {
 	requestUrl := res.Request.URL.String()
 	errorMsg := fmt.Sprintf(
 		"Error while fetching from GDrive...\n"+
 			"GDrive URL (May not be accurate): https://drive.google.com/file/d/%s/view?usp=sharing\n"+
 			"Status Code: %s\nURL: %s",
-		utils.GetLastPartOfURL(requestUrl),
+		utils.GetLastPartOfUrl(requestUrl),
 		res.Status,
 		requestUrl,
 	)
 	if downloadPath != "" {
-		utils.LogError(nil, errorMsg, false)
+		utils.LogError(nil, errorMsg, false, level)
 		return
 	}
 
@@ -108,21 +123,13 @@ func LogFailedGdriveAPICalls(res *http.Response, downloadPath string) {
 			utils.OS_ERROR,
 			err,
 		)
-		utils.LogError(err, "", false)
+		utils.LogError(err, "", false, utils.ERROR)
 		return
 	}
 	defer file.Close()
 
-	// write to file
-	_, err = file.WriteString(errorMsg)
-	if err != nil {
-		err = fmt.Errorf(
-			"gdrive error %d: failed to write to log file, more info => %v",
-			utils.OS_ERROR,
-			err,
-		)
-		utils.LogError(err, "", false)
-	}
+	pathLogger := utils.NewLogger(file)
+	pathLogger.LogBasedOnLvl(level, errorMsg)
 }
 
 type GDriveFile struct {
@@ -142,13 +149,13 @@ type GDriveFolder struct {
 }
 
 // Returns the contents of the given GDrive folder
-func (gdrive *GDrive) GetFolderContents(folderId, logPath string) ([]map[string]string, error) {
+func (gdrive *GDrive) GetFolderContents(folderId, logPath string, config *configs.Config) ([]*gdriveFileToDl, error) {
 	params := map[string]string{
 		"key":    gdrive.apiKey,
 		"q":      fmt.Sprintf("'%s' in parents", folderId),
 		"fields": fmt.Sprintf("nextPageToken,files(%s)", GDRIVE_FILE_FIELDS),
 	}
-	files := []map[string]string{}
+	var files []*gdriveFileToDl
 	pageToken := ""
 	for {
 		if pageToken != "" {
@@ -156,7 +163,15 @@ func (gdrive *GDrive) GetFolderContents(folderId, logPath string) ([]map[string]
 		} else {
 			delete(params, "pageToken")
 		}
-		res, err := request.CallRequest("GET", gdrive.apiUrl, gdrive.timeout, nil, nil, params, false)
+		res, err := request.CallRequest(
+			&request.RequestArgs{
+				Url:       gdrive.apiUrl,
+				Method:    "GET",
+				Timeout:   gdrive.timeout,
+				Params:    params,
+				UserAgent: config.UserAgent,
+			},
+		)
 		if err != nil {
 			err = fmt.Errorf(
 				"gdrive error %d: failed to get folder contents with ID of %s, more info => %v",
@@ -194,12 +209,13 @@ func (gdrive *GDrive) GetFolderContents(folderId, logPath string) ([]map[string]
 			return nil, err
 		}
 		for _, file := range gdriveFolder.Files {
-			files = append(files, map[string]string{
-				"id":          file.Id,
-				"name":        file.Name,
-				"size":        file.Size,
-				"mimeType":    file.MimeType,
-				"md5Checksum": file.Md5Checksum,
+			files = append(files, &gdriveFileToDl{
+				Id:          file.Id,
+				Name:        file.Name,
+				Size:        file.Size,
+				MimeType:    file.MimeType,
+				Md5Checksum: file.Md5Checksum,
+				FilePath:    "",
 			})
 		}
 
@@ -213,16 +229,16 @@ func (gdrive *GDrive) GetFolderContents(folderId, logPath string) ([]map[string]
 }
 
 // Retrieves the content of a GDrive folder and its subfolders recursively using GDrive API v3
-func (gdrive *GDrive) GetNestedFolderContents(folderId, logPath string) ([]map[string]string, error) {
-	files := []map[string]string{}
-	folderContents, err := gdrive.GetFolderContents(folderId, logPath)
+func (gdrive *GDrive) GetNestedFolderContents(folderId, logPath string, config *configs.Config) ([]*gdriveFileToDl, error) {
+	var files []*gdriveFileToDl
+	folderContents, err := gdrive.GetFolderContents(folderId, logPath, config)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, file := range folderContents {
-		if file["mimeType"] == "application/vnd.google-apps.folder" {
-			subFolderFiles, err := gdrive.GetNestedFolderContents(file["id"], logPath)
+		if file.MimeType == "application/vnd.google-apps.folder" {
+			subFolderFiles, err := gdrive.GetNestedFolderContents(file.Id, logPath, config)
 			if err != nil {
 				return nil, err
 			}
@@ -235,13 +251,21 @@ func (gdrive *GDrive) GetNestedFolderContents(folderId, logPath string) ([]map[s
 }
 
 // Retrieves the file details of the given GDrive file using GDrive API v3
-func (gdrive *GDrive) GetFileDetails(fileId, logPath string) (map[string]string, error) {
+func (gdrive *GDrive) GetFileDetails(fileId, logPath string, config *configs.Config) (*gdriveFileToDl, error) {
 	params := map[string]string{
 		"key":    gdrive.apiKey,
 		"fields": GDRIVE_FILE_FIELDS,
 	}
 	url := fmt.Sprintf("%s/%s", gdrive.apiUrl, fileId)
-	res, err := request.CallRequest("GET", url, gdrive.timeout, nil, nil, params, false)
+	res, err := request.CallRequest(
+		&request.RequestArgs{
+			Url:       url,
+			Method:    "GET",
+			Timeout:   gdrive.timeout,
+			Params:    params,
+			UserAgent: config.UserAgent,
+		},
+	)
 	if err != nil {
 		err = fmt.Errorf(
 			"gdrive error %d: failed to get file details with ID of %s, more info => %v",
@@ -253,7 +277,7 @@ func (gdrive *GDrive) GetFileDetails(fileId, logPath string) (map[string]string,
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		LogFailedGdriveAPICalls(res, logPath)
+		LogFailedGdriveAPICalls(res, logPath, utils.ERROR)
 		return nil, nil
 	}
 
@@ -262,7 +286,7 @@ func (gdrive *GDrive) GetFileDetails(fileId, logPath string) (map[string]string,
 		return nil, err
 	}
 
-	gdriveFile := GDriveFile{}
+	var gdriveFile GDriveFile
 	if err := json.Unmarshal(resBody, &gdriveFile); err != nil {
 		err = fmt.Errorf(
 			"gdrive error %d: failed to unmarshal GDrive file details with ID of %s, more info => %s\nResponse body: %v",
@@ -273,11 +297,13 @@ func (gdrive *GDrive) GetFileDetails(fileId, logPath string) (map[string]string,
 		)
 		return nil, err
 	}
-	return map[string]string{
-		"id":          gdriveFile.Id,
-		"name":        gdriveFile.Name,
-		"size":        gdriveFile.Size,
-		"mimeType":    gdriveFile.MimeType,
-		"md5Checksum": gdriveFile.Md5Checksum,
+
+	return &gdriveFileToDl{
+		Id:          gdriveFile.Id,
+		Name:        gdriveFile.Name,
+		Size:        gdriveFile.Size,
+		MimeType:    gdriveFile.MimeType,
+		Md5Checksum: gdriveFile.Md5Checksum,
+		FilePath:    "",
 	}, nil
 }

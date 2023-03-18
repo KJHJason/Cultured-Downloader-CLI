@@ -1,99 +1,107 @@
 package request
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
-	"regexp"
 
-	"github.com/fatih/color"
-	"github.com/quic-go/quic-go/http3"
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/fatih/color"
+	"github.com/quic-go/quic-go/http3"
 )
 
-var (
-	// Since the URLs below will be redirected to Fantia's AWS S3 URL, 
-	// we need to use HTTP/2 as it is not supported by HTTP/3 yet.
-	FANTIA_ALBUM_URL = regexp.MustCompile(
-		`^https://fantia.jp/posts/[\d]+/album_image`,
-	)
-	FANTIA_DOWNLOAD_URL = regexp.MustCompile(
-		`^https://fantia.jp/posts/[\d]+/download/[\d]+`,
-	)
-
-	HTTP3_SUPPORT_ARR = [4]string{
-		"https://www.pixiv.net",
-		"https://app-api.pixiv.net",
-
-		"https://www.google.com",
-		"https://drive.google.com",
-	}
-)
-
-func getHttp2Client(disableCompression bool) *http.Client {
-	if disableCompression {
+// Get a new HTTP/2 or HTTP/3 client based on the request arguments
+func GetHttpClient(reqArgs *RequestArgs) *http.Client {
+	if reqArgs.Http2 {
 		return &http.Client{
 			Transport: &http.Transport{
-				DisableCompression: true,
-			},
-		}
-	}
-	return &http.Client{}
-}
-
-func getHttp3Client(disableCompression bool) *http.Client {
-	if disableCompression {
-		return &http.Client{
-			Transport: &http3.RoundTripper{
-				DisableCompression: true,
+				DisableCompression: reqArgs.DisableCompression,
 			},
 		}
 	}
 	return &http.Client{
-		Transport: &http3.RoundTripper{},
+		Transport: &http3.RoundTripper{
+			DisableCompression: reqArgs.DisableCompression,
+		},
 	}
 }
 
-// Get a new HTTP/2 or HTTP/3 client based on the given URL if it's supported
-func getHttpClient(reqUrl *string, disableCompression bool) *http.Client {
-	if FANTIA_DOWNLOAD_URL.MatchString(*reqUrl) || FANTIA_ALBUM_URL.MatchString(*reqUrl) {
-		return getHttp2Client(disableCompression)
+// add headers to the request
+func AddHeaders(headers map[string]string, defaultUserAgent string, req *http.Request) {
+	if len(headers) == 0 {
+		return
 	}
 
-	// check if the URL supports HTTP/3 first
-	// before falling back to the default HTTP/2.
-	for _, domain := range HTTP3_SUPPORT_ARR {
-		if strings.HasPrefix(*reqUrl, domain) {
-			return getHttp3Client(disableCompression)
+	for key, value := range headers {
+		req.Header.Add(key, value)
+	}
+	if req.Header.Get("User-Agent") == "" {
+		req.Header.Add(
+			"User-Agent", defaultUserAgent,
+		)
+	}
+}
+
+// add cookies to the request
+func AddCookies(reqUrl string, cookies []*http.Cookie, req *http.Request) {
+	if len(cookies) == 0 {
+		return
+	}
+
+	for _, cookie := range cookies {
+		if strings.Contains(reqUrl, cookie.Domain) {
+			req.AddCookie(cookie)
 		}
 	}
-	return getHttp2Client(disableCompression)
+}
+
+// add params to the request
+func AddParams(params map[string]string, req *http.Request) {
+	if len(params) == 0 {
+		return
+	}
+
+	query := req.URL.Query()
+	for key, value := range params {
+		query.Add(key, value)
+	}
+	req.URL.RawQuery = query.Encode()
 }
 
 // send the request to the target URL and retries if the request was not successful
-func sendRequest(reqUrl string, req *http.Request, timeout int, checkStatus, disableCompression bool) (*http.Response, error) {
+func sendRequest(req *http.Request, reqArgs *RequestArgs) (*http.Response, error) {
+	AddCookies(reqArgs.Url, reqArgs.Cookies, req)
+	AddHeaders(reqArgs.Headers, reqArgs.UserAgent, req)
+	AddParams(reqArgs.Params, req)
+
 	var err error
 	var res *http.Response
 
-	client := getHttpClient(&reqUrl, disableCompression)
-	client.Timeout = time.Duration(timeout) * time.Second
+	client := GetHttpClient(reqArgs)
+	client.Timeout = time.Duration(reqArgs.Timeout) * time.Second
 	for i := 1; i <= utils.RETRY_COUNTER; i++ {
 		res, err = client.Do(req)
 		if err == nil {
-			if !checkStatus {
+			if !reqArgs.CheckStatus {
 				return res, nil
 			} else if res.StatusCode == 200 {
 				return res, nil
 			}
 			res.Body.Close()
+		} else if errors.Is(err, context.Canceled) {
+			return nil, context.Canceled
 		}
 
 		if i < utils.RETRY_COUNTER {
@@ -103,7 +111,7 @@ func sendRequest(reqUrl string, req *http.Request, timeout int, checkStatus, dis
 
 	errMsg := fmt.Sprintf(
 		"the request to %s failed after %d retries",
-		reqUrl,
+		reqArgs.Url,
 		utils.RETRY_COUNTER,
 	)
 	if err != nil {
@@ -117,72 +125,39 @@ func sendRequest(reqUrl string, req *http.Request, timeout int, checkStatus, dis
 	return nil, err
 }
 
-// add headers to the request
-func AddHeaders(headers map[string]string, req *http.Request) {
-	for key, value := range headers {
-		req.Header.Add(key, value)
-	}
-	if req.Header.Get("User-Agent") == "" {
-		req.Header.Add(
-			"User-Agent", utils.USER_AGENT,
-		)
-	}
-}
-
-// add cookies to the request
-func AddCookies(reqUrl string, cookies []http.Cookie, req *http.Request) {
-	for _, cookie := range cookies {
-		if strings.Contains(reqUrl, cookie.Domain) {
-			req.AddCookie(&cookie)
-		}
-	}
-}
-
-// add params to the request
-func AddParams(params map[string]string, req *http.Request) {
-	if len(params) > 0 {
-		query := req.URL.Query()
-		for key, value := range params {
-			query.Add(key, value)
-		}
-		req.URL.RawQuery = query.Encode()
-	}
-}
-
 // CallRequest is used to make a request to a URL and return the response
 //
 // If the request fails, it will retry the request again up
 // to the defined max retries in the constants.go in utils package
-func CallRequest(
-	method,
-	reqUrl string,
-	timeout int,
-	cookies []http.Cookie,
-	additionalHeaders,
-	params map[string]string,
-	checkStatus bool,
-) (*http.Response, error) {
-	req, err := http.NewRequest(method, reqUrl, nil)
+func CallRequest(reqArgs *RequestArgs) (*http.Response, error) {
+	reqArgs.ValidateArgs()
+	req, err := http.NewRequestWithContext(
+		reqArgs.Context,
+		reqArgs.Method,
+		reqArgs.Url,
+		nil,
+	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf(
+			"error %d: unable to create a new request, more info => %v",
+			utils.DEV_ERROR,
+			err,
+		)
 	}
 
-	AddCookies(reqUrl, cookies, req)
-	AddHeaders(additionalHeaders, req)
-	AddParams(params, req)
-	return sendRequest(reqUrl, req, timeout, checkStatus, false)
+	return sendRequest(req, reqArgs)
 }
 
 // Check for active internet connection (To be used at the start of the program)
 func CheckInternetConnection() {
 	_, err := CallRequest(
-		"HEAD",
-		"https://www.google.com",
-		10,
-		nil,
-		nil,
-		nil,
-		false,
+		&RequestArgs{
+			Url:         "https://www.google.com",
+			Method:      "HEAD",
+			Timeout:     10,
+			CheckStatus: false,
+			Http3:       true,
+		},
 	)
 	if err != nil {
 		color.Red(
@@ -197,85 +172,80 @@ func CheckInternetConnection() {
 }
 
 // Sends a request with the given data
-func CallRequestWithData(
-	reqUrl,
-	method string,
-	timeout int,
-	cookies []http.Cookie,
-	data,
-	additionalHeaders,
-	params map[string]string,
-	checkStatus bool,
-) (*http.Response, error) {
+func CallRequestWithData(reqArgs *RequestArgs, data map[string]string) (*http.Response, error) {
+	reqArgs.ValidateArgs()
 	form := url.Values{}
 	for key, value := range data {
 		form.Add(key, value)
 	}
 	if len(data) > 0 {
-		additionalHeaders["Content-Type"] = "application/x-www-form-urlencoded"
+		reqArgs.Headers["Content-Type"] = "application/x-www-form-urlencoded"
 	}
 
-	req, err := http.NewRequest(method, reqUrl, strings.NewReader(form.Encode()))
+	req, err := http.NewRequestWithContext(
+		reqArgs.Context,
+		reqArgs.Method,
+		reqArgs.Url,
+		strings.NewReader(form.Encode()),
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	AddCookies(reqUrl, cookies, req)
-	AddHeaders(additionalHeaders, req)
-	AddParams(params, req)
-	return sendRequest(reqUrl, req, timeout, checkStatus, false)
+	return sendRequest(req, reqArgs)
 }
 
-// Sends a request to the given URL but disables golang's HTTP client compression
-//
-// Useful for calling a HEAD request to obtain the actual uncompressed file's file size
-func CallRequestNoCompression(
-	method, reqUrl string, timeout int, cookies []http.Cookie,
-	additionalHeaders, params map[string]string, checkStatus bool,
-) (*http.Response, error) {
-	req, err := http.NewRequest(method, reqUrl, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	AddCookies(reqUrl, cookies, req)
-	AddHeaders(additionalHeaders, req)
-	AddParams(params, req)
-	return sendRequest(reqUrl, req, timeout, checkStatus, true)
-}
-
-// DownloadURL is used to download a file from a URL
+// DownloadUrl is used to download a file from a URL
 //
 // Note: If the file already exists, the download process will be skipped
-func DownloadURL(
-	fileUrl,
-	filePath string,
-	cookies []http.Cookie,
-	headers,
-	params map[string]string,
-	overwriteExistingFiles bool,
-) error {
+func DownloadUrl(filePath string, queue chan struct{}, reqArgs *RequestArgs, overwriteExistingFile bool) error {
+	// Create a context that can be cancelled when SIGINT/SIGTERM signal is received
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Catch SIGINT/SIGTERM signal and cancel the context when received
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigs
+		cancel()
+	}()
+	defer signal.Stop(sigs)
+
+	queue <- struct{}{}
 	// Send a HEAD request first to get the expected file size from the Content-Length header.
 	// A GET request might work but most of the time
 	// as the Content-Length header may not present due to chunked encoding.
-	headRes, err := CallRequestNoCompression("HEAD", fileUrl, 10, cookies, headers, params, true)
+	headRes, err := CallRequest(
+		&RequestArgs{
+			Url:         reqArgs.Url,
+			Method:      "HEAD",
+			Timeout:     10,
+			Cookies:     reqArgs.Cookies,
+			Headers:     reqArgs.Headers,
+			CheckStatus: true,
+			Http3:       reqArgs.Http3,
+			Http2:       reqArgs.Http2,
+		},
+	)
 	if err != nil {
 		return err
 	}
 	fileReqContentLength := headRes.ContentLength
 	headRes.Body.Close()
 
-	downloadTimeout := 25 * 60 // 25 minutes in seconds as downloads
-	// can take quite a while for large files (especially for Pixiv)
-	// However, the average max file size on these platforms is around 300MB.
-	// Note: Fantia do have a max file size per post of 3GB if one paid extra for it.
-	res, err := CallRequest("GET", fileUrl, downloadTimeout, cookies, headers, params, true)
+	reqArgs.Context = ctx
+	res, err := CallRequest(reqArgs)
 	if err != nil {
+		if err == context.Canceled {
+			return err
+		}
+
 		err = fmt.Errorf(
 			"error %d: failed to download file, more info => %v\nurl: %s",
 			utils.DOWNLOAD_ERROR,
 			err,
-			fileUrl,
+			reqArgs.Url,
 		)
 		return err
 	}
@@ -295,9 +265,12 @@ func DownloadURL(
 			)
 			return err
 		}
-		filename = utils.GetLastPartOfURL(filename)
+		filename = utils.GetLastPartOfUrl(filename)
 		filenameWithoutExt := utils.RemoveExtFromFilename(filename)
-		filePath = filepath.Join(filePath, filenameWithoutExt+strings.ToLower(filepath.Ext(filename)))
+		filePath = filepath.Join(
+			filePath,
+			filenameWithoutExt+strings.ToLower(filepath.Ext(filename)),
+		)
 	} else {
 		filePathDir := filepath.Dir(filePath)
 		os.MkdirAll(filePathDir, 0666)
@@ -316,7 +289,7 @@ func DownloadURL(
 			return nil
 		}
 	} else {
-		if !overwriteExistingFiles && fileSize > 0 {
+		if !overwriteExistingFile && fileSize > 0 {
 			// If the file already exists and have more than 0 bytes
 			// but the Content-Length header does not exist in the response,
 			// we will assume that the file is already downloaded
@@ -341,36 +314,45 @@ func DownloadURL(
 	_, err = io.Copy(file, res.Body)
 	if err != nil {
 		file.Close()
-		os.Remove(filePath)
-		errorMsg := fmt.Sprintf("failed to download %s due to %v", fileUrl, err)
-		utils.LogError(err, errorMsg, false)
+		if fileErr := os.Remove(filePath); fileErr != nil {
+			utils.LogError(
+				fmt.Errorf(
+					"download error %d: failed to remove file at %s, more info => %v",
+					utils.OS_ERROR,
+					filePath,
+					fileErr,
+				),
+				"",
+				false,
+				utils.ERROR,
+			)
+		}
+
+		if err == context.Canceled {
+			return err
+		}
+		errorMsg := fmt.Sprintf("failed to download %s due to %v", reqArgs.Url, err)
+		utils.LogError(err, errorMsg, false, utils.ERROR)
 		return nil
 	}
 	file.Close()
 	return nil
 }
 
-// DownloadURLsParallel is used to download multiple files from URLs in parallel
+// DownloadUrls is used to download multiple files from URLs concurrently
 //
 // Note: If the file already exists, the download process will be skipped
-func DownloadURLsParallel(
-	urls *[]map[string]string,
-	maxConcurrency int,
-	cookies []http.Cookie,
-	headers,
-	params map[string]string,
-	overwriteExistingFiles bool,
-) {
-	urlsLen := len(*urls)
+func DownloadUrls(urlInfoSlice []*ToDownload, dlOptions *DlOptions, config *configs.Config) {
+	urlsLen := len(urlInfoSlice)
 	if urlsLen == 0 {
 		return
 	}
-	if urlsLen < maxConcurrency {
-		maxConcurrency = urlsLen
+	if urlsLen < dlOptions.MaxConcurrency {
+		dlOptions.MaxConcurrency = urlsLen
 	}
 
 	var wg sync.WaitGroup
-	queue := make(chan struct{}, maxConcurrency)
+	queue := make(chan struct{}, dlOptions.MaxConcurrency)
 	errChan := make(chan error, urlsLen)
 
 	baseMsg := "Downloading files [%d/" + fmt.Sprintf("%d]...", urlsLen)
@@ -392,39 +374,49 @@ func DownloadURLsParallel(
 		urlsLen,
 	)
 	progress.Start()
-	for _, url := range *urls {
+	for _, urlInfo := range urlInfoSlice {
 		wg.Add(1)
-		queue <- struct{}{}
 		go func(fileUrl, filePath string) {
-			defer wg.Done()
-			err := DownloadURL(
-				fileUrl,
+			defer func() {
+				<-queue
+				wg.Done()
+			}()
+			err := DownloadUrl(
 				filePath,
-				cookies,
-				headers,
-				params,
-				overwriteExistingFiles,
+				queue,
+				&RequestArgs{
+					Url:       fileUrl,
+					Method:    "GET",
+					Timeout:   utils.DOWNLOAD_TIMEOUT,
+					Cookies:   dlOptions.Cookies,
+					Headers:   dlOptions.Headers,
+					Http2:     !dlOptions.UseHttp3,
+					Http3:     dlOptions.UseHttp3,
+					UserAgent: config.UserAgent,
+				},
+				config.OverwriteFiles,
 			)
 			if err != nil {
-				errChan <- fmt.Errorf(
-					"failed to download url, \"%s\", to \"%s\", please refer to the error details below:\n%v",
-					fileUrl,
-					filePath,
-					err,
-				)
+				errChan <- err
 			}
-			progress.MsgIncrement(baseMsg)
-			<-queue
-		}(url["url"], url["filepath"])
+
+			if err != context.Canceled {
+				progress.MsgIncrement(baseMsg)
+			}
+		}(urlInfo.Url, urlInfo.FilePath)
 	}
-	close(queue)
 	wg.Wait()
+	close(queue)
 	close(errChan)
 
 	hasErr := false
 	if len(errChan) > 0 {
 		hasErr = true
-		utils.LogErrors(false, &errChan)
+		if kill := utils.LogErrors(false, errChan, utils.ERROR); kill {
+			progress.KillProgram(
+				"Stopped downloading files (incomplete downloads will be deleted)...",
+			)
+		}
 	}
 	progress.Stop(hasErr)
 }

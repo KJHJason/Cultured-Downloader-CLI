@@ -10,31 +10,51 @@ func getMultipleIdsMsg() string {
 }
 
 func init() {
+	type textFilePath struct {
+		variable *string
+		desc     string
+	}
 	type commonFlags struct {
 		cmd           *cobra.Command
 		overwriteVar  *bool
 		cookieFileVar *string
+		userAgentVar  *string
+		textFile      textFilePath
 	}
 	commonCmdFlags := []commonFlags{
 		{
 			cmd: fantiaCmd,
-			overwriteVar: &fantiaOverwrite,
+			overwriteVar:  &fantiaOverwrite,
 			cookieFileVar: &fantiaCookieFile,
+			userAgentVar:  &fantiaUserAgent,
+			textFile: textFilePath {
+				variable: &fantiaDlTextFile,
+				desc: "Path to a text file containing Fanclub and/or post URL(s) to download from Fantia.",
+			},
 		},
 		{
 			cmd: pixivFanboxCmd,
-			overwriteVar: &fanboxOverwriteFiles,
+			overwriteVar:  &fanboxOverwriteFiles,
 			cookieFileVar: &fanboxCookieFile,
+			userAgentVar:  &fanboxUserAgent,
+			textFile: textFilePath {
+				variable: &fanboxDlTextFile,
+				desc: "Path to a text file containing creator and/or post URL(s) to download from Pixiv Fanbox.",
+			},
 		},
 		{
 			cmd: pixivCmd,
-			overwriteVar: &pixivOverwrite,
+			overwriteVar:  &pixivOverwrite,
 			cookieFileVar: &pixivCookieFile,
+			userAgentVar:  &pixivUserAgent,
+			textFile: textFilePath {
+				variable: &pixivDlTextFile,
+				desc: "Path to a text file containing artwork, illustrator, and tag name URL(s) to download from Pixiv.",
+			},
 		},
 	}
 	for _, cmdInfo := range commonCmdFlags {
 		cmd := cmdInfo.cmd
-
 		cmd.Flags().BoolVarP(
 			cmdInfo.overwriteVar,
 			"overwrite",
@@ -48,8 +68,21 @@ func init() {
 			),
 		)
 		cmd.Flags().StringVar(
+			cmdInfo.userAgentVar,
+			"user_agent",
+			"",
+			"Set a custom User-Agent header to use when communicating with the API(s) or when downloading.",
+		)
+		cmd.Flags().StringVar(
+			cmdInfo.textFile.variable,
+			"text_file",
+			"",
+			cmdInfo.textFile.desc,
+		)
+		cmd.Flags().StringVarP(
 			cmdInfo.cookieFileVar,
 			"cookie_file",
+			"c",
 			"",
 			utils.CombineStringsWithNewline(
 				[]string{
