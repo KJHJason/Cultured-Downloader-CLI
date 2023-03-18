@@ -12,6 +12,7 @@ import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/KJHJason/Cultured-Downloader-CLI/cmds/textparser"
 	"github.com/spf13/cobra"
 	"github.com/fatih/color"
 )
@@ -65,7 +66,7 @@ var (
 			pixivConfig.ValidateFfmpeg()
 
 			if pixivDlTextFile != "" {
-				artworkIds, illustratorInfoSlice, tagInfoSlice := parsePixivTextFile(pixivDlTextFile)
+				artworkIds, illustratorInfoSlice, tagInfoSlice := textparser.ParsePixivTextFile(pixivDlTextFile)
 				pixivArtworkIds = append(pixivArtworkIds, artworkIds...)
 
 				for _, illustratorInfo := range illustratorInfoSlice {

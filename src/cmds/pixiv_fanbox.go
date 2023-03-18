@@ -6,6 +6,7 @@ import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/KJHJason/Cultured-Downloader-CLI/cmds/textparser"
 	"github.com/spf13/cobra"
 )
 
@@ -44,7 +45,7 @@ var (
 			}
 
 			if fanboxDlTextFile != "" {
-				postIds, creatorInfoSlice := parsePixivFanboxTextFile(fanboxDlTextFile)
+				postIds, creatorInfoSlice := textparser.ParsePixivFanboxTextFile(fanboxDlTextFile)
 				fanboxPostIds = append(fanboxPostIds, postIds...)
 
 				for _, creatorInfo := range creatorInfoSlice {

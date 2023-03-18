@@ -5,6 +5,7 @@ import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/KJHJason/Cultured-Downloader-CLI/cmds/textparser"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +29,7 @@ var (
 			request.CheckInternetConnection()
 
 			if fantiaDlTextFile != "" {
-				postIds, fanclubInfoSlice := parseFantiaTextFile(fantiaDlTextFile)
+				postIds, fanclubInfoSlice := textparser.ParseFantiaTextFile(fantiaDlTextFile)
 				fantiaPostIds = append(fantiaPostIds, postIds...)
 
 				for _, fanclubInfo := range fanclubInfoSlice {

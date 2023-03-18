@@ -14,20 +14,25 @@ import (
 )
 
 const (
-	BASE_REGEX_STR     = `https://kemono\.party/(?P<service>patreon|fanbox|gumroad|subscribestar|dlsite|fantia|boosty)/user/(?P<creatorId>[\w-]+)`
-	API_MAX_CONCURRENT = 3
+	BASE_REGEX_STR             = `https://kemono\.party/(?P<service>patreon|fanbox|gumroad|subscribestar|dlsite|fantia|boosty)/user/(?P<creatorId>[\w-]+)`
+	BASE_POST_SUFFIX_REGEX_STR = `/post/(?P<postId>\d+)`
+	SERVICE_GROUP_NAME         = "service"
+	CREATOR_ID_GROUP_NAME      = "creatorId"
+	POST_ID_GROUP_NAME         = "postId"
+	API_MAX_CONCURRENT         = 3
 )
 
 var (
 	POST_URL_REGEX = regexp.MustCompile(
 		fmt.Sprintf(
-			`^%s/post/(?P<postId>\d+)$`,
+			`^%s%s$`,
 			BASE_REGEX_STR,
+			BASE_POST_SUFFIX_REGEX_STR,
 		),
 	)
-	POST_URL_REGEX_SERVICE_INDEX = POST_URL_REGEX.SubexpIndex("service")
-	POST_URL_REGEX_CREATOR_ID_INDEX = POST_URL_REGEX.SubexpIndex("creatorId")
-	POST_URL_REGEX_POST_ID_INDEX = POST_URL_REGEX.SubexpIndex("postId")
+	POST_URL_REGEX_SERVICE_INDEX = POST_URL_REGEX.SubexpIndex(SERVICE_GROUP_NAME)
+	POST_URL_REGEX_CREATOR_ID_INDEX = POST_URL_REGEX.SubexpIndex(CREATOR_ID_GROUP_NAME)
+	POST_URL_REGEX_POST_ID_INDEX = POST_URL_REGEX.SubexpIndex(POST_ID_GROUP_NAME)
 
 	CREATOR_URL_REGEX = regexp.MustCompile(
 		fmt.Sprintf(
@@ -35,8 +40,8 @@ var (
 			BASE_REGEX_STR,
 		),
 	)
-	CREATOR_URL_REGEX_SERVICE_INDEX = CREATOR_URL_REGEX.SubexpIndex("service")
-	CREATOR_URL_REGEX_CREATOR_ID_INDEX = CREATOR_URL_REGEX.SubexpIndex("creatorId")
+	CREATOR_URL_REGEX_SERVICE_INDEX = CREATOR_URL_REGEX.SubexpIndex(SERVICE_GROUP_NAME)
+	CREATOR_URL_REGEX_CREATOR_ID_INDEX = CREATOR_URL_REGEX.SubexpIndex(CREATOR_ID_GROUP_NAME)
 )
 
 type KemonoDl struct {
@@ -142,12 +147,14 @@ func (k *KemonoDl) ValidateArgs() {
 	}
 
 	if len(k.CreatorUrls) > 0 {
-		k.CreatorsToDl = ProcessCreatorUrls(k.CreatorUrls, k.CreatorPageNums)
+		creatorsToDl := ProcessCreatorUrls(k.CreatorUrls, k.CreatorPageNums)
+		k.CreatorsToDl = append(k.CreatorsToDl, creatorsToDl...)
 		k.CreatorUrls = nil
 		k.CreatorPageNums = nil
 	}
 	if len(k.PostUrls) > 0 {
-		k.PostsToDl = ProcessPostUrls(k.PostUrls)
+		postsToDl := ProcessPostUrls(k.PostUrls)
+		k.PostsToDl = append(k.PostsToDl, postsToDl...)
 		k.PostUrls = nil
 	}
 	k.RemoveDuplicates()

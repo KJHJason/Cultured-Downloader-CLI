@@ -6,6 +6,7 @@ import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/KJHJason/Cultured-Downloader-CLI/cmds/textparser"
 	"github.com/spf13/cobra"
 )
 
@@ -13,7 +14,7 @@ var (
 	kemonoDlTextFile    string
 	kemonoCookieFile    string
 	kemonoSession       string
-	kemonoCreatorUrls    []string
+	kemonoCreatorUrls   []string
 	kemonoPageNums      []string
 	kemonoPostUrls      []string
 	kemonoDlGdrive      bool
@@ -42,23 +43,15 @@ var (
 				)
 			}
 
-			if kemonoDlTextFile != "" {
-				// TODO: Implement Kemono Party text file parsing
-				return
-
-				// postIds, fanclubInfoSlice := parseFantiaTextFile(kemonoDlTextFile)
-				// fantiaPostIds = append(fantiaPostIds, postIds...)
-
-				// for _, fanclubInfo := range fanclubInfoSlice {
-				// 	fantiaFanclubIds = append(fantiaFanclubIds, fanclubInfo.FanclubId)
-				// 	fantiaPageNums = append(fantiaPageNums, fanclubInfo.PageNum)
-				// }
-			}
-
 			kemonoDl := &kemono.KemonoDl{
 				CreatorUrls:     kemonoCreatorUrls,
 				CreatorPageNums: kemonoPageNums,
 				PostUrls:        kemonoPostUrls,
+			}
+			if kemonoDlTextFile != "" {
+				kemonoPostToDl, kemonoCreatorToDl := textparser.ParseKemonoTextFile(kemonoDlTextFile)
+				kemonoDl.PostsToDl = kemonoPostToDl
+				kemonoDl.CreatorsToDl = kemonoCreatorToDl
 			}
 			kemonoDl.ValidateArgs()
 
@@ -102,7 +95,7 @@ func init() {
 	mutlipleUrlsMsg := "Multiple URLs can be supplied by separating them with a comma.\n" + 
 						"Example: \"https://kemono.party/service/user/123,https://kemono.party/service/user/456\" (without the quotes)"
 	kemonoCmd.Flags().StringVarP(
-		&fantiaSession,
+		&kemonoSession,
 		"session",
 		"s",
 		"",
@@ -125,7 +118,7 @@ func init() {
 		),
 	)
 	kemonoCmd.Flags().StringSliceVar(
-		&fantiaPageNums,
+		&kemonoPageNums,
 		"page_num",
 		[]string{},
 		utils.CombineStringsWithNewline(

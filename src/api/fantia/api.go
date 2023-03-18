@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"net/http"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
@@ -147,6 +148,42 @@ func (f *FantiaDl) dlFantiaPosts(fantiaDlOptions *FantiaDlOptions, config *confi
 	}
 }
 
+// Parse the HTML response from the creator's page to get the post IDs.
+func parseCreatorHtml(res *http.Response, creatorId string) ([]string, error) {
+	// parse the response
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	res.Body.Close()
+	if err != nil {
+		err = fmt.Errorf(
+			"fantia error %d, failed to parse response body when getting posts for Fantia Fanclub %s, more info => %v",
+			utils.HTML_ERROR,
+			creatorId,
+			err,
+		)
+		return nil, err
+	}
+
+	// get the post ids similar to using the xpath of //a[@class='link-block']
+	hasHtmlErr := false
+	var postIds []string
+	doc.Find("a.link-block").Each(func(i int, s *goquery.Selection) {
+		if href, exists := s.Attr("href"); exists {
+			postIds = append(postIds, utils.GetLastPartOfUrl(href))
+		} else if !hasHtmlErr {
+			hasHtmlErr = true
+		}
+	})
+
+	if hasHtmlErr {
+		return nil, fmt.Errorf(
+			"fantia error %d, failed to get href attribute for Fantia Fanclub %s, please report this issue",
+			utils.HTML_ERROR,
+			creatorId,
+		)
+	}
+	return postIds, nil
+}
+
 // Get all the creator's posts by using goquery to parse the HTML response to get the post IDs
 func getCreatorPosts(creatorId, pageNum string, config *configs.Config, dlOption *FantiaDlOptions) ([]string, error) {
 	var postIds []string
@@ -187,40 +224,14 @@ func getCreatorPosts(creatorId, pageNum string, config *configs.Config, dlOption
 			return nil, err
 		}
 
-		// parse the response
-		doc, err := goquery.NewDocumentFromReader(res.Body)
-		res.Body.Close()
+		creatorPostIds, err := parseCreatorHtml(res, creatorId)
 		if err != nil {
-			err = fmt.Errorf(
-				"fantia error %d, failed to parse response body when getting CSRF token from Fantia: %w",
-				utils.HTML_ERROR,
-				err,
-			)
 			return nil, err
 		}
-
-		// get the post ids similar to using the xpath of //a[@class='link-block']
-		hasPosts := false
-		hasHtmlErr := false
-		doc.Find("a.link-block").Each(func(i int, s *goquery.Selection) {
-			if href, exists := s.Attr("href"); exists {
-				postIds = append(postIds, utils.GetLastPartOfUrl(href))
-				hasPosts = true
-			} else {
-				hasHtmlErr = true
-			}
-		})
-
-		if hasHtmlErr {
-			return nil, fmt.Errorf(
-				"fantia error %d, failed to get href attribute for Fantia Fanclub %s, please report this issue",
-				utils.HTML_ERROR,
-				creatorId,
-			)
-		}
+		postIds = append(postIds, creatorPostIds...)
 
 		// if there are no more posts, break
-		if !hasPosts || (hasMax && curPage >= maxPage) {
+		if len(creatorPostIds) == 0 || (hasMax && curPage >= maxPage) {
 			break
 		}
 		curPage++
