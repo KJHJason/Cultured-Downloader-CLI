@@ -2,13 +2,18 @@ package cmds
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv"
+	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/web"
+	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/mobile"
+	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/ugoira"
 	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/spf13/cobra"
+	"github.com/fatih/color"
 )
 
 var (
@@ -40,7 +45,7 @@ var (
 			request.CheckInternetConnection()
 
 			if pixivStartOauth {
-				err := pixiv.NewPixivMobile("", 10).StartOauthFlow()
+				err := pixivmobile.NewPixivMobile("", 10).StartOauthFlow()
 				if err != nil {
 					utils.LogError(
 						err,
@@ -82,46 +87,66 @@ var (
 			}
 			pixivDl.ValidateArgs()
 
-			pixivUgoiraOptions := &pixiv.UgoiraOptions{
+			pixivUgoiraOptions := &ugoira.UgoiraOptions{
 				DeleteZip:    deleteUgoiraZip,
 				Quality:      ugoiraQuality,
 				OutputFormat: ugoiraOutputFormat,
 			}
 			pixivUgoiraOptions.ValidateArgs()
 
-			pixivDlOptions := &pixiv.PixivDlOptions{
-				SortOrder:       pixivSortOrder,
-				SearchMode:      pixivSearchMode,
-				RatingMode:      pixivRatingMode,
-				ArtworkType:     pixivArtworkType,
-				RefreshToken:    pixivRefreshToken,
-				SessionCookieId: pixivSession,
+			if pixivRefreshToken == "" && pixivSession == "" {
+				color.Red("You must provide a refresh token or session cookie ID to download from Pixiv.")
+				os.Exit(1)
 			}
-			if pixivCookieFile != "" {
-				cookies, err := utils.ParseNetscapeCookieFile(
-					pixivCookieFile,
-					pixivSession,
-					utils.PIXIV,
-				)
-				if err != nil {
-					utils.LogError(
-						err,
-						"",
-						true,
-						utils.ERROR,
-					)
-				}
-				pixivDlOptions.SessionCookies = cookies
-			}
-			pixivDlOptions.ValidateArgs(pixivUserAgent)
 
 			utils.PrintWarningMsg()
-			pixiv.PixivDownloadProcess(
-				pixivConfig,
-				pixivDl,
-				pixivDlOptions,
-				pixivUgoiraOptions,
-			)
+			if pixivRefreshToken != "" {
+				pixivDlOptions := &pixivmobile.PixivMobileDlOptions{
+					SortOrder:       pixivSortOrder,
+					SearchMode:      pixivSearchMode,
+					RatingMode:      pixivRatingMode,
+					ArtworkType:     pixivArtworkType,
+					RefreshToken:    pixivRefreshToken,
+				}
+				pixivDlOptions.ValidateArgs(pixivUserAgent)
+				pixiv.PixivMobileDownloadProcess(
+					pixivConfig,
+					pixivDl,
+					pixivDlOptions,
+					pixivUgoiraOptions,
+				)
+			} else {
+				pixivDlOptions := &pixivweb.PixivWebDlOptions{
+					SortOrder:       pixivSortOrder,
+					SearchMode:      pixivSearchMode,
+					RatingMode:      pixivRatingMode,
+					ArtworkType:     pixivArtworkType,
+					SessionCookieId: pixivSession,
+				}
+				if pixivCookieFile != "" {
+					cookies, err := utils.ParseNetscapeCookieFile(
+						pixivCookieFile,
+						pixivSession,
+						utils.PIXIV,
+					)
+					if err != nil {
+						utils.LogError(
+							err,
+							"",
+							true,
+							utils.ERROR,
+						)
+					}
+					pixivDlOptions.SessionCookies = cookies
+				}
+				pixivDlOptions.ValidateArgs(pixivUserAgent)
+				pixiv.PixivWebDownloadProcess(
+					pixivConfig,
+					pixivDl,
+					pixivDlOptions,
+					pixivUgoiraOptions,
+				)
+			}
 		},
 	}
 )
@@ -200,7 +225,7 @@ func init() {
 				"Output format for the ugoira conversion using FFmpeg.",
 				fmt.Sprintf(
 					"Accepted Extensions: %s\n",
-					strings.TrimSpace(strings.Join(pixiv.UGOIRA_ACCEPTED_EXT, ", ")),
+					strings.TrimSpace(strings.Join(ugoira.UGOIRA_ACCEPTED_EXT, ", ")),
 				),
 			},
 		),

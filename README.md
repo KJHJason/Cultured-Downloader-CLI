@@ -19,7 +19,7 @@
 
 ## Introduction
 
-Based on the original [Cultured Downloader](https://github.com/KJHJason/Cultured-Downloader), this is a command line interface (CLI) version of the program with more flexibility for automating downloads from your favorite platforms.
+Based on the original [Cultured Downloader](https://github.com/KJHJason/Cultured-Downloader), this is a command line interface (CLI) version of the program with more flexibility for automating downloads from your favourite platforms.
 
 You might have noticed that the CLI version of the program is coded in Go, while the original is coded in Python. 
 This is because of its in-built concurrency and the fact that I wanted to learn Go.

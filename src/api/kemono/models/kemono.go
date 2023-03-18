@@ -28,6 +28,15 @@ type MainKemonoJson struct {
 
 type KemonoJson []*MainKemonoJson
 
+type KemonoFavCreatorJson []struct {
+	FavedSeq int    `json:"faved_seq"`
+	Id       string `json:"id"`
+	Indexed  string `json:"indexed"`
+	Name     string `json:"name"`
+	Service  string `json:"service"`
+	Updated  string `json:"updated"`
+}
+
 type KemonoPostToDl struct {
 	Service   string
 	CreatorId string

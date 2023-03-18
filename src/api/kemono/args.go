@@ -94,6 +94,8 @@ func (k *KemonoDlOptions) ValidateArgs(userAgent string) {
 		k.SessionCookies = []*http.Cookie{
 			api.VerifyAndGetCookie(utils.KEMONO, k.SessionCookieId, userAgent),
 		}
+	} else {
+		color.Red("kemono error %d: session cookie ID is required", utils.INPUT_ERROR)
 	}
 
 	if k.DlGdrive && k.GDriveClient == nil {

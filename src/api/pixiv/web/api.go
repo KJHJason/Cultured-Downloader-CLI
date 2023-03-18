@@ -1,4 +1,4 @@
-package pixiv
+package pixivweb
 
 import (
 	"encoding/json"
@@ -6,69 +6,14 @@ import (
 	"net/http"
 	"path/filepath"
 	"strconv"
-	"time"
 
+	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/common"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/models"
 	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
-
-const (
-	illust = iota
-	manga
-	ugoira
-)
-
-// This is due to Pixiv's strict rate limiting.
-//
-// Without delays, the user might get 429 too many requests
-// or the user's account might get suspended.
-//
-// Additionally, pixiv.net is protected by cloudflare, so
-// to prevent the user's IP reputation from going down, delays are added.
-//
-// More info: https://github.com/Nandaka/PixivUtil2/issues/477
-func pixivSleep() {
-	time.Sleep(utils.GetRandomTime(0.5, 1.0))
-}
-
-// Process the artwork details JSON and returns a map of urls
-// with its file path or a Ugoira struct (One of them will be null depending on the artworkType)
-func processArtworkJson(res *http.Response, artworkType int64, postDownloadDir string) ([]*request.ToDownload, *models.Ugoira, error) {
-	if artworkType == ugoira {
-		var ugoiraJson models.PixivWebArtworkUgoiraJson
-		err := utils.LoadJsonFromResponse(res, &ugoiraJson)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		ugoiraMap := ugoiraJson.Body
-		originalUrl := ugoiraMap.OriginalSrc
-		ugoiraInfo := &models.Ugoira{
-			Url:      originalUrl,
-			FilePath: postDownloadDir,
-			Frames:   MapDelaysToFilename(ugoiraMap.Frames),
-		}
-		return nil, ugoiraInfo, nil
-	}
-
-	var artworkUrls models.PixivWebArtworkJson
-	err := utils.LoadJsonFromResponse(res, &artworkUrls)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	var urlsToDownload []*request.ToDownload
-	for _, artworkUrl := range artworkUrls.Body {
-		urlsToDownload = append(urlsToDownload, &request.ToDownload{
-			Url:      artworkUrl.Urls.Original,
-			FilePath: postDownloadDir,
-		})
-	}
-	return urlsToDownload, nil, nil
-}
 
 // Retrieves details of an artwork ID and returns
 // the folder path to download the artwork to, the JSON response, and the artwork type
@@ -77,8 +22,8 @@ func getArtworkDetails(artworkId, downloadPath string, config *configs.Config, c
 		return nil, nil, nil
 	}
 
-	headers := GetPixivRequestHeaders()
-	headers["Referer"] = GetUserUrl(artworkId)
+	headers := pixivcommon.GetPixivRequestHeaders()
+	headers["Referer"] = pixivcommon.GetUserUrl(artworkId)
 	url := fmt.Sprintf("%s/illust/%s", utils.PIXIV_API_URL, artworkId)
 	artworkDetailsRes, err := request.CallRequest(
 		&request.RequestArgs{
@@ -147,9 +92,9 @@ func getArtworkDetails(artworkId, downloadPath string, config *configs.Config, c
 
 	artworkType := artworkJsonBody.IllustType
 	switch artworkType {
-	case illust, manga: // illustration or manga
+	case ILLUST, MANGA: // illustration or manga
 		url = fmt.Sprintf("%s/illust/%s/pages", utils.PIXIV_API_URL, artworkId)
-	case ugoira: // ugoira
+	case UGOIRA: // ugoira
 		url = fmt.Sprintf("%s/illust/%s/ugoira_meta", utils.PIXIV_API_URL, artworkId)
 	default:
 		err = fmt.Errorf(
@@ -206,7 +151,7 @@ func getArtworkDetails(artworkId, downloadPath string, config *configs.Config, c
 
 // Retrieves multiple artwork details based on the given slice of artwork IDs
 // and returns a map to use for downloading and a slice of Ugoira structures
-func getMultipleArtworkDetails(artworkIds []string, downloadPath string, config *configs.Config, cookies []*http.Cookie) ([]*request.ToDownload, []*models.Ugoira) {
+func GetMultipleArtworkDetails(artworkIds []string, downloadPath string, config *configs.Config, cookies []*http.Cookie) ([]*request.ToDownload, []*models.Ugoira) {
 	var errSlice []error
 	var ugoiraDetails []*models.Ugoira
 	var artworkDetails []*request.ToDownload
@@ -268,9 +213,9 @@ func getMultipleArtworkDetails(artworkIds []string, downloadPath string, config 
 }
 
 // Query Pixiv's API for all the illustrator's posts
-func getIllustratorPosts(illustratorId, pageNum string, config *configs.Config, pixivDlOptions *PixivDlOptions) ([]string, error) {
-	headers := GetPixivRequestHeaders()
-	headers["Referer"] = GetIllustUrl(illustratorId)
+func getIllustratorPosts(illustratorId, pageNum string, config *configs.Config, pixivDlOptions *PixivWebDlOptions) ([]string, error) {
+	headers := pixivcommon.GetPixivRequestHeaders()
+	headers["Referer"] = pixivcommon.GetIllustUrl(illustratorId)
 	url := fmt.Sprintf("%s/user/%s/profile/all", utils.PIXIV_API_URL, illustratorId)
 
 	res, err := request.CallRequest(
@@ -312,7 +257,7 @@ func getIllustratorPosts(illustratorId, pageNum string, config *configs.Config, 
 	if err != nil {
 		return nil, err
 	}
-	minOffset, maxOffset := ConvertPageNumToOffset(minPage, maxPage, utils.PIXIV_PER_PAGE, false)
+	minOffset, maxOffset := pixivcommon.ConvertPageNumToOffset(minPage, maxPage, utils.PIXIV_PER_PAGE, false)
 
 	var artworkIds []string
 	if pixivDlOptions.ArtworkType == "all" || pixivDlOptions.ArtworkType == "illust_and_ugoira" {
@@ -360,7 +305,7 @@ func getIllustratorPosts(illustratorId, pageNum string, config *configs.Config, 
 }
 
 // Get posts from multiple illustrators and returns a slice of artwork IDs
-func getMultipleIllustratorPosts(illustratorIds, pageNums []string, downloadPath string, config *configs.Config, pixivDlOptions *PixivDlOptions) []string {
+func GetMultipleIllustratorPosts(illustratorIds, pageNums []string, downloadPath string, config *configs.Config, pixivDlOptions *PixivWebDlOptions) []string {
 	var errSlice []error
 	var artworkIdsSlice []string
 	illustratorIdsLen := len(illustratorIds)
@@ -414,35 +359,9 @@ func getMultipleIllustratorPosts(illustratorIds, pageNums []string, downloadPath
 	return artworkIdsSlice
 }
 
-// Process the tag search results JSON and returns a slice of artwork IDs
-func processTagJsonResults(res *http.Response) ([]string, error) {
-	var pixivTagJson models.PixivTag
-	resBody, err := utils.ReadResBody(res)
-	if err != nil {
-		return nil, err
-	}
-
-	err = json.Unmarshal(resBody, &pixivTagJson)
-	if err != nil {
-		err = fmt.Errorf(
-			"pixiv error %d: failed to unmarshal json for Pixiv's Tag JSON due to %v\nJSON: %s",
-			utils.JSON_ERROR,
-			err,
-			string(resBody),
-		)
-		return nil, err
-	}
-
-	artworksSlice := []string{}
-	for _, illust := range pixivTagJson.Body.IllustManga.Data {
-		artworksSlice = append(artworksSlice, illust.Id)
-	}
-	return artworksSlice, nil
-}
-
 // Query Pixiv's API and search for posts based on the supplied tag name
 // which will return a map and a slice of Ugoira structures for downloads
-func tagSearch(tagName, downloadPath, pageNum string, config *configs.Config, dlOptions *PixivDlOptions) ([]*request.ToDownload, []*models.Ugoira, bool) {
+func TagSearch(tagName, downloadPath, pageNum string, config *configs.Config, dlOptions *PixivWebDlOptions) ([]*request.ToDownload, []*models.Ugoira, bool) {
 	minPage, maxPage, hasMax, err := utils.GetMinMaxFromStr(pageNum)
 	if err != nil {
 		utils.LogError(err, "", false, utils.ERROR)
@@ -470,7 +389,7 @@ func tagSearch(tagName, downloadPath, pageNum string, config *configs.Config, dl
 
 	var errSlice []error
 	var artworkIds []string
-	headers := GetPixivRequestHeaders()
+	headers := pixivcommon.GetPixivRequestHeaders()
 	headers["Referer"] = fmt.Sprintf(
 		"%s/tags/%s/artworks",
 		utils.PIXIV_URL,
@@ -531,7 +450,7 @@ func tagSearch(tagName, downloadPath, pageNum string, config *configs.Config, dl
 		utils.LogErrors(false, nil, utils.ERROR, errSlice...)
 	}
 
-	artworkSlice, ugoiraSlice := getMultipleArtworkDetails(
+	artworkSlice, ugoiraSlice := GetMultipleArtworkDetails(
 		artworkIds,
 		downloadPath,
 		config,

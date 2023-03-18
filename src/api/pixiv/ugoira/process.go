@@ -1,67 +1,24 @@
-package pixiv
+package ugoira
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"sort"
 	"strconv"
+	"syscall"
 
+	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/common"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/models"
 	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
-
-// Returns a defined request header needed to communicate with Pixiv's API
-func GetPixivRequestHeaders() map[string]string {
-	return map[string]string{
-		"Origin":  utils.PIXIV_URL,
-		"Referer": utils.PIXIV_URL,
-	}
-}
-
-// Get the Pixiv illust page URL for the referral header value
-func GetIllustUrl(illustId string) string {
-	return fmt.Sprintf(
-		"%s/artworks/%s",
-		utils.PIXIV_URL,
-		illustId,
-	)
-}
-
-// Get the Pixiv user page URL for the referral header value
-func GetUserUrl(userId string) string {
-	return fmt.Sprintf(
-		"%s/users/%s",
-		utils.PIXIV_URL,
-		userId,
-	)
-}
-
-// Convert the page number to the offset as one page will have 60 illustrations.
-//
-// Usually for paginated results from Pixiv's mobile API, checkPixivMax should be set to true.
-func ConvertPageNumToOffset(minPageNum, maxPageNum, perPage int, checkPixivMax bool) (int, int) {
-	minOffset, maxOffset := utils.ConvertPageNumToOffset(
-		minPageNum, 
-		maxPageNum, 
-		perPage,
-	)
-	if checkPixivMax {
-		// Check if the offset is larger than Pixiv's max offset
-		if maxOffset > 5000 {
-			maxOffset = 5000
-		}
-		if minOffset > 5000 {
-			minOffset = 5000
-		}
-	}
-	return minOffset, maxOffset
-}
 
 // Map the Ugoira frame delays to their respective filenames
 func MapDelaysToFilename(ugoiraFramesJson models.UgoiraFramesJson) map[string]int64 {
@@ -263,7 +220,7 @@ func GetUgoiraFilePaths(ugoireFilePath, ugoiraUrl, outputFormat string) (string,
 }
 
 // Downloads multiple Ugoira artworks and converts them based on the output format
-func downloadMultipleUgoira(downloadInfo []*models.Ugoira, config *configs.Config, ugoiraOptions *UgoiraOptions, cookies []*http.Cookie) {
+func DownloadMultipleUgoira(downloadInfo []*models.Ugoira, config *configs.Config, ugoiraOptions *UgoiraOptions, cookies []*http.Cookie) {
 	var urlsToDownload []*request.ToDownload
 	for _, ugoira := range downloadInfo {
 		filePath, outputFilePath := GetUgoiraFilePaths(
@@ -279,7 +236,7 @@ func downloadMultipleUgoira(downloadInfo []*models.Ugoira, config *configs.Confi
 		}
 	}
 
-	pixivHeaders := GetPixivRequestHeaders()
+	pixivHeaders := pixivcommon.GetPixivRequestHeaders()
 	request.DownloadUrls(
 		urlsToDownload,
 		&request.DlOptions{
@@ -290,6 +247,19 @@ func downloadMultipleUgoira(downloadInfo []*models.Ugoira, config *configs.Confi
 		},
 		config,
 	)
+
+	// Create a context that can be cancelled when SIGINT/SIGTERM signal is received
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Catch SIGINT/SIGTERM signal and cancel the context when received
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigs
+		cancel()
+	}()
+	defer signal.Stop(sigs)
 
 	var errSlice []error
 	downloadInfoLen := len(downloadInfo)
@@ -314,7 +284,7 @@ func downloadMultipleUgoira(downloadInfo []*models.Ugoira, config *configs.Confi
 		downloadInfoLen,
 	)
 	progress.Start()
-	for _, ugoira := range downloadInfo {
+	for i, ugoira := range downloadInfo {
 		zipFilePath, outputPath := GetUgoiraFilePaths(ugoira.FilePath, ugoira.Url, ugoiraOptions.OutputFormat)
 		if utils.PathExists(outputPath) {
 			progress.MsgIncrement(baseMsg)
@@ -329,8 +299,18 @@ func downloadMultipleUgoira(downloadInfo []*models.Ugoira, config *configs.Confi
 			filepath.Dir(zipFilePath),
 			"unzipped",
 		)
-		err := utils.ExtractFiles(zipFilePath, unzipFolderPath, true)
+		err := utils.ExtractFiles(ctx, zipFilePath, unzipFolderPath, true)
 		if err != nil {
+			if err == context.Canceled {
+				progress.KillProgram(
+					fmt.Sprintf(
+						"Stopped converting ugoira to %s [%d/%d]!", 
+						ugoiraOptions.OutputFormat, 
+						i, 
+						len(downloadInfo),
+					),
+				)
+			}
 			err := fmt.Errorf(
 				"pixiv error %d: failed to unzip file %s, more info => %v",
 				utils.OS_ERROR,

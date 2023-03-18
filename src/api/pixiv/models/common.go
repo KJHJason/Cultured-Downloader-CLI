@@ -1,6 +1,5 @@
 package models
 
-
 type Ugoira struct {
 	Url      string
 	FilePath string

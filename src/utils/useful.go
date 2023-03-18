@@ -493,7 +493,7 @@ func CombineStringsWithNewline(strs []string) string {
 // Extract all files from the given archive file to the given destination
 //
 // Code based on https://stackoverflow.com/a/24792688/2737403
-func ExtractFiles(src, dest string, ignoreIfMissing bool) error {
+func ExtractFiles(ctx context.Context, src, dest string, ignoreIfMissing bool) error {
 	if !PathExists(src) {
 		if ignoreIfMissing {
 			return nil
@@ -542,53 +542,62 @@ func ExtractFiles(src, dest string, ignoreIfMissing bool) error {
 		input = archiveReader
 	}
 
-	if ex, ok := format.(archiver.Extractor); ok {
-		handler := func(ctx context.Context, file archiver.File) error {
-			extractedFilePath := filepath.Join(dest, file.NameInArchive)
-			os.MkdirAll(filepath.Dir(extractedFilePath), 0666)
+	ex, ok := format.(archiver.Extractor)
+	if !ok {
+		return fmt.Errorf(
+			"error %d: unable to extract zip file %s, more info => %v",
+			UNEXPECTED_ERROR,
+			src,
+			err,
+		)
+	}
 
-			af, err := file.Open()
-			if err != nil {
-				return err
-			}
-			defer af.Close()
+	handler := func(ctx context.Context, file archiver.File) error {
+		extractedFilePath := filepath.Join(dest, file.NameInArchive)
+		os.MkdirAll(filepath.Dir(extractedFilePath), 0666)
 
-			out, err := os.OpenFile(
-				extractedFilePath,
-				os.O_WRONLY|os.O_CREATE|os.O_TRUNC,
-				file.Mode(),
-			)
-			if err != nil {
-				return err
-			}
-			defer out.Close()
-
-			_, err = io.Copy(out, af)
-			if err != nil {
-				return err
-			}
-			return nil
-		}
-
-		err = ex.Extract(context.Background(), input, nil, handler)
+		af, err := file.Open()
 		if err != nil {
-			err = fmt.Errorf(
-				"error %d: unable to extract zip file %s, more info => %v",
-				OS_ERROR,
-				src,
-				err,
-			)
+			return err
+		}
+		defer af.Close()
+
+		out, err := os.OpenFile(
+			extractedFilePath,
+			os.O_WRONLY|os.O_CREATE|os.O_TRUNC,
+			file.Mode(),
+		)
+		if err != nil {
+			return err
+		}
+		defer out.Close()
+
+		_, err = io.Copy(out, af)
+		if err != nil {
 			return err
 		}
 		return nil
 	}
 
-	return fmt.Errorf(
-		"error %d: unable to extract zip file %s, more info => %v",
-		UNEXPECTED_ERROR,
-		src,
-		err,
-	)
+	err = ex.Extract(ctx, input, nil, handler)
+	if err != nil {
+		if err == context.Canceled {
+			// delete all the files that were extracted
+			err := os.RemoveAll(dest)
+			if err != nil {
+				LogError(err, "", false, ERROR)
+			}
+			return err
+		}
+		err = fmt.Errorf(
+			"error %d: unable to extract zip file %s, more info => %v",
+			OS_ERROR,
+			src,
+			err,
+		)
+		return err
+	}
+	return nil
 }
 
 // Checks if the slice of string all matches the given regex pattern

@@ -20,15 +20,16 @@ type logger struct {
 	debugLogger *log.Logger
 }
 
+var loggerPrefix = fmt.Sprintf("[Cultured Downloader CLI V%s] ", VERSION)
 func NewLogger(out io.Writer) *logger {
 	if out == nil {
 		out = os.Stdout
 	}
 
 	return &logger{
-		infoLogger:  log.New(out, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile),
-		errorLogger: log.New(out, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile),
-		debugLogger: log.New(out, "DEBUG: ", log.Ldate|log.Ltime|log.Lshortfile),
+		infoLogger:  log.New(out, loggerPrefix + "[INFO]: ", log.Ldate|log.Ltime|log.Lshortfile),
+		errorLogger: log.New(out, loggerPrefix + "[ERROR]: ", log.Ldate|log.Ltime|log.Lshortfile),
+		debugLogger: log.New(out, loggerPrefix + "[DEBUG]: ", log.Ldate|log.Ltime|log.Lshortfile),
 	}
 }
 
