@@ -1,7 +1,6 @@
 package pixivfanbox
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync"
@@ -151,19 +150,8 @@ func getCreatorPaginatedPosts(creatorId string, config *configs.Config, dlOption
 	}
 
 	var resJson models.CreatorPaginatedPostsJson
-	resBody, err := utils.ReadResBody(res)
+	err = utils.LoadJsonFromResponse(res, &resJson)
 	if err != nil {
-		return nil, err
-	}
-
-	err = json.Unmarshal(resBody, &resJson)
-	if err != nil {
-		err = fmt.Errorf(
-			"pixiv fanbox error %d: failed to unmarshal json for Pixiv Fanbox creator's pages for %s\nJSON: %s",
-			utils.JSON_ERROR,
-			creatorId,
-			string(resBody),
-		)
 		return nil, err
 	}
 	return resJson.Body, nil

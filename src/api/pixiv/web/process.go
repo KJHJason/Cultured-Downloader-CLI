@@ -1,8 +1,6 @@
 package pixivweb
 
 import (
-	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/models"
@@ -103,19 +101,8 @@ func processArtworkJson(res *http.Response, artworkType int64, postDownloadDir s
 // Process the tag search results JSON and returns a slice of artwork IDs
 func processTagJsonResults(res *http.Response) ([]string, error) {
 	var pixivTagJson models.PixivTag
-	resBody, err := utils.ReadResBody(res)
+	err := utils.LoadJsonFromResponse(res, &pixivTagJson)
 	if err != nil {
-		return nil, err
-	}
-
-	err = json.Unmarshal(resBody, &pixivTagJson)
-	if err != nil {
-		err = fmt.Errorf(
-			"pixiv error %d: failed to unmarshal json for Pixiv's Tag JSON due to %v\nJSON: %s",
-			utils.JSON_ERROR,
-			err,
-			string(resBody),
-		)
 		return nil, err
 	}
 

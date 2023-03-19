@@ -1,7 +1,6 @@
 package gdrive
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -192,22 +191,12 @@ func (gdrive *GDrive) GetFolderContents(folderId, logPath string, config *config
 			return nil, err
 		}
 
-		gdriveRes, err := utils.ReadResBody(res)
+		var gdriveFolder GDriveFolder
+		err = utils.LoadJsonFromResponse(res, &gdriveFolder)
 		if err != nil {
 			return nil, err
 		}
 
-		gdriveFolder := GDriveFolder{}
-		if err := json.Unmarshal(gdriveRes, &gdriveFolder); err != nil {
-			err = fmt.Errorf(
-				"gdrive error %d: failed to unmarshal GDrive folder contents with ID of %s, more info => %v\nResponse body: %s",
-				utils.JSON_ERROR,
-				folderId,
-				err,
-				string(gdriveRes),
-			)
-			return nil, err
-		}
 		for _, file := range gdriveFolder.Files {
 			files = append(files, &gdriveFileToDl{
 				Id:          file.Id,
@@ -281,20 +270,9 @@ func (gdrive *GDrive) GetFileDetails(gdriveInfo *GDriveToDl, config *configs.Con
 		return nil, nil
 	}
 
-	resBody, err := utils.ReadResBody(res)
-	if err != nil {
-		return nil, err
-	}
-
 	var gdriveFile GDriveFile
-	if err := json.Unmarshal(resBody, &gdriveFile); err != nil {
-		err = fmt.Errorf(
-			"gdrive error %d: failed to unmarshal GDrive file details with ID of %s, more info => %s\nResponse body: %v",
-			utils.JSON_ERROR,
-			gdriveInfo.Id,
-			err,
-			string(resBody),
-		)
+	err = utils.LoadJsonFromResponse(res, &gdriveFile)
+	if err != nil {
 		return nil, err
 	}
 
