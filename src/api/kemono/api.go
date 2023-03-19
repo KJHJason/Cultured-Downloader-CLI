@@ -24,7 +24,7 @@ func getPostDetails(config *configs.Config, post *models.KemonoPostToDl, downloa
 		&request.RequestArgs{
 			Url: fmt.Sprintf(
 				"%s/%s/user/%s/post/%s",
-				utils.KEMONO_URL,
+				utils.KEMONO_API_URL,
 				post.Service,
 				post.CreatorId,
 				post.PostId,
@@ -144,7 +144,7 @@ func getCreatorPosts(config *configs.Config, creator *models.KemonoCreatorToDl, 
 			&request.RequestArgs{
 				Url: fmt.Sprintf(
 					"%s/%s/user/%s",
-					utils.KEMONO_URL,
+					utils.KEMONO_API_URL,
 					creator.Service,
 					creator.CreatorId,
 				),
