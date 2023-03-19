@@ -23,7 +23,7 @@ func (pixiv *PixivMobile) getUgoiraMetadata(illustId, dlFilePath string) (*model
 		map[string]string{"Referer": pixiv.baseUrl},
 	)
 
-	res, err := pixiv.sendRequest(
+	res, err := pixiv.SendRequest(
 		&request.RequestArgs{
 			Url:         ugoiraUrl,
 			CheckStatus: true,
@@ -63,10 +63,9 @@ func (pixiv *PixivMobile) getArtworkDetails(artworkId, downloadPath string) ([]*
 	artworkUrl := pixiv.baseUrl + "/v1/illust/detail"
 	params := map[string]string{"illust_id": artworkId}
 
-	res, err := pixiv.sendRequest(
+	res, err := pixiv.SendRequest(
 		&request.RequestArgs{
 			Url:         artworkUrl,
-			Headers:     pixiv.getHeaders(),
 			Params:      params,
 			CheckStatus: true,
 		},
@@ -173,10 +172,9 @@ func (pixiv *PixivMobile) getIllustratorPosts(userId, pageNum, downloadPath, art
 startLoop:
 	curOffset := minOffset
 	for nextUrl != "" {
-		res, err := pixiv.sendRequest(
+		res, err := pixiv.SendRequest(
 			&request.RequestArgs{
 				Url:         nextUrl,
-				Headers:     pixiv.getHeaders(),
 				Params:      params,
 				CheckStatus: true,
 			},
@@ -310,10 +308,9 @@ func (pixiv *PixivMobile) TagSearch(tagName, downloadPath, pageNum string, dlOpt
 	}
 	curOffset := minOffset
 	for nextUrl != "" {
-		res, err := pixiv.sendRequest(
+		res, err := pixiv.SendRequest(
 			&request.RequestArgs{
 				Url:         nextUrl,
-				Headers:     pixiv.getHeaders(),
 				Params:      params,
 				CheckStatus: true,
 			},

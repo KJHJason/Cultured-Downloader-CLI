@@ -98,6 +98,7 @@ func PixivWebDownloadProcess(config *configs.Config, pixivDl *PixivDl, pixivDlOp
 			config,
 			pixivUgoiraOptions,
 			pixivDlOptions.SessionCookies,
+			request.CallRequest,
 		)
 	}
 }
@@ -181,6 +182,7 @@ func PixivMobileDownloadProcess(config *configs.Config, pixivDl *PixivDl, pixivD
 			config,
 			pixivUgoiraOptions,
 			nil,
+			pixivDlOptions.MobileClient.SendRequest,
 		)
 	}
 }

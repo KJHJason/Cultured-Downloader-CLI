@@ -87,9 +87,13 @@ func (pixiv *PixivMobile) getHeaders(additional ...map[string]string) map[string
 // Sends a request to the Pixiv API and refreshes the access token if required
 //
 // Returns the JSON interface and errors if any
-func (pixiv *PixivMobile) sendRequest(reqArgs *request.RequestArgs) (*http.Response, error) {
-	reqArgs.Method = "GET"
-	reqArgs.Timeout = pixiv.apiTimeout
+func (pixiv *PixivMobile) SendRequest(reqArgs *request.RequestArgs) (*http.Response, error) {
+	if reqArgs.Method == "" {
+		reqArgs.Method = "GET"
+	}
+	if reqArgs.Timeout == 0 {
+		reqArgs.Timeout = pixiv.apiTimeout
+	}
 	reqArgs.ValidateArgs()
 	req, err := http.NewRequest(reqArgs.Method, reqArgs.Url, nil)
 	if err != nil {

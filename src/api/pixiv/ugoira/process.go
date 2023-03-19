@@ -186,7 +186,7 @@ func convertMultipleUgoira(downloadInfo []*models.Ugoira, config *configs.Config
 }
 
 // Downloads multiple Ugoira artworks and converts them based on the output format
-func DownloadMultipleUgoira(downloadInfo []*models.Ugoira, config *configs.Config, ugoiraOptions *UgoiraOptions, cookies []*http.Cookie) {
+func DownloadMultipleUgoira(downloadInfo []*models.Ugoira, config *configs.Config, ugoiraOptions *UgoiraOptions, cookies []*http.Cookie, reqHandler request.RequestHandler) {
 	var urlsToDownload []*request.ToDownload
 	for _, ugoira := range downloadInfo {
 		filePath, outputFilePath := GetUgoiraFilePaths(
@@ -203,7 +203,7 @@ func DownloadMultipleUgoira(downloadInfo []*models.Ugoira, config *configs.Confi
 	}
 
 	pixivHeaders := pixivcommon.GetPixivRequestHeaders()
-	request.DownloadUrls(
+	request.DownloadUrlsWithHandler(
 		urlsToDownload,
 		&request.DlOptions{
 			MaxConcurrency: utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
@@ -212,6 +212,7 @@ func DownloadMultipleUgoira(downloadInfo []*models.Ugoira, config *configs.Confi
 			UseHttp3:       false,
 		},
 		config,
+		reqHandler,
 	)
 
 	convertMultipleUgoira(downloadInfo, config, ugoiraOptions, cookies)

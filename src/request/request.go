@@ -195,10 +195,12 @@ func CallRequestWithData(reqArgs *RequestArgs, data map[string]string) (*http.Re
 	return sendRequest(req, reqArgs)
 }
 
-// DownloadUrl is used to download a file from a URL
+type RequestHandler func (reqArgs *RequestArgs) (*http.Response, error)
+
+// DownloadUrlWithHandler is used to download a file from a URL
 //
 // Note: If the file already exists, the download process will be skipped
-func DownloadUrl(filePath string, queue chan struct{}, reqArgs *RequestArgs, overwriteExistingFile bool) error {
+func DownloadUrlWithHandler(filePath string, queue chan struct{}, reqArgs *RequestArgs, overwriteExistingFile bool, reqHandler RequestHandler) error {
 	// Create a context that can be cancelled when SIGINT/SIGTERM signal is received
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -216,7 +218,7 @@ func DownloadUrl(filePath string, queue chan struct{}, reqArgs *RequestArgs, ove
 	// Send a HEAD request first to get the expected file size from the Content-Length header.
 	// A GET request might work but most of the time
 	// as the Content-Length header may not present due to chunked encoding.
-	headRes, err := CallRequest(
+	headRes, err := reqHandler(
 		&RequestArgs{
 			Url:         reqArgs.Url,
 			Method:      "HEAD",
@@ -235,7 +237,7 @@ func DownloadUrl(filePath string, queue chan struct{}, reqArgs *RequestArgs, ove
 	headRes.Body.Close()
 
 	reqArgs.Context = ctx
-	res, err := CallRequest(reqArgs)
+	res, err := reqHandler(reqArgs)
 	if err != nil {
 		if err == context.Canceled {
 			return err
@@ -339,10 +341,15 @@ func DownloadUrl(filePath string, queue chan struct{}, reqArgs *RequestArgs, ove
 	return nil
 }
 
+// DownloadUrl is the same as DownloadUrlWithHandler but uses the default request handler (CallRequest)
+func DownloadUrl(filePath string, queue chan struct{}, reqArgs *RequestArgs, overwriteExistingFile bool) error {
+	return DownloadUrlWithHandler(filePath, queue, reqArgs, overwriteExistingFile, CallRequest)
+}
+
 // DownloadUrls is used to download multiple files from URLs concurrently
 //
 // Note: If the file already exists, the download process will be skipped
-func DownloadUrls(urlInfoSlice []*ToDownload, dlOptions *DlOptions, config *configs.Config) {
+func DownloadUrlsWithHandler(urlInfoSlice []*ToDownload, dlOptions *DlOptions, config *configs.Config, reqHandler RequestHandler) {
 	urlsLen := len(urlInfoSlice)
 	if urlsLen == 0 {
 		return
@@ -381,7 +388,7 @@ func DownloadUrls(urlInfoSlice []*ToDownload, dlOptions *DlOptions, config *conf
 				<-queue
 				wg.Done()
 			}()
-			err := DownloadUrl(
+			err := DownloadUrlWithHandler(
 				filePath,
 				queue,
 				&RequestArgs{
@@ -395,6 +402,7 @@ func DownloadUrls(urlInfoSlice []*ToDownload, dlOptions *DlOptions, config *conf
 					UserAgent: config.UserAgent,
 				},
 				config.OverwriteFiles,
+				reqHandler,
 			)
 			if err != nil {
 				errChan <- err
@@ -419,4 +427,9 @@ func DownloadUrls(urlInfoSlice []*ToDownload, dlOptions *DlOptions, config *conf
 		}
 	}
 	progress.Stop(hasErr)
+}
+
+// Same as DownloadUrlsWithHandler but uses the default request handler (CallRequest)
+func DownloadUrls(urlInfoSlice []*ToDownload, dlOptions *DlOptions, config *configs.Config) {
+	DownloadUrlsWithHandler(urlInfoSlice, dlOptions, config, CallRequest)
 }
