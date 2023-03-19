@@ -21,18 +21,19 @@ func PathExists(filepath string) bool {
 // If the file does not exist or
 // there was an error opening the file at the given file path string, -1 is returned
 func GetFileSize(filePath string) (int64, error) {
-	if PathExists(filePath) {
-		file, err := os.OpenFile(filePath, os.O_RDONLY, 0666)
-		if err != nil {
-			return -1, err
-		}
-		fileInfo, err := file.Stat()
-		if err != nil {
-			return -1, err
-		}
-		return fileInfo.Size(), nil
+	if !PathExists(filePath) {
+		return -1, os.ErrNotExist
 	}
-	return -1, nil
+
+	file, err := os.OpenFile(filePath, os.O_RDONLY, 0666)
+	if err != nil {
+		return -1, err
+	}
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return -1, err
+	}
+	return fileInfo.Size(), nil
 }
 
 // Thread-safe logging function that logs to the provided file path

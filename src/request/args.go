@@ -10,6 +10,8 @@ import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
 
+type RequestHandler func (reqArgs *RequestArgs) (*http.Response, error)
+
 type RequestArgs struct {
 	// Main Request Options
 	Method string
@@ -36,6 +38,9 @@ type RequestArgs struct {
 	// Context is used to cancel the request if needed.
 	// E.g. if the user presses Ctrl+C, we can use context.WithCancel(context.Background())
 	Context context.Context
+
+	// RequestHandler is the main function that will be called to make the request.
+	RequestHandler RequestHandler
 }
 
 var (
@@ -57,39 +62,7 @@ var (
 	}
 )
 
-// ValidateArgs validates the arguments of the request
-//
-// Will panic if the arguments are invalid as this is a developer error
-func (args *RequestArgs) ValidateArgs() {
-	if args.Method == "" {
-		panic(
-			fmt.Errorf(
-				"error %d: method cannot be empty",
-				utils.DEV_ERROR,
-			),
-		)
-	}
-
-	if args.Headers == nil {
-		args.Headers = make(map[string]string)
-	}
-
-	if args.Params == nil {
-		args.Params = make(map[string]string)
-	}
-
-	if args.Cookies == nil {
-		args.Cookies = make([]*http.Cookie, 0)
-	}
-
-	if args.UserAgent == "" {
-		args.UserAgent = utils.USER_AGENT
-	}
-
-	if args.Context == nil {
-		args.Context = context.Background()
-	}
-
+func (args *RequestArgs) validateHttp3Arg() {
 	if !args.Http2 && !args.Http3 {
 		// if http2 and http3 are not enabled,
 		// do a check to determine which protocol to use.
@@ -113,6 +86,49 @@ func (args *RequestArgs) ValidateArgs() {
 		panic(
 			fmt.Errorf(
 				"error %d: http2 and http3 cannot be enabled at the same time",
+				utils.DEV_ERROR,
+			),
+		)
+	}
+}
+
+func (args *RequestArgs) getDefaultArgs() {
+	if args.RequestHandler == nil {
+		args.RequestHandler = CallRequest
+	}
+
+	if args.Headers == nil {
+		args.Headers = make(map[string]string)
+	}
+
+	if args.Params == nil {
+		args.Params = make(map[string]string)
+	}
+
+	if args.Cookies == nil {
+		args.Cookies = make([]*http.Cookie, 0)
+	}
+
+	if args.UserAgent == "" {
+		args.UserAgent = utils.USER_AGENT
+	}
+
+	if args.Context == nil {
+		args.Context = context.Background()
+	}
+}
+
+// ValidateArgs validates the arguments of the request
+//
+// Will panic if the arguments are invalid as this is a developer error
+func (args *RequestArgs) ValidateArgs() {
+	args.getDefaultArgs()
+	args.validateHttp3Arg()
+
+	if args.Method == "" {
+		panic(
+			fmt.Errorf(
+				"error %d: method cannot be empty",
 				utils.DEV_ERROR,
 			),
 		)

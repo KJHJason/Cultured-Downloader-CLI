@@ -251,12 +251,12 @@ func (gdrive *GDrive) GetNestedFolderContents(folderId, logPath string, config *
 }
 
 // Retrieves the file details of the given GDrive file using GDrive API v3
-func (gdrive *GDrive) GetFileDetails(fileId, logPath string, config *configs.Config) (*gdriveFileToDl, error) {
+func (gdrive *GDrive) GetFileDetails(gdriveInfo *GDriveToDl, config *configs.Config) (*gdriveFileToDl, error) {
 	params := map[string]string{
 		"key":    gdrive.apiKey,
 		"fields": GDRIVE_FILE_FIELDS,
 	}
-	url := fmt.Sprintf("%s/%s", gdrive.apiUrl, fileId)
+	url := fmt.Sprintf("%s/%s", gdrive.apiUrl, gdriveInfo.Id)
 	res, err := request.CallRequest(
 		&request.RequestArgs{
 			Url:       url,
@@ -270,14 +270,14 @@ func (gdrive *GDrive) GetFileDetails(fileId, logPath string, config *configs.Con
 		err = fmt.Errorf(
 			"gdrive error %d: failed to get file details with ID of %s, more info => %v",
 			utils.CONNECTION_ERROR,
-			fileId,
+			gdriveInfo.Id,
 			err,
 		)
 		return nil, err
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		LogFailedGdriveAPICalls(res, logPath, utils.ERROR)
+		LogFailedGdriveAPICalls(res, gdriveInfo.FilePath, utils.ERROR)
 		return nil, nil
 	}
 
@@ -291,7 +291,7 @@ func (gdrive *GDrive) GetFileDetails(fileId, logPath string, config *configs.Con
 		err = fmt.Errorf(
 			"gdrive error %d: failed to unmarshal GDrive file details with ID of %s, more info => %s\nResponse body: %v",
 			utils.JSON_ERROR,
-			fileId,
+			gdriveInfo.Id,
 			err,
 			string(resBody),
 		)
@@ -304,6 +304,6 @@ func (gdrive *GDrive) GetFileDetails(fileId, logPath string, config *configs.Con
 		Size:        gdriveFile.Size,
 		MimeType:    gdriveFile.MimeType,
 		Md5Checksum: gdriveFile.Md5Checksum,
-		FilePath:    "",
+		FilePath:    gdriveInfo.FilePath,
 	}, nil
 }

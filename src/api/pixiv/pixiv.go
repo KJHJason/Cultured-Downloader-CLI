@@ -94,11 +94,13 @@ func PixivWebDownloadProcess(config *configs.Config, pixivDl *PixivDl, pixivDlOp
 	}
 	if len(ugoiraToDl) > 0 {
 		ugoira.DownloadMultipleUgoira(
-			false,
-			ugoiraToDl,
-			config,
+			&ugoira.UgoiraArgs{
+				UseMobileApi: false,
+				ToDownload:   ugoiraToDl,
+				Cookies:      pixivDlOptions.SessionCookies,
+			},
 			pixivUgoiraOptions,
-			pixivDlOptions.SessionCookies,
+			config,
 			request.CallRequest,
 		)
 	}
@@ -179,11 +181,13 @@ func PixivMobileDownloadProcess(config *configs.Config, pixivDl *PixivDl, pixivD
 	}
 	if len(ugoiraToDl) > 0 {
 		ugoira.DownloadMultipleUgoira(
-			true,
-			ugoiraToDl,
-			config,
+			&ugoira.UgoiraArgs{
+				UseMobileApi: true,
+				ToDownload:   ugoiraToDl,
+				Cookies:      nil,
+			},
 			pixivUgoiraOptions,
-			nil,
+			config,
 			pixivDlOptions.MobileClient.SendRequest,
 		)
 	}
