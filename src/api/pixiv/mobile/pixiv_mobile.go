@@ -68,17 +68,20 @@ func (pixiv *PixivMobile) Sleep() {
 }
 
 // Get the required headers to communicate with the Pixiv API
-func (pixiv *PixivMobile) getHeaders(additional ...map[string]string) map[string]string {
-	headers := map[string]string{
+func (pixiv *PixivMobile) getHeaders(additional map[string]string) map[string]string {
+	headers := make(map[string]string)
+	for k, v := range additional {
+		headers[k] = v
+	}
+
+	baseHeaders := map[string]string{
 		"User-Agent":     pixiv.userAgent,
 		"App-OS":         "ios",
 		"App-OS-Version": "14.6",
 		"Authorization":  "Bearer " + pixiv.accessTokenMap.accessToken,
 	}
-	for _, header := range additional {
-		for k, v := range header {
-			headers[k] = v
-		}
+	for k, v := range baseHeaders {
+		headers[k] = v
 	}
 	return headers
 }

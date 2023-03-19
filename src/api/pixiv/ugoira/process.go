@@ -186,7 +186,7 @@ func convertMultipleUgoira(downloadInfo []*models.Ugoira, config *configs.Config
 }
 
 // Downloads multiple Ugoira artworks and converts them based on the output format
-func DownloadMultipleUgoira(downloadInfo []*models.Ugoira, config *configs.Config, ugoiraOptions *UgoiraOptions, cookies []*http.Cookie, reqHandler request.RequestHandler) {
+func DownloadMultipleUgoira(isMobileApi bool, downloadInfo []*models.Ugoira, config *configs.Config, ugoiraOptions *UgoiraOptions, cookies []*http.Cookie, reqHandler request.RequestHandler) {
 	var urlsToDownload []*request.ToDownload
 	for _, ugoira := range downloadInfo {
 		filePath, outputFilePath := GetUgoiraFilePaths(
@@ -202,16 +202,24 @@ func DownloadMultipleUgoira(downloadInfo []*models.Ugoira, config *configs.Confi
 		}
 	}
 
-	pixivHeaders := pixivcommon.GetPixivRequestHeaders()
+	headers := make(map[string]string)
+	if isMobileApi {
+		headers = map[string]string{
+			"Referer": "https://app-api.pixiv.net",
+		}
+	} else {
+		headers = pixivcommon.GetPixivRequestHeaders()
+	}
+
 	request.DownloadUrlsWithHandler(
 		urlsToDownload,
 		&request.DlOptions{
 			MaxConcurrency: utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
-			Headers:        pixivHeaders,
+			Headers:        headers,
 			Cookies:        cookies,
 			UseHttp3:       false,
 		},
-		config,
+		config,    // Note: if isMobileApi is true, custom user-agent will be ignored
 		reqHandler,
 	)
 

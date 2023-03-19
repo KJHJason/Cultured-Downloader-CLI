@@ -225,6 +225,7 @@ func DownloadUrlWithHandler(filePath string, queue chan struct{}, reqArgs *Reque
 			Timeout:     10,
 			Cookies:     reqArgs.Cookies,
 			Headers:     reqArgs.Headers,
+			UserAgent:   reqArgs.UserAgent,
 			CheckStatus: true,
 			Http3:       reqArgs.Http3,
 			Http2:       reqArgs.Http2,

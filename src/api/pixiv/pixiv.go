@@ -94,6 +94,7 @@ func PixivWebDownloadProcess(config *configs.Config, pixivDl *PixivDl, pixivDlOp
 	}
 	if len(ugoiraToDl) > 0 {
 		ugoira.DownloadMultipleUgoira(
+			false,
 			ugoiraToDl,
 			config,
 			pixivUgoiraOptions,
@@ -178,6 +179,7 @@ func PixivMobileDownloadProcess(config *configs.Config, pixivDl *PixivDl, pixivD
 	}
 	if len(ugoiraToDl) > 0 {
 		ugoira.DownloadMultipleUgoira(
+			true,
 			ugoiraToDl,
 			config,
 			pixivUgoiraOptions,
