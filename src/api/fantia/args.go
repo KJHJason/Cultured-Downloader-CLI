@@ -7,6 +7,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api"
+	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
@@ -53,6 +54,9 @@ type FantiaDlOptions struct {
 	DlThumbnails    bool
 	DlImages        bool
 	DlAttachments   bool
+	DlGdrive        bool
+
+	GdriveClient    *gdrive.GDrive
 
 	SessionCookieId string
 	SessionCookies  []*http.Cookie
@@ -132,6 +136,12 @@ func (f *FantiaDlOptions) ValidateArgs(userAgent string) error {
 		f.SessionCookies = []*http.Cookie{
 			api.VerifyAndGetCookie(utils.FANTIA, f.SessionCookieId, userAgent),
 		}
+	}
+
+	if f.DlGdrive && f.GdriveClient == nil {
+		f.DlGdrive = false
+	} else if !f.DlGdrive && f.GdriveClient != nil {
+		f.GdriveClient = nil
 	}
 
 	f.csrfMu = sync.Mutex{}

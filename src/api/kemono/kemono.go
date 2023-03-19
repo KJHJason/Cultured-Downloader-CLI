@@ -3,6 +3,7 @@ package kemono
 import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
+	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
 
@@ -13,17 +14,28 @@ func KemonoDownloadProcess(config *configs.Config, kemonoDl *KemonoDl, kemonoDlO
 
 	var toDownload, gdriveLinks []*request.ToDownload
 	if dlFav {
+		progress := spinner.New(
+			spinner.REQ_SPINNER,
+			"fgHiYellow",
+			"Getting favourites from Kemono Party...",
+			"Finished getting favourites from Kemono Party!",
+			"Something went wrong while getting favourites from Kemono Party.\nPlease refer to the logs for more details.",
+			0,
+		)
+		progress.Start()
 		favToDl, favGdriveLinks, err := getFavourites(
 			config,
 			utils.DOWNLOAD_PATH,
 			kemonoDlOptions,
 		)
-		if err != nil {
+		hasErr := (err != nil)
+		if hasErr {
 			utils.LogError(err, "", false, utils.ERROR)
 		} else {
 			toDownload = favToDl
 			gdriveLinks = favGdriveLinks
 		}
+		progress.Stop(hasErr)
 	}
 
 	if len(kemonoDl.PostsToDl) > 0 {

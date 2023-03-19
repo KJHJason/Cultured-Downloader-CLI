@@ -1,6 +1,9 @@
 package fantia
 
-import "github.com/KJHJason/Cultured-Downloader-CLI/configs"
+import (
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
+	"github.com/KJHJason/Cultured-Downloader-CLI/request"
+)
 
 // Start the download process for Fantia
 func FantiaDownloadProcess(config *configs.Config, fantiaDl *FantiaDl, fantiaDlOptions *FantiaDlOptions) {
@@ -14,10 +17,15 @@ func FantiaDownloadProcess(config *configs.Config, fantiaDl *FantiaDl, fantiaDlO
 			fantiaDlOptions,
 		)
 	}
+	var gdriveLinks []*request.ToDownload
 	if len(fantiaDl.PostIds) > 0 {
 		fantiaDl.dlFantiaPosts(
 			fantiaDlOptions,
 			config,
 		)
+	}
+
+	if fantiaDlOptions.GdriveClient != nil && len(gdriveLinks) > 0 {
+		fantiaDlOptions.GdriveClient.DownloadGdriveUrls(gdriveLinks, config)
 	}
 }

@@ -85,5 +85,7 @@ func (pf *PixivFanboxDlOptions) ValidateArgs(userAgent string) {
 
 	if pf.DlGdrive && pf.GdriveClient == nil {
 		pf.DlGdrive = false
+	} else if !pf.DlGdrive && pf.GdriveClient != nil {
+		pf.GdriveClient = nil
 	}
 }

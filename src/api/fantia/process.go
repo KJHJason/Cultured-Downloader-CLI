@@ -7,24 +7,25 @@ import (
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/fantia/models"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
+	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
 
 // Process the JSON response from Fantia's API and
-// returns a map of urls to download from
-func processFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions *FantiaDlOptions) ([]*request.ToDownload, error) {
+// returns a slice of urls and a slice of gdrive urls to download from
+func processFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions *FantiaDlOptions) ([]*request.ToDownload, []*request.ToDownload, error) {
 	// processes a fantia post
 	// returns a map containing the post id and the url to download the file from
 	var postJson models.FantiaPost
 	err := utils.LoadJsonFromResponse(res, &postJson)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	postStruct := postJson.Post
-	postId := strconv.Itoa(postStruct.ID)
-	postTitle := postStruct.Title
-	creatorName := postStruct.Fanclub.User.Name
+	post := postJson.Post
+	postId := strconv.Itoa(post.ID)
+	postTitle := post.Title
+	creatorName := post.Fanclub.User.Name
 	postFolderPath := utils.GetPostFolder(
 		filepath.Join(
 			downloadPath,
@@ -36,7 +37,7 @@ func processFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 	)
 
 	var urlsMap []*request.ToDownload
-	thumbnail := postStruct.Thumb.Original
+	thumbnail := post.Thumb.Original
 	if fantiaDlOptions.DlThumbnails && thumbnail != "" {
 		urlsMap = append(urlsMap, &request.ToDownload{
 			Url:      thumbnail,
@@ -44,11 +45,26 @@ func processFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 		})
 	}
 
-	postContent := postStruct.PostContents
+	gdriveLinks := gdrive.ProcessPostText(
+		post.Comment,
+		postFolderPath,
+		fantiaDlOptions.DlGdrive,
+	)
+
+	postContent := post.PostContents
 	if postContent == nil {
-		return urlsMap, nil
+		return urlsMap, gdriveLinks, nil
 	}
 	for _, content := range postContent {
+		commentGdriveLinks := gdrive.ProcessPostText(
+			content.Comment,
+			postFolderPath,
+			fantiaDlOptions.DlGdrive,
+		)
+		if len(commentGdriveLinks) > 0 {
+			gdriveLinks = append(gdriveLinks, commentGdriveLinks...)
+		}
+
 		if fantiaDlOptions.DlImages {
 			// download images that are uploaded to their own section
 			postContentPhotos := content.PostContentPhotos
@@ -93,5 +109,5 @@ func processFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 			}
 		}
 	}
-	return urlsMap, nil
+	return urlsMap, gdriveLinks, nil
 }

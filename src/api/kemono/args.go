@@ -189,5 +189,7 @@ func (k *KemonoDlOptions) ValidateArgs(userAgent string) {
 
 	if k.DlGdrive && k.GdriveClient == nil {
 		k.DlGdrive = false
+	} else if !k.DlGdrive && k.GdriveClient != nil {
+		k.GdriveClient = nil
 	}
 }

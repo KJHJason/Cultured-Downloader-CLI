@@ -7,6 +7,7 @@ import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/kemono/models"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
+	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
 
@@ -51,18 +52,40 @@ func getPostDetails(config *configs.Config, post *models.KemonoPostToDl, downloa
 
 func getMultiplePosts(config *configs.Config, posts []*models.KemonoPostToDl, downloadPath string, dlOption *KemonoDlOptions) ([]*request.ToDownload, []*request.ToDownload) {
 	var maxConcurrency int
-	if len(posts) > API_MAX_CONCURRENT {
+	postLen := len(posts)
+	if postLen > API_MAX_CONCURRENT {
 		maxConcurrency = API_MAX_CONCURRENT
 	} else {
-		maxConcurrency = len(posts)
+		maxConcurrency = postLen
 	}
 	wg := sync.WaitGroup{}
 	queue := make(chan struct{}, maxConcurrency)
-	resChan := make(chan *kemonoChanRes, len(posts))
+	resChan := make(chan *kemonoChanRes, postLen)
+
+	baseMsg := "Getting post details from Kemono Party [%d/" + fmt.Sprintf("%d]...", postLen)
+	progress := spinner.New(
+		spinner.REQ_SPINNER,
+		"fgHiYellow",
+		fmt.Sprintf(
+			baseMsg,
+			0,
+		),
+		fmt.Sprintf(
+			"Finished getting %d post details from Kemono Party!",
+			postLen,
+		),
+		fmt.Sprintf(
+			"Something went wrong while getting %d post details from Kemono Party.\nPlease refer to the logs for more details.",
+			postLen,
+		),
+		postLen,
+	)
+	progress.Start()
 	for _, post := range posts {
 		wg.Add(1)
 		go func(post *models.KemonoPostToDl) {
 			defer func() {
+				progress.MsgIncrement(baseMsg)
 				wg.Done()
 				<-queue
 			}()
@@ -85,15 +108,20 @@ func getMultiplePosts(config *configs.Config, posts []*models.KemonoPostToDl, do
 	close(queue)
 	close(resChan)
 
+	hasError := false
 	var urlsToDownload, gdriveLinks []*request.ToDownload
 	for res := range resChan {
 		if res.err != nil {
+			if !hasError {
+				hasError = true
+			}
 			utils.LogError(res.err, "", false, utils.ERROR)
 			continue
 		}
 		urlsToDownload = append(urlsToDownload, res.urlsToDownload...)
 		gdriveLinks = append(gdriveLinks, res.gdriveLinks...)
 	}
+	progress.Stop(hasError)
 	return urlsToDownload, gdriveLinks
 }
 
@@ -157,18 +185,44 @@ func getCreatorPosts(config *configs.Config, creator *models.KemonoCreatorToDl, 
 func getMultipleCreators(config *configs.Config, creators []*models.KemonoCreatorToDl, downloadPath string, dlOption *KemonoDlOptions) ([]*request.ToDownload, []*request.ToDownload) {
 	var errSlice []error
 	var urlsToDownload, gdriveLinks []*request.ToDownload
+	creatorLen := len(creators)
+	baseMsg := "Getting creator's posts from Kemono Party [%d/" + fmt.Sprintf("%d]...", creatorLen)
+	progress := spinner.New(
+		spinner.REQ_SPINNER,
+		"fgHiYellow",
+		fmt.Sprintf(
+			baseMsg,
+			0,
+		),
+		fmt.Sprintf(
+			"Finished getting %d creator's posts from Kemono Party!",
+			creatorLen,
+		),
+		fmt.Sprintf(
+			"Something went wrong while getting %d creator's posts from Kemono Party.\nPlease refer to the logs for more details.",
+			creatorLen,
+		),
+		creatorLen,
+	)
+	progress.Start()
 	for _, creator := range creators {
 		postsToDl, gdriveLinksToDl, err := getCreatorPosts(config, creator, downloadPath, dlOption)
 		if err != nil {
 			errSlice = append(errSlice, err)
+			progress.MsgIncrement(baseMsg)
+			continue
 		}
 		urlsToDownload = append(urlsToDownload, postsToDl...)
 		gdriveLinks = append(gdriveLinks, gdriveLinksToDl...)
+		progress.MsgIncrement(baseMsg)
 	}
 
+	hasError := false
 	if len(errSlice) > 0 {
+		hasError = true
 		utils.LogErrors(false, nil, utils.ERROR, errSlice...)
 	}
+	progress.Stop(hasError)
 	return urlsToDownload, gdriveLinks
 }
 

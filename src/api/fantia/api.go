@@ -18,8 +18,9 @@ import (
 // Note that only the downloading of the URL(s) is/are executed concurrently
 // to reduce the chance of the signed AWS S3 URL(s) from expiring before the download is
 // executed or completed due to a download queue to avoid resource exhaustion of the user's system.
-func (f *FantiaDl) dlFantiaPosts(fantiaDlOptions *FantiaDlOptions, config *configs.Config) {
+func (f *FantiaDl) dlFantiaPosts(fantiaDlOptions *FantiaDlOptions, config *configs.Config) []*request.ToDownload {
 	var errSlice []error
+	var gdriveLinks []*request.ToDownload
 	postIdsLen := len(f.PostIds)
 	url := utils.FANTIA_URL + "/api/v1/posts/"
 	for i, postId := range f.PostIds {
@@ -118,7 +119,7 @@ func (f *FantiaDl) dlFantiaPosts(fantiaDlOptions *FantiaDlOptions, config *confi
 			postIdsLen,
 		)
 		progress.Start()
-		urlsToDownload, err := processFantiaPost(
+		urlsToDownload, postGdriveLinks, err := processFantiaPost(
 			res,
 			utils.DOWNLOAD_PATH,
 			fantiaDlOptions,
@@ -127,6 +128,7 @@ func (f *FantiaDl) dlFantiaPosts(fantiaDlOptions *FantiaDlOptions, config *confi
 			errSlice = append(errSlice, err)
 			progress.Stop(true)
 		}
+		gdriveLinks = append(gdriveLinks, postGdriveLinks...)
 		progress.Stop(false)
 
 		// Download the urls
@@ -146,6 +148,7 @@ func (f *FantiaDl) dlFantiaPosts(fantiaDlOptions *FantiaDlOptions, config *confi
 	if len(errSlice) > 0 {
 		utils.LogErrors(false, nil, utils.ERROR, errSlice...)
 	}
+	return gdriveLinks
 }
 
 // Parse the HTML response from the creator's page to get the post IDs.

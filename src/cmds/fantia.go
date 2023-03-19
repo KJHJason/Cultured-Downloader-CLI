@@ -4,6 +4,7 @@ import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/fantia"
 	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
+	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/KJHJason/Cultured-Downloader-CLI/cmds/textparser"
 	"github.com/spf13/cobra"
@@ -16,6 +17,8 @@ var (
 	fantiaFanclubIds    []string
 	fantiaPageNums      []string
 	fantiaPostIds       []string
+	fantiaDlGdrive      bool
+	fantiaGdriveApiKey  string
 	fantiaDlThumbnails  bool
 	fantiaDlImages      bool
 	fantiaDlAttachments bool
@@ -42,6 +45,16 @@ var (
 				OverwriteFiles: fantiaOverwrite,
 				UserAgent:      fantiaUserAgent,
 			}
+
+			var gdriveClient *gdrive.GDrive
+			if fantiaGdriveApiKey != "" {
+				gdriveClient = gdrive.GetNewGDrive(
+					fantiaGdriveApiKey,
+					fantiaConfig,
+					utils.MAX_CONCURRENT_DOWNLOADS,
+				)
+			}
+
 			fantiaDl := &fantia.FantiaDl{
 				FanclubIds:      fantiaFanclubIds,
 				FanclubPageNums: fantiaPageNums,
@@ -53,6 +66,8 @@ var (
 				DlThumbnails:    fantiaDlThumbnails,
 				DlImages:        fantiaDlImages,
 				DlAttachments:   fantiaDlAttachments,
+				DlGdrive:        fantiaDlGdrive,
+				GdriveClient:    gdriveClient,
 				SessionCookieId: fantiaSession,
 			}
 			if fantiaCookieFile != "" {
@@ -136,21 +151,27 @@ func init() {
 		),
 	)
 	fantiaCmd.Flags().BoolVar(
+		&fantiaDlGdrive,
+		"dl_gdrive",
+		true,
+		"Whether to download the Google Drive links of a post on Fantia.",
+	)
+	fantiaCmd.Flags().BoolVar(
 		&fantiaDlThumbnails,
 		"dl_thumbnails",
 		true,
-		"Whether to download the thumbnail of a Fantia post.",
+		"Whether to download the thumbnail of a post on Fantia.",
 	)
 	fantiaCmd.Flags().BoolVar(
 		&fantiaDlImages,
 		"dl_images",
 		true,
-		"Whether to download the images of a Fantia post.",
+		"Whether to download the images of a post on Fantia.",
 	)
 	fantiaCmd.Flags().BoolVar(
 		&fantiaDlAttachments,
 		"dl_attachments",
 		true,
-		"Whether to download the attachments of a Fantia post.",
+		"Whether to download the attachments of a post on Fantia.",
 	)
 }
