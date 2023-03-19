@@ -20,7 +20,7 @@ type logger struct {
 	debugLogger *log.Logger
 }
 
-var loggerPrefix = fmt.Sprintf("[Cultured Downloader CLI V%s] ", VERSION)
+var loggerPrefix = fmt.Sprintf("Cultured Downloader CLI V%s ", VERSION)
 func NewLogger(out io.Writer) *logger {
 	if out == nil {
 		out = os.Stdout
