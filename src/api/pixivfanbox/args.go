@@ -33,7 +33,7 @@ func (pf *PixivFanboxDl) ValidateArgs() {
 	for _, creatorId := range pf.CreatorIds {
 		if !creatorIdRegex.MatchString(creatorId) {
 			color.Red(
-				"error %d: invalid Pixiv Fanbox creator ID \"%s\", must be alphanumeric with underscores, dashes, or periods",
+				"error %d: invalid Pixiv Fanbox creator ID %q, must be alphanumeric with underscores, dashes, or periods",
 				utils.INPUT_ERROR,
 				creatorId,
 			)

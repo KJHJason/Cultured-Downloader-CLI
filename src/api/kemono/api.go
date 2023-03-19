@@ -3,6 +3,7 @@ package kemono
 import (
 	"fmt"
 	"sync"
+	"strconv"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/kemono/models"
@@ -135,7 +136,7 @@ func getCreatorPosts(config *configs.Config, creator *models.KemonoCreatorToDl, 
 
 	var postsToDl, gdriveLinksToDl []*request.ToDownload
 	params := map[string]string{
-		"o": fmt.Sprintf("%d", minOffset),
+		"o": strconv.Itoa(minOffset),
 	}
 	curOffset := minOffset
 	for {

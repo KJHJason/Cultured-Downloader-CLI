@@ -13,6 +13,12 @@ import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
 
+type offsetArgs struct {
+	minOffset int
+	maxOffset int
+	hasMax    bool
+}
+
 // Returns the Ugoira structure with the necessary information to download the ugoira
 //
 // Will return an error which has been logged if unexpected error occurs like connection error, json marshal error, etc.
@@ -145,32 +151,13 @@ func (pixiv *PixivMobile) GetMultipleArtworkDetails(artworkIds []string, downloa
 	return artworksToDownload, ugoiraSlice
 }
 
-// Query Pixiv's API (mobile) to get all the posts JSON(s) of a user ID
-func (pixiv *PixivMobile) getIllustratorPosts(userId, pageNum, downloadPath, artworkType string) ([]*request.ToDownload, []*models.Ugoira, []error) {
-	minPage, maxPage, hasMax, err := utils.GetMinMaxFromStr(pageNum)
-	if err != nil {
-		return nil, nil, []error{err}
-	}
-	minOffset, maxOffset := pixivcommon.ConvertPageNumToOffset(minPage, maxPage, utils.PIXIV_PER_PAGE, false)
-
-	params := map[string]string{
-		"user_id": userId,
-		"filter":  "for_ios",
-		"offset":  strconv.Itoa(minOffset),
-	}
-	if artworkType == "all" {
-		params["type"] = "illust"
-	} else {
-		params["type"] = artworkType
-	}
-
+func (pixiv *PixivMobile) getIllustratorPostMainLogic(params map[string]string, userId, downloadPath string, offsetArg *offsetArgs) ([]*request.ToDownload, []*models.Ugoira, []error) {
 	var errSlice []error
 	var ugoiraSlice []*models.Ugoira
 	var artworksToDownload []*request.ToDownload
 	nextUrl := pixiv.baseUrl + "/v1/user/illusts"
 
-startLoop:
-	curOffset := minOffset
+	curOffset := offsetArg.minOffset
 	for nextUrl != "" {
 		res, err := pixiv.SendRequest(
 			&request.RequestArgs{
@@ -205,23 +192,61 @@ startLoop:
 		curOffset += 30
 		params["offset"] = strconv.Itoa(curOffset)
 		jsonNextUrl := resJson.NextUrl
-		if jsonNextUrl == nil || (hasMax && curOffset >= maxOffset) {
+		if jsonNextUrl == nil || (offsetArg.hasMax && curOffset >= offsetArg.maxOffset) {
 			nextUrl = ""
 		} else {
 			nextUrl = *jsonNextUrl
 			pixiv.Sleep()
 		}
 	}
+	return artworksToDownload, ugoiraSlice, errSlice
+}
+
+// Query Pixiv's API (mobile) to get all the posts JSON(s) of a user ID
+func (pixiv *PixivMobile) getIllustratorPosts(userId, pageNum, downloadPath, artworkType string) ([]*request.ToDownload, []*models.Ugoira, []error) {
+	minPage, maxPage, hasMax, err := utils.GetMinMaxFromStr(pageNum)
+	if err != nil {
+		return nil, nil, []error{err}
+	}
+	minOffset, maxOffset := pixivcommon.ConvertPageNumToOffset(minPage, maxPage, utils.PIXIV_PER_PAGE, false)
+
+	params := map[string]string{
+		"user_id": userId,
+		"filter":  "for_ios",
+		"offset":  strconv.Itoa(minOffset),
+		"type":    artworkType,
+	}
+	if artworkType == "all" {
+		params["type"] = "illust"
+	}
+
+	offsetArgs := &offsetArgs{
+		minOffset: minOffset,
+		maxOffset: maxOffset,
+		hasMax:    hasMax,
+	}
+	artworksToDl, ugoiraSlice, errSlice := pixiv.getIllustratorPostMainLogic(
+		params,
+		userId,
+		downloadPath,
+		offsetArgs,
+	)
 
 	if params["type"] == "illust" && artworkType == "all" {
 		// if the user is downloading both
 		// illust and manga, loop again to get the manga
 		params["type"] = "manga"
-		nextUrl = pixiv.baseUrl + "/v1/user/illusts"
-		goto startLoop
+		artworksToDl2, ugoiraSlice2, errSlice2 := pixiv.getIllustratorPostMainLogic(
+			params,
+			userId,
+			downloadPath,
+			offsetArgs,
+		)
+		artworksToDl = append(artworksToDl, artworksToDl2...)
+		ugoiraSlice = append(ugoiraSlice, ugoiraSlice2...)
+		errSlice = append(errSlice, errSlice2...)
 	}
-
-	return artworksToDownload, ugoiraSlice, errSlice
+	return artworksToDl, ugoiraSlice, errSlice
 }
 
 func (pixiv *PixivMobile) GetMultipleIllustratorPosts(userIds, pageNums []string, downloadPath, artworkType string) ([]*request.ToDownload, []*models.Ugoira) {
@@ -281,9 +306,64 @@ func (pixiv *PixivMobile) GetMultipleIllustratorPosts(userIds, pageNums []string
 	return artworksToDownload, ugoiraSlice
 }
 
+func (pixiv *PixivMobile) tagSearchLogic(tagName, downloadPath string, dlOptions *PixivMobileDlOptions, offsetArg *offsetArgs) ([]*request.ToDownload, []*models.Ugoira, []error) {
+	var errSlice []error
+	var ugoiraSlice []*models.Ugoira
+	var artworksToDownload []*request.ToDownload
+	params := map[string]string{
+		"word":          tagName,
+		"search_target": dlOptions.SearchMode,
+		"sort":          dlOptions.SortOrder,
+		"filter":        "for_ios",
+		"offset":        strconv.Itoa(offsetArg.minOffset),
+	}
+	curOffset := offsetArg.minOffset
+	nextUrl := pixiv.baseUrl + "/v1/search/illust"
+	for nextUrl != "" {
+		res, err := pixiv.SendRequest(
+			&request.RequestArgs{
+				Url:         nextUrl,
+				Params:      params,
+				CheckStatus: true,
+			},
+		)
+		if err != nil {
+			err = fmt.Errorf(
+				"pixiv mobile error %d: failed to search for %q, more info => %v",
+				utils.CONNECTION_ERROR,
+				tagName,
+				err,
+			)
+			return nil, nil, []error{err} 
+		}
+
+		var resJson models.PixivMobileArtworksJson
+		err = utils.LoadJsonFromResponse(res, &resJson)
+		if err != nil {
+			errSlice = append(errSlice, err)
+			continue
+		}
+
+		artworks, ugoira, errS := pixiv.processMultipleArtworkJson(&resJson, downloadPath)
+		errSlice = append(errSlice, errS...)
+		artworksToDownload = append(artworksToDownload, artworks...)
+		ugoiraSlice = append(ugoiraSlice, ugoira...)
+
+		curOffset += 30
+		params["offset"] = strconv.Itoa(curOffset)
+		jsonNextUrl := resJson.NextUrl
+		if jsonNextUrl == nil || (offsetArg.hasMax && curOffset >= offsetArg.maxOffset) {
+			nextUrl = ""
+		} else {
+			nextUrl = *jsonNextUrl
+			pixiv.Sleep()
+		}
+	}
+	return artworksToDownload, ugoiraSlice, errSlice
+}
+
 // Query Pixiv's API (mobile) to get the JSON of a search query
 func (pixiv *PixivMobile) TagSearch(tagName, downloadPath, pageNum string, dlOptions *PixivMobileDlOptions) ([]*request.ToDownload, []*models.Ugoira, bool) {
-	nextUrl := pixiv.baseUrl + "/v1/search/illust"
 	minPage, maxPage, hasMax, err := utils.GetMinMaxFromStr(pageNum)
 	if err != nil {
 		utils.LogError(
@@ -296,67 +376,18 @@ func (pixiv *PixivMobile) TagSearch(tagName, downloadPath, pageNum string, dlOpt
 	}
 	minOffset, maxOffset := pixivcommon.ConvertPageNumToOffset(minPage, maxPage, utils.PIXIV_PER_PAGE, false)
 
-	var errSlice []error
-	var ugoiraSlice []*models.Ugoira
-	var artworksToDownload []*request.ToDownload
-	params := map[string]string{
-		"word":          tagName,
-		"search_target": dlOptions.SearchMode,
-		"sort":          dlOptions.SortOrder,
-		"filter":        "for_ios",
-		"offset":        strconv.Itoa(minOffset),
-	}
-	curOffset := minOffset
-	for nextUrl != "" {
-		res, err := pixiv.SendRequest(
-			&request.RequestArgs{
-				Url:         nextUrl,
-				Params:      params,
-				CheckStatus: true,
-			},
-		)
-		if err != nil {
-			utils.LogError(
-				fmt.Errorf(
-					"pixiv mobile error %d: failed to search for %s, more info => %v",
-					utils.CONNECTION_ERROR,
-					tagName,
-					err,
-				),
-				"",
-				false,
-				utils.ERROR,
-			)
-			return nil, nil, true
-		}
-
-		var resJson models.PixivMobileArtworksJson
-		err = utils.LoadJsonFromResponse(res, &resJson)
-		if err != nil {
-			errSlice = append(errSlice, err)
-			continue
-		}
-
-		artworks, ugoira, errS := pixiv.processMultipleArtworkJson(&resJson, downloadPath)
-		if len(errS) > 0 {
-			errSlice = append(errSlice, errS...)
-		}
-		artworksToDownload = append(artworksToDownload, artworks...)
-		ugoiraSlice = append(ugoiraSlice, ugoira...)
-
-		curOffset += 30
-		params["offset"] = strconv.Itoa(curOffset)
-		jsonNextUrl := resJson.NextUrl
-		if jsonNextUrl == nil || (hasMax && curOffset >= maxOffset) {
-			nextUrl = ""
-		} else {
-			nextUrl = *jsonNextUrl
-			pixiv.Sleep()
-		}
-	}
-
+	artworksToDl, ugoiraSlice, errSlice := pixiv.tagSearchLogic(
+		tagName,
+		downloadPath,
+		dlOptions,
+		&offsetArgs{
+			minOffset: minOffset,
+			maxOffset: maxOffset,
+			hasMax:    hasMax,
+		},
+	)
 	if len(errSlice) > 0 {
 		utils.LogErrors(false, nil, utils.ERROR, errSlice...)
 	}
-	return artworksToDownload, ugoiraSlice, len(errSlice) > 0
+	return artworksToDl, ugoiraSlice, len(errSlice) > 0
 }

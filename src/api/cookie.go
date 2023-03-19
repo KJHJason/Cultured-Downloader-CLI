@@ -3,12 +3,12 @@ package api
 import (
 	"fmt"
 	"net/http"
-	"time"
 	"os"
+	"time"
 
-	"github.com/fatih/color"
-	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
+	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/fatih/color"
 )
 
 // Returns a cookie with given value and website to be used in requests
@@ -58,8 +58,8 @@ func VerifyCookie(cookie *http.Cookie, website, userAgent string) (bool, error) 
 		// Shouldn't happen but could happen during development
 		panic(
 			fmt.Errorf(
-				"error %d, invalid website, \"%s\", in VerifyCookie", 
-				utils.DEV_ERROR, 
+				"error %d, invalid website, %q, in VerifyCookie",
+				utils.DEV_ERROR,
 				website,
 			),
 		)
@@ -99,8 +99,8 @@ func VerifyAndGetCookie(website, cookieValue, userAgent string) *http.Cookie {
 	cookieIsValid, err := VerifyCookie(cookie, website, userAgent)
 	if err != nil {
 		utils.LogError(
-			err, 
-			"error occurred when trying to verify cookie.", 
+			err,
+			"error occurred when trying to verify cookie.",
 			true,
 			utils.ERROR,
 		)
@@ -116,8 +116,8 @@ func VerifyAndGetCookie(website, cookieValue, userAgent string) *http.Cookie {
 	if cookieValue != "" && !cookieIsValid {
 		color.Red(
 			fmt.Sprintf(
-				"error %d: %s cookie is invalid", 
-				utils.INPUT_ERROR, 
+				"error %d: %s cookie is invalid",
+				utils.INPUT_ERROR,
 				utils.GetReadableSiteStr(website),
 			),
 		)

@@ -54,14 +54,14 @@ func GetSessionCookieInfo(site string) *cookieInfo {
 		}
 	case KEMONO:
 		return &cookieInfo{
-			Domain: "kemono.party",
-			Name:   "session",
+			Domain:   "kemono.party",
+			Name:     "session",
 			SameSite: http.SameSiteNoneMode,
 		}
 	default:
 		panic(
 			fmt.Errorf(
-				"error %d, invalid site, \"%s\" in GetSessionCookieInfo",
+				"error %d, invalid site, %q in GetSessionCookieInfo",
 				DEV_ERROR,
 				site,
 			),
@@ -85,7 +85,7 @@ func IsHttp3Supported(site string, isApi bool) bool {
 	default:
 		panic(
 			fmt.Errorf(
-				"error %d, invalid site, \"%s\" in IsHttp3Supported",
+				"error %d, invalid site, %q in IsHttp3Supported",
 				DEV_ERROR,
 				site,
 			),
@@ -110,7 +110,7 @@ func GetReadableSiteStr(site string) string {
 		// panic since this is a dev error
 		panic(
 			fmt.Errorf(
-				"error %d: invalid website, \"%s\", in GetReadableSiteStr",
+				"error %d: invalid website, %q, in GetReadableSiteStr",
 				DEV_ERROR,
 				site,
 			),
@@ -225,7 +225,7 @@ func ParseNetscapeCookieFile(filePath, sessionId, website string) ([]*http.Cooki
 				if err != nil {
 					// should never happen but just in case
 					errMsg := fmt.Sprintf(
-						"error %d: parsing cookie expiration time, \"%s\", more info => %v",
+						"error %d: parsing cookie expiration time, %q, more info => %v",
 						UNEXPECTED_ERROR,
 						expiresUnixStr,
 						err,
@@ -273,7 +273,7 @@ func ParseNetscapeCookieFile(filePath, sessionId, website string) ([]*http.Cooki
 		}
 	} else {
 		return nil, fmt.Errorf(
-			"error %d: invalid cookie file extension, \"%s\", at %s...\nOnly .txt and .json files are supported",
+			"error %d: invalid cookie file extension, %q, at %s...\nOnly .txt and .json files are supported",
 			INPUT_ERROR,
 			ext,
 			filePath,
@@ -343,6 +343,7 @@ func ValidatePageNumInput(baseSliceLen int, pageNums []string, errMsgs []string)
 // Returns the min, max, hasMaxNum, and error from the given string of "num" or "min-max"
 //
 // E.g.
+//
 //	"1-10" => 1, 10, true, nil
 //	"1" => 1, 1, true, nil
 //	"" => 1, 1, false, nil (defaults to min = 1, max = inf)
@@ -359,7 +360,7 @@ func GetMinMaxFromStr(numStr string) (int, int, bool, error) {
 		min, err = strconv.Atoi(nums[0])
 		if err != nil {
 			return -1, -1, false, fmt.Errorf(
-				"error %d: failed to convert min page number, \"%s\", to int",
+				"error %d: failed to convert min page number, %q, to int",
 				UNEXPECTED_ERROR,
 				nums[0],
 			)
@@ -368,7 +369,7 @@ func GetMinMaxFromStr(numStr string) (int, int, bool, error) {
 		max, err = strconv.Atoi(nums[1])
 		if err != nil {
 			return -1, -1, false, fmt.Errorf(
-				"error %d: failed to convert max page number, \"%s\", to int",
+				"error %d: failed to convert max page number, %q, to int",
 				UNEXPECTED_ERROR,
 				nums[1],
 			)
@@ -381,7 +382,7 @@ func GetMinMaxFromStr(numStr string) (int, int, bool, error) {
 		min, err = strconv.Atoi(numStr)
 		if err != nil {
 			return -1, -1, false, fmt.Errorf(
-				"error %d: failed to convert page number, \"%s\", to int",
+				"error %d: failed to convert page number, %q, to int",
 				UNEXPECTED_ERROR,
 				numStr,
 			)

@@ -60,7 +60,7 @@ func (u *UgoiraOptions) ValidateArgs() {
 		UGOIRA_ACCEPTED_EXT,
 		[]string{
 			fmt.Sprintf(
-				"pixiv error %d: Output extension \"%s\" is not allowed for ugoira conversion",
+				"pixiv error %d: Output extension %q is not allowed for ugoira conversion",
 				utils.INPUT_ERROR,
 				u.OutputFormat,
 			),

@@ -111,7 +111,7 @@ func (p *PixivMobileDlOptions) ValidateArgs(userAgent string) {
 							utils.INPUT_ERROR,
 						),
 						fmt.Sprintf(
-							"hence, the rating mode will be updated from \"%s\" to \"all\"...\n",
+							"hence, the rating mode will be updated from %q to \"all\"...\n",
 							p.RatingMode,
 						),
 					},
@@ -139,7 +139,7 @@ func (p *PixivMobileDlOptions) ValidateArgs(userAgent string) {
 		default:
 			panic(
 				fmt.Sprintf(
-					"pixiv mobile error %d: invalid search mode \"%s\"",
+					"pixiv mobile error %d: invalid search mode %q",
 					utils.DEV_ERROR,
 					p.SearchMode,
 				),
@@ -169,7 +169,7 @@ func (p *PixivMobileDlOptions) ValidateArgs(userAgent string) {
 			default:
 				panic(
 					fmt.Sprintf(
-						"pixiv error %d: unknown sort order \"%s\" in PixivDlOptions.ValidateArgs()",
+						"pixiv error %d: unknown sort order %q in PixivDlOptions.ValidateArgs()",
 						utils.DEV_ERROR,
 						newSortOrder,
 					),
@@ -184,7 +184,7 @@ func (p *PixivMobileDlOptions) ValidateArgs(userAgent string) {
 							utils.INPUT_ERROR,
 						),
 						fmt.Sprintf(
-							"hence, the sort order will be updated from \"%s\" to \"%s\"...\n",
+							"hence, the sort order will be updated from %q to %q...\n",
 							p.SortOrder,
 							ajaxEquivalent,
 						),

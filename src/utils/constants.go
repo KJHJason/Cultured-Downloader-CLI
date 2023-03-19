@@ -2,8 +2,8 @@ package utils
 
 import (
 	"fmt"
-	"os"
 	"net/http"
+	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -29,8 +29,8 @@ func getAppPath() string {
 	if err != nil {
 		panic(
 			fmt.Errorf(
-				"error %d, failed to get user's config directory: %v", 
-				OS_ERROR, 
+				"error %d, failed to get user's config directory: %v",
+				OS_ERROR,
 				err,
 			),
 		)
@@ -50,9 +50,9 @@ const (
 
 	PAGE_NUM_REGEX_STR = `[1-9]\d*(-[1-9]\d*)?`
 	DOWNLOAD_TIMEOUT   = 25 * 60 // 25 minutes in seconds as downloads
-	                           // can take quite a while for large files (especially for Pixiv)
-	                           // However, the average max file size on these platforms is around 300MB.
-	                           // Note: Fantia do have a max file size per post of 3GB if one paid extra for it.
+	// can take quite a while for large files (especially for Pixiv)
+	// However, the average max file size on these platforms is around 300MB.
+	// Note: Fantia do have a max file size per post of 3GB if one paid extra for it.
 
 	FANTIA       = "fantia"
 	FANTIA_TITLE = "Fantia"
@@ -70,16 +70,16 @@ const (
 	PIXIV_FANBOX_URL     = "https://www.fanbox.cc"
 	PIXIV_FANBOX_API_URL = "https://api.fanbox.cc"
 
-	KEMONO            = "kemono"
-	KEMONO_TITLE      = "Kemono Party"
-	KEMONO_PER_PAGE   = 50
-	KEMONO_URL        = "https://kemono.party"
-	KEMONO_API_URL    = "https://kemono.party/api"
+	KEMONO          = "kemono"
+	KEMONO_TITLE    = "Kemono Party"
+	KEMONO_PER_PAGE = 50
+	KEMONO_URL      = "https://kemono.party"
+	KEMONO_API_URL  = "https://kemono.party/api"
 
 	PASSWORD_FILENAME = "detected_passwords.txt"
 	ATTACHMENT_FOLDER = "attachments"
-	IMAGES_FOLDER 	  = "images"
-	GDRIVE_FOLDER 	  = "gdrive"
+	IMAGES_FOLDER     = "images"
+	GDRIVE_FOLDER     = "gdrive"
 )
 
 type cookieInfo struct {
@@ -93,8 +93,8 @@ type cookieInfo struct {
 var (
 	USER_AGENT string
 
-	APP_PATH                 = getAppPath()
-	DOWNLOAD_PATH            = GetDefaultDownloadPath()
+	APP_PATH      = getAppPath()
+	DOWNLOAD_PATH = GetDefaultDownloadPath()
 
 	PAGE_NUM_REGEX = regexp.MustCompile(
 		fmt.Sprintf(`^%s$`, PAGE_NUM_REGEX_STR),
@@ -126,8 +126,8 @@ func init() {
 	if !ok {
 		panic(
 			fmt.Errorf(
-				"error %d: Failed to get user agent OS as your OS, \"%s\", is not supported", 
-				OS_ERROR, 
+				"error %d: Failed to get user agent OS as your OS, %q, is not supported",
+				OS_ERROR,
 				runtime.GOOS,
 			),
 		)

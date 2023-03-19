@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixivfanbox/models"
-	"github.com/KJHJason/Cultured-Downloader-CLI/request"
-	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
+	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
+	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
 
 // Pixiv Fanbox permitted file extensions based on
@@ -216,7 +216,7 @@ func processFanboxPostJson(res *http.Response, downloadPath string, pixivFanboxD
 		)
 	default: // unknown post type
 		return nil, nil, fmt.Errorf(
-			"pixiv fanbox error %d: unknown post type, \"%s\"\nPixiv Fanbox post content:\n%s",
+			"pixiv fanbox error %d: unknown post type, %q\nPixiv Fanbox post content:\n%s",
 			utils.JSON_ERROR,
 			postType,
 			string(postJsonBody),

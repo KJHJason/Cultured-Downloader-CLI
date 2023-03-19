@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"strconv"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
@@ -49,7 +50,7 @@ func checkIfCanSkipDl(filePath string, fileInfo *gdriveFileToDl) (bool, error) {
 	file, err := os.OpenFile(filePath, os.O_RDONLY, 0666)
 	if err != nil {
 		err = fmt.Errorf(
-			"gdrive error %d: failed to open file \"%s\", more info => %v",
+			"gdrive error %d: failed to open file %q, more info => %v",
 			utils.OS_ERROR,
 			filePath,
 			err,
@@ -61,7 +62,7 @@ func checkIfCanSkipDl(filePath string, fileInfo *gdriveFileToDl) (bool, error) {
 	fileStatInfo, err := file.Stat()
 	if err != nil {
 		err = fmt.Errorf(
-			"gdrive error %d: failed to get file stat info of \"%s\", more info => %v",
+			"gdrive error %d: failed to get file stat info of %q, more info => %v",
 			utils.OS_ERROR,
 			filePath,
 			err,
@@ -70,7 +71,7 @@ func checkIfCanSkipDl(filePath string, fileInfo *gdriveFileToDl) (bool, error) {
 	}
 
 	fileSize := fileStatInfo.Size()
-	if fmt.Sprintf("%d", fileSize) != fileInfo.Size {
+	if strconv.FormatInt(fileSize, 10) != fileInfo.Size {
 		return false, nil
 	}
 
@@ -276,7 +277,7 @@ func GetFileIdAndTypeFromUrl(url string) (string, string) {
 		fileType = "file"
 	} else {
 		err := fmt.Errorf(
-			"gdrive error %d: could not determine file type from URL, \"%s\"",
+			"gdrive error %d: could not determine file type from URL, %q",
 			utils.DEV_ERROR,
 			url,
 		)
@@ -322,7 +323,7 @@ func (gdrive *GDrive) getGdriveFileInfo(gdriveId *GDriveToDl, config *configs.Co
 	default:
 		return nil, &gdriveError{
 			err: fmt.Errorf(
-				"gdrive error %d: unknown Google Drive URL type, \"%s\"",
+				"gdrive error %d: unknown Google Drive URL type, %q",
 				utils.DEV_ERROR,
 				gdriveId.Type,
 			),

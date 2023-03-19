@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"strconv"
 	"net/http"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
@@ -199,7 +200,7 @@ func getCreatorPosts(creatorId, pageNum string, config *configs.Config, dlOption
 	for {
 		url := fmt.Sprintf("%s/fanclubs/%s/posts", utils.FANTIA_URL, creatorId)
 		params := map[string]string{
-			"page":   fmt.Sprintf("%d", curPage),
+			"page":   strconv.Itoa(curPage),
 			"q[s]":   "newer",
 			"q[tag]": "",
 		}

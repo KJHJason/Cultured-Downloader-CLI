@@ -1,7 +1,7 @@
 package pixivmobile
 
 import (
-	"fmt"
+	"strconv"
 	"path/filepath"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/models"
@@ -15,7 +15,7 @@ func (pixiv *PixivMobile) processArtworkJson(artworkJson *models.PixivMobileIllu
 		return nil, nil, nil
 	}
 
-	artworkId := fmt.Sprintf("%d", int64(artworkJson.Id))
+	artworkId := strconv.Itoa(artworkJson.Id)
 	artworkTitle := artworkJson.Title
 	artworkType := artworkJson.Type
 	illustratorName := artworkJson.User.Name
