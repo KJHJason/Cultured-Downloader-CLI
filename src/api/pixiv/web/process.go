@@ -7,10 +7,62 @@ import (
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/models"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/ugoira"
+	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/common"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
 
+func processIllustratorPostJson(resJson *models.PixivWebIllustratorJson, pageNum string, pixivDlOptions *PixivWebDlOptions) ([]string, error) {
+	minPage, maxPage, hasMax, err := utils.GetMinMaxFromStr(pageNum)
+	if err != nil {
+		return nil, err
+	}
+	minOffset, maxOffset := pixivcommon.ConvertPageNumToOffset(minPage, maxPage, utils.PIXIV_PER_PAGE, false)
+
+	var artworkIds []string
+	if pixivDlOptions.ArtworkType == "all" || pixivDlOptions.ArtworkType == "illust_and_ugoira" {
+		illusts := resJson.Body.Illusts
+		switch t := illusts.(type) {
+		case map[string]interface{}:
+			curOffset := 0
+			for illustId := range t {
+				curOffset++
+				if curOffset < minOffset {
+					continue
+				}
+				if hasMax && curOffset > maxOffset {
+					break
+				}
+
+				artworkIds = append(artworkIds, illustId)
+			}
+		default: // where there are no posts or has an unknown type
+			break
+		}
+	}
+
+	if pixivDlOptions.ArtworkType == "all" || pixivDlOptions.ArtworkType == "manga" {
+		manga := resJson.Body.Manga
+		switch t := manga.(type) {
+		case map[string]interface{}:
+			curOffset := 0
+			for mangaId := range t {
+				curOffset++
+				if curOffset < minOffset {
+					continue
+				}
+				if hasMax && curOffset > maxOffset {
+					break
+				}
+
+				artworkIds = append(artworkIds, mangaId)
+			}
+		default: // where there are no posts or has an unknown type
+			break
+		}
+	}
+	return artworkIds, nil
+}
 
 // Process the artwork details JSON and returns a map of urls
 // with its file path or a Ugoira struct (One of them will be null depending on the artworkType)
