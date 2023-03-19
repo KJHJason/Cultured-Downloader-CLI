@@ -106,6 +106,7 @@ func init() {
 			},
 		),
 	)
+	kemonoCmd.MarkFlagRequired("session")
 	kemonoCmd.Flags().StringSliceVar(
 		&kemonoCreatorUrls,
 		"creator_url",

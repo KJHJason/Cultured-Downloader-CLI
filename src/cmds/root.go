@@ -48,9 +48,4 @@ func init() {
 		),
 	)
 	RootCmd.CompletionOptions.HiddenDefaultCmd = true
-	RootCmd.AddCommand(
-		fantiaCmd,
-		pixivFanboxCmd,
-		pixivCmd,
-	)
 }

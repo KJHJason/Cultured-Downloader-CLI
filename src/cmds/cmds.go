@@ -9,18 +9,19 @@ func getMultipleIdsMsg() string {
 	return "For multiple IDs, separate them with a comma.\nExample: \"12345,67891\" (without the quotes)"
 }
 
+type textFilePath struct {
+	variable *string
+	desc     string
+}
+type commonFlags struct {
+	cmd           *cobra.Command
+	overwriteVar  *bool
+	cookieFileVar *string
+	userAgentVar  *string
+	textFile      textFilePath
+}
+
 func init() {
-	type textFilePath struct {
-		variable *string
-		desc     string
-	}
-	type commonFlags struct {
-		cmd           *cobra.Command
-		overwriteVar  *bool
-		cookieFileVar *string
-		userAgentVar  *string
-		textFile      textFilePath
-	}
 	commonCmdFlags := []commonFlags{
 		{
 			cmd: fantiaCmd,
@@ -50,6 +51,16 @@ func init() {
 			textFile: textFilePath {
 				variable: &pixivDlTextFile,
 				desc: "Path to a text file containing artwork, illustrator, and tag name URL(s) to download from Pixiv.",
+			},
+		},
+		{
+			cmd: kemonoCmd,
+			overwriteVar:  &kemonoOverwrite,
+			cookieFileVar: &kemonoCookieFile,
+			userAgentVar:  &kemonoUserAgent,
+			textFile: textFilePath {
+				variable: &kemonoDlTextFile,
+				desc: "Path to a text file containing creator and/or post URL(s) to download from Kemono Party.",
 			},
 		},
 	}
@@ -92,5 +103,6 @@ func init() {
 				},
 			),
 		)
+		RootCmd.AddCommand(cmd)
 	}
 }

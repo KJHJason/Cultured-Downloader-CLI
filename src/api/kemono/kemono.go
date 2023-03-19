@@ -27,20 +27,24 @@ func KemonoDownloadProcess(config *configs.Config, kemonoDl *KemonoDl, kemonoDlO
 	}
 
 	if len(kemonoDl.PostsToDl) > 0 {
-		getMultiplePosts(
+		postsToDl, gdriveLinksToDl := getMultiplePosts(
 			config,
 			kemonoDl.PostsToDl,
 			utils.DOWNLOAD_PATH,
 			kemonoDlOptions,
 		)
+		toDownload = append(toDownload, postsToDl...)
+		gdriveLinks = append(gdriveLinks, gdriveLinksToDl...)
 	}
 	if len(kemonoDl.CreatorsToDl) > 0 {
-		getMultipleCreators(
+		creatorsToDl, gdriveLinksToDl := getMultipleCreators(
 			config,
 			kemonoDl.CreatorsToDl,
 			utils.DOWNLOAD_PATH,
 			kemonoDlOptions,
 		)
+		toDownload = append(toDownload, creatorsToDl...)
+		gdriveLinks = append(gdriveLinks, gdriveLinksToDl...)
 	}
 
 	if len(toDownload) > 0 {
