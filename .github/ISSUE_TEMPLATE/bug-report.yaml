@@ -60,7 +60,7 @@ body:
       label: What error code did you receive? (If any)
       multiple: false
       options:
-        - "None"
+        - "N/A"
         - "1000 (Developer Error)"
         - "1001 (Unexpected Error)"
         - "1002 (OS Error)"
