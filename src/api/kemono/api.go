@@ -19,7 +19,7 @@ type kemonoChanRes struct {
 }
 
 func getPostDetails(config *configs.Config, post *models.KemonoPostToDl, downloadPath string, dlOption *KemonoDlOptions) ([]*request.ToDownload, []*request.ToDownload, error) {
-	http3Supported := utils.IsHttp3Supported(utils.KEMONO, true)
+	useHttp3 := utils.IsHttp3Supported(utils.KEMONO, true)
 	res, err := request.CallRequest(
 		&request.RequestArgs{
 			Url: fmt.Sprintf(
@@ -32,8 +32,8 @@ func getPostDetails(config *configs.Config, post *models.KemonoPostToDl, downloa
 			Method:      "GET",
 			UserAgent:   config.UserAgent,
 			Cookies:     dlOption.SessionCookies,
-			Http2:       !http3Supported,
-			Http3:       http3Supported,
+			Http2:       !useHttp3,
+			Http3:       useHttp3,
 			CheckStatus: true,
 		},
 	)
@@ -127,7 +127,7 @@ func getMultiplePosts(config *configs.Config, posts []*models.KemonoPostToDl, do
 }
 
 func getCreatorPosts(config *configs.Config, creator *models.KemonoCreatorToDl, downloadPath string, dlOption *KemonoDlOptions) ([]*request.ToDownload, []*request.ToDownload, error) {
-	http3Supported := utils.IsHttp3Supported(utils.KEMONO, true)
+	useHttp3 := utils.IsHttp3Supported(utils.KEMONO, true)
 	minPage, maxPage, hasMax, err := utils.GetMinMaxFromStr(creator.PageNum)
 	if err != nil {
 		return nil, nil, err
@@ -152,8 +152,8 @@ func getCreatorPosts(config *configs.Config, creator *models.KemonoCreatorToDl, 
 				UserAgent:   config.UserAgent,
 				Cookies:     dlOption.SessionCookies,
 				Params:      params,
-				Http2:       !http3Supported,
-				Http3:       http3Supported,
+				Http2:       !useHttp3,
+				Http3:       useHttp3,
 				CheckStatus: true,
 			},
 		)
@@ -240,7 +240,7 @@ func processFavCreator(resJson models.KemonoFavCreatorJson) []*models.KemonoCrea
 }
 
 func getFavourites(config *configs.Config, downloadPath string, dlOption *KemonoDlOptions) ([]*request.ToDownload, []*request.ToDownload, error) {
-	http3Supported := utils.IsHttp3Supported(utils.KEMONO, true)
+	useHttp3 := utils.IsHttp3Supported(utils.KEMONO, true)
 	params := map[string]string{
 		"type": "artist",
 	}
@@ -250,8 +250,8 @@ func getFavourites(config *configs.Config, downloadPath string, dlOption *Kemono
 		Cookies:     dlOption.SessionCookies,
 		Params:      params,
 		UserAgent:   config.UserAgent,
-		Http2:       !http3Supported,
-		Http3:       http3Supported,
+		Http2:       !useHttp3,
+		Http3:       useHttp3,
 		CheckStatus: true,
 	}
 	res, err := request.CallRequest(reqArgs)

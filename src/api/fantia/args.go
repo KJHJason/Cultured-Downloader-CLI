@@ -71,12 +71,14 @@ func (f *FantiaDlOptions) GetCsrfToken(userAgent string) error {
 	f.csrfMu.Lock()
 	defer f.csrfMu.Unlock()
 
+	useHttp3 := utils.IsHttp3Supported(utils.FANTIA, false)
 	res, err := request.CallRequest(
 		&request.RequestArgs{
 			Method:      "GET",
 			Url:         "https://fantia.jp/",
 			Cookies:     f.SessionCookies,
-			Http3:       true,
+			Http2:       !useHttp3,
+			Http3:       useHttp3,
 			CheckStatus: true,
 			UserAgent:   userAgent,
 		},

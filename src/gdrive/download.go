@@ -119,6 +119,8 @@ func (gdrive *GDrive) DownloadFile(fileInfo *gdriveFileToDl, filePath string, co
 			Params:    params,
 			Context:   ctx,
 			UserAgent: config.UserAgent,
+			Http2:     !HTTP3_SUPPORTED,
+			Http3:     HTTP3_SUPPORTED,
 		},
 	)
 	if err != nil {

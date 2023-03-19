@@ -216,6 +216,7 @@ func DownloadMultipleUgoira(ugoiraArgs *UgoiraArgs, ugoiraOptions *UgoiraOptions
 		}
 	}
 
+	var useHttp3 bool
 	var headers map[string]string
 	if ugoiraArgs.UseMobileApi {
 		headers = map[string]string{
@@ -223,6 +224,7 @@ func DownloadMultipleUgoira(ugoiraArgs *UgoiraArgs, ugoiraOptions *UgoiraOptions
 		}
 	} else {
 		headers = pixivcommon.GetPixivRequestHeaders()
+		useHttp3 = utils.IsHttp3Supported(utils.PIXIV, true)
 	}
 
 	request.DownloadUrlsWithHandler(
@@ -231,7 +233,7 @@ func DownloadMultipleUgoira(ugoiraArgs *UgoiraArgs, ugoiraOptions *UgoiraOptions
 			MaxConcurrency: utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
 			Headers:        headers,
 			Cookies:        ugoiraArgs.Cookies,
-			UseHttp3:       false,
+			UseHttp3:       useHttp3,
 		},
 		config,    // Note: if isMobileApi is true, custom user-agent will be ignored
 		reqHandler,

@@ -14,6 +14,84 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+type fantiaPostArgs struct {
+	msgSuffix  string
+	postId     string
+	url        string
+	postIdsLen int
+}
+
+func getFantiaPostDetails(postArg *fantiaPostArgs, fantiaDlOptions *FantiaDlOptions, config *configs.Config) (*http.Response, error) {
+	// Now that we have the post ID, we can query Fantia's API
+	// to get the post's contents from the JSON response.
+	progress := spinner.New(
+		spinner.REQ_SPINNER,
+		"fgHiYellow",
+		fmt.Sprintf(
+			"Getting post %s's contents from Fantia %s...",
+			postArg.postId,
+			postArg.msgSuffix,
+		),
+		fmt.Sprintf(
+			"Finished getting post %s's contents from Fantia %s!",
+			postArg.postId,
+			postArg.msgSuffix,
+		),
+		fmt.Sprintf(
+			"Something went wrong while getting post %s's cotents from Fantia %s.\nPlease refer to the logs for more details.",
+			postArg.postId,
+			postArg.msgSuffix,
+		),
+		postArg.postIdsLen,
+	)
+	progress.Start()
+
+	postApiUrl := postArg.url + postArg.postId
+	header := map[string]string{
+		"Referer":      fmt.Sprintf("%s/posts/%s", utils.FANTIA_URL, postArg.postId),
+		"x-csrf-token": fantiaDlOptions.CsrfToken,
+	}
+	useHttp3 := utils.IsHttp3Supported(utils.FANTIA, true)
+	res, err := request.CallRequest(
+		&request.RequestArgs{
+			Method:    "GET",
+			Url:       postApiUrl,
+			Cookies:   fantiaDlOptions.SessionCookies,
+			Headers:   header,
+			Http2:     !useHttp3,
+			Http3:     useHttp3,
+			UserAgent: config.UserAgent,
+		},
+	)
+	if err != nil || res.StatusCode != 200 {
+		errCode := utils.CONNECTION_ERROR
+		if err == nil {
+			errCode = res.StatusCode
+		}
+
+		errMsg := fmt.Sprintf(
+			"fantia error %d: failed to get post details for %s",
+			errCode,
+			postApiUrl,
+		)
+		if err != nil {
+			err = fmt.Errorf(
+				"%s, more info => %v",
+				errMsg,
+				err,
+			)
+		} else {
+			err = errors.New(errMsg)
+		}
+
+		progress.Stop(true)
+		return nil, err
+	}
+
+	progress.Stop(false)
+	return res, nil
+}
+
 // Query Fantia's API based on the slice of post IDs and get a map of urls to download from.
 //
 // Note that only the downloading of the URL(s) is/are executed concurrently
@@ -31,106 +109,36 @@ func (f *FantiaDl) dlFantiaPosts(fantiaDlOptions *FantiaDlOptions, config *confi
 			count,
 			postIdsLen,
 		)
-		// Now that we have the post ID, we can query Fantia's API
-		// to get the post's contents from the JSON response.
-		progress := spinner.New(
-			spinner.REQ_SPINNER,
-			"fgHiYellow",
-			fmt.Sprintf(
-				"Getting post %s's contents from Fantia %s...",
-				postId,
-				msgSuffix,
-			),
-			fmt.Sprintf(
-				"Finished getting post %s's contents from Fantia %s!",
-				postId,
-				msgSuffix,
-			),
-			fmt.Sprintf(
-				"Something went wrong while getting post %s's cotents from Fantia %s.\nPlease refer to the logs for more details.",
-				postId,
-				msgSuffix,
-			),
-			postIdsLen,
-		)
-		progress.Start()
 
-		postApiUrl := url + postId
-		header := map[string]string{
-			"Referer":      fmt.Sprintf("%s/posts/%s", utils.FANTIA_URL, postId),
-			"x-csrf-token": fantiaDlOptions.CsrfToken,
-		}
-		res, err := request.CallRequest(
-			&request.RequestArgs{
-				Method:    "GET",
-				Url:       postApiUrl,
-				Cookies:   fantiaDlOptions.SessionCookies,
-				Headers:   header,
-				Http2:     true,
-				UserAgent: config.UserAgent,
+		res, err := getFantiaPostDetails(
+			&fantiaPostArgs{
+				msgSuffix:  msgSuffix,
+				postId:     postId,
+				url:        url,
+				postIdsLen: postIdsLen,
 			},
+			fantiaDlOptions,
+			config,
 		)
-		if err != nil || res.StatusCode != 200 {
-			errCode := utils.CONNECTION_ERROR
-			if err == nil {
-				errCode = res.StatusCode
-			}
-
-			errMsg := fmt.Sprintf(
-				"fantia error %d: failed to get post details for %s",
-				errCode,
-				postApiUrl,
-			)
-
-			if err != nil {
-				err = fmt.Errorf(
-					"%s, more info => %v",
-					errMsg,
-					err,
-				)
-			} else {
-				err = errors.New(errMsg)
-			}
-
+		if err != nil {
 			errSlice = append(errSlice, err)
-			progress.Stop(true)
 			continue
 		}
-		progress.Stop(false)
 
-		// Process the JSON response to get the urls to download
-		progress = spinner.New(
-			spinner.JSON_SPINNER,
-			"fgHiYellow",
-			fmt.Sprintf(
-				"Processing retrieved JSON for post %s from Fantia %s...",
-				postId,
-				msgSuffix,
-			),
-			fmt.Sprintf(
-				"Finished processing retrieved JSON for post %s from Fantia %s!",
-				postId,
-				msgSuffix,
-			),
-			fmt.Sprintf(
-				"Something went wrong while processing retrieved JSON for post %s from Fantia %s.\nPlease refer to the logs for more details.",
-				postId,
-				msgSuffix,
-			),
-			postIdsLen,
-		)
-		progress.Start()
-		urlsToDownload, postGdriveLinks, err := processFantiaPost(
-			res,
-			utils.DOWNLOAD_PATH,
+		urlsToDownload, postGdriveUrls, err := processIllustDetailApiRes(
+			&processIllustArgs{
+				res:          res,
+				postId:       postId,
+				postIdsLen:  postIdsLen,
+				msgSuffix:   msgSuffix,
+			},
 			fantiaDlOptions,
 		)
 		if err != nil {
 			errSlice = append(errSlice, err)
-			progress.Stop(true)
+			continue
 		}
-		gdriveLinks = append(gdriveLinks, postGdriveLinks...)
-		progress.Stop(false)
+		gdriveLinks = append(gdriveLinks, postGdriveUrls...)
 
 		// Download the urls
 		request.DownloadUrls(
@@ -196,6 +204,7 @@ func getCreatorPosts(creatorId, pageNum string, config *configs.Config, dlOption
 		return nil, err
 	}
 
+	useHttp3 := utils.IsHttp3Supported(utils.FANTIA, false)
 	curPage := minPage
 	for {
 		url := fmt.Sprintf("%s/fanclubs/%s/posts", utils.FANTIA_URL, creatorId)
@@ -213,7 +222,8 @@ func getCreatorPosts(creatorId, pageNum string, config *configs.Config, dlOption
 				Url:         url,
 				Cookies:     dlOption.SessionCookies,
 				Params:      params,
-				Http3:       true,
+				Http2:       !useHttp3,
+				Http3:       useHttp3,
 				CheckStatus: true,
 				UserAgent:   config.UserAgent,
 			},

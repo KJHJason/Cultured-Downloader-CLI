@@ -59,6 +59,7 @@ const (
 	FANTIA_URL   = "https://fantia.jp"
 
 	PIXIV            = "pixiv"
+	PIXIV_MOBILE     = "pixiv_mobile"
 	PIXIV_TITLE      = "Pixiv"
 	PIXIV_PER_PAGE   = 60
 	PIXIV_URL        = "https://www.pixiv.net"

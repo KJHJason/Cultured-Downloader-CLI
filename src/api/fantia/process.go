@@ -1,6 +1,7 @@
 package fantia
 
 import (
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -9,7 +10,58 @@ import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 )
+
+func dlImagesFromPost(content *models.FantiaContent, postFolderPath string) []*request.ToDownload {
+	var urlsSlice []*request.ToDownload
+
+	// download images that are uploaded to their own section
+	postContentPhotos := content.PostContentPhotos
+	for _, image := range postContentPhotos {
+		imageUrl := image.URL.Original
+		urlsSlice = append(urlsSlice, &request.ToDownload{
+			Url:      imageUrl,
+			FilePath: filepath.Join(postFolderPath, utils.IMAGES_FOLDER),
+		})
+	}
+
+	// for images that are embedded in the post content
+	comment := content.Comment
+	matchedStr := utils.FANTIA_IMAGE_URL_REGEX.FindAllStringSubmatch(comment, -1)
+	for _, matched := range matchedStr {
+		imageUrl := utils.FANTIA_URL + matched[utils.FANTIA_REGEX_URL_INDEX]
+		urlsSlice = append(urlsSlice, &request.ToDownload{
+			Url:      imageUrl,
+			FilePath: filepath.Join(postFolderPath, utils.IMAGES_FOLDER),
+		})
+	}
+	return urlsSlice
+}
+
+func dlAttachmentsFromPost(content *models.FantiaContent, postFolderPath string) []*request.ToDownload {
+	var urlsSlice []*request.ToDownload
+
+	// get the attachment url string if it exists
+	attachmentUrl := content.AttachmentURI
+	if attachmentUrl != "" {
+		attachmentUrlStr := utils.FANTIA_URL + attachmentUrl
+		urlsSlice = append(urlsSlice, &request.ToDownload{
+			Url:      attachmentUrlStr,
+			FilePath: filepath.Join(postFolderPath, utils.ATTACHMENT_FOLDER),
+		})
+	} else if content.DownloadUri != "" {
+		// if the attachment url string does not exist,
+		// then get the download url for the file
+		downloadUrl := utils.FANTIA_URL + content.DownloadUri
+		filename := content.Filename
+		urlsSlice = append(urlsSlice, &request.ToDownload{
+			Url:      downloadUrl,
+			FilePath: filepath.Join(postFolderPath, utils.ATTACHMENT_FOLDER, filename),
+		})
+	}
+	return urlsSlice
+}
 
 // Process the JSON response from Fantia's API and
 // returns a slice of urls and a slice of gdrive urls to download from
@@ -36,10 +88,10 @@ func processFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 		postTitle,
 	)
 
-	var urlsMap []*request.ToDownload
+	var urlsSlice []*request.ToDownload
 	thumbnail := post.Thumb.Original
 	if fantiaDlOptions.DlThumbnails && thumbnail != "" {
-		urlsMap = append(urlsMap, &request.ToDownload{
+		urlsSlice = append(urlsSlice, &request.ToDownload{
 			Url:      thumbnail,
 			FilePath: postFolderPath,
 		})
@@ -53,7 +105,7 @@ func processFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 
 	postContent := post.PostContents
 	if postContent == nil {
-		return urlsMap, gdriveLinks, nil
+		return urlsSlice, gdriveLinks, nil
 	}
 	for _, content := range postContent {
 		commentGdriveLinks := gdrive.ProcessPostText(
@@ -64,50 +116,55 @@ func processFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 		if len(commentGdriveLinks) > 0 {
 			gdriveLinks = append(gdriveLinks, commentGdriveLinks...)
 		}
-
 		if fantiaDlOptions.DlImages {
-			// download images that are uploaded to their own section
-			postContentPhotos := content.PostContentPhotos
-			for _, image := range postContentPhotos {
-				imageUrl := image.URL.Original
-				urlsMap = append(urlsMap, &request.ToDownload{
-					Url:      imageUrl,
-					FilePath: filepath.Join(postFolderPath, utils.IMAGES_FOLDER),
-				})
-			}
-
-			// for images that are embedded in the post content
-			comment := content.Comment
-			matchedStr := utils.FANTIA_IMAGE_URL_REGEX.FindAllStringSubmatch(comment, -1)
-			for _, matched := range matchedStr {
-				imageUrl := utils.FANTIA_URL + matched[utils.FANTIA_REGEX_URL_INDEX]
-				urlsMap = append(urlsMap, &request.ToDownload{
-					Url:      imageUrl,
-					FilePath: filepath.Join(postFolderPath, utils.IMAGES_FOLDER),
-				})
-			}
+			urlsSlice = append(urlsSlice, dlImagesFromPost(&content, postFolderPath)...)
 		}
-
 		if fantiaDlOptions.DlAttachments {
-			// get the attachment url string if it exists
-			attachmentUrl := content.AttachmentURI
-			if attachmentUrl != "" {
-				attachmentUrlStr := utils.FANTIA_URL + attachmentUrl
-				urlsMap = append(urlsMap, &request.ToDownload{
-					Url:      attachmentUrlStr,
-					FilePath: filepath.Join(postFolderPath, utils.ATTACHMENT_FOLDER),
-				})
-			} else if content.DownloadUri != "" {
-				// if the attachment url string does not exist,
-				// then get the download url for the file
-				downloadUrl := utils.FANTIA_URL + content.DownloadUri
-				filename := content.Filename
-				urlsMap = append(urlsMap, &request.ToDownload{
-					Url:      downloadUrl,
-					FilePath: filepath.Join(postFolderPath, utils.ATTACHMENT_FOLDER, filename),
-				})
-			}
+			urlsSlice = append(urlsSlice, dlAttachmentsFromPost(&content, postFolderPath)...)
 		}
 	}
-	return urlsMap, gdriveLinks, nil
+	return urlsSlice, gdriveLinks, nil
+}
+
+type processIllustArgs struct {
+	res          *http.Response
+	postId       string
+	postIdsLen   int
+	msgSuffix    string
+}
+
+// Process the JSON response to get the urls to download
+func processIllustDetailApiRes(illustArgs *processIllustArgs, fantiaDlOptions *FantiaDlOptions) ([]*request.ToDownload, []*request.ToDownload, error) {
+	progress := spinner.New(
+		spinner.JSON_SPINNER,
+		"fgHiYellow",
+		fmt.Sprintf(
+			"Processing retrieved JSON for post %s from Fantia %s...",
+			illustArgs.postId,
+			illustArgs.msgSuffix,
+		),
+		fmt.Sprintf(
+			"Finished processing retrieved JSON for post %s from Fantia %s!",
+			illustArgs.postId,
+			illustArgs.msgSuffix,
+		),
+		fmt.Sprintf(
+			"Something went wrong while processing retrieved JSON for post %s from Fantia %s.\nPlease refer to the logs for more details.",
+			illustArgs.postId,
+			illustArgs.msgSuffix,
+		),
+		illustArgs.postIdsLen,
+	)
+	progress.Start()
+	urlsToDownload, gdriveLinks, err := processFantiaPost(
+		illustArgs.res,
+		utils.DOWNLOAD_PATH,
+		fantiaDlOptions,
+	)
+	if err != nil {
+		progress.Stop(true)
+		return nil, nil, err
+	}
+	progress.Stop(false)
+	return urlsToDownload, gdriveLinks, nil
 }

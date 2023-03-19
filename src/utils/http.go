@@ -15,6 +15,32 @@ import (
 	"github.com/fatih/color"
 )
 
+// Returns a boolean value indicating whether the specified site supports HTTP/3
+//
+// Usually, the API endpoints of a site do not support HTTP/3, so the isApi parameter must be provided.
+func IsHttp3Supported(site string, isApi bool) bool {
+	switch site {
+	case FANTIA:
+		return !isApi
+	case PIXIV_FANBOX:
+		return false
+	case PIXIV:
+		return !isApi
+	case PIXIV_MOBILE:
+		return true
+	case KEMONO:
+		return false
+	default:
+		panic(
+			fmt.Errorf(
+				"error %d, invalid site, %q in IsHttp3Supported",
+				DEV_ERROR,
+				site,
+			),
+		)
+	}
+}
+
 // Returns the last part of the given URL string
 func GetLastPartOfUrl(url string) string {
 	removedParams := strings.SplitN(url, "?", 2)

@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"bufio"
 	"fmt"
 	"math/rand"
 	"os"
@@ -20,30 +19,6 @@ func PrintWarningMsg() {
 	color.Yellow("Please do NOT terminate the program while it is downloading unless you really have to!")
 	color.Yellow("Doing so MAY result in incomplete downloads and corrupted files.")
 	fmt.Println()
-}
-
-// Returns a boolean value indicating whether the specified site supports HTTP/3
-//
-// Usually, the API endpoints of a site do not support HTTP/3, so the isApi parameter must be provided.
-func IsHttp3Supported(site string, isApi bool) bool {
-	switch site {
-	case FANTIA:
-		return !isApi
-	case PIXIV_FANBOX:
-		return false
-	case PIXIV:
-		return !isApi
-	case KEMONO:
-		return false
-	default:
-		panic(
-			fmt.Errorf(
-				"error %d, invalid site, %q in IsHttp3Supported",
-				DEV_ERROR,
-				site,
-			),
-		)
-	}
 }
 
 // Returns a readable format of the website name for the user
@@ -69,23 +44,6 @@ func GetReadableSiteStr(site string) string {
 			),
 		)
 	}
-}
-
-// Uses bufio.Reader to read a line from a file and returns it as a byte slice
-//
-// Mostly thanks to https://devmarkpro.com/working-big-files-golang
-func ReadLine(reader *bufio.Reader) ([]byte, error) {
-	var err error
-	var isPrefix = true
-	var totalLine, line []byte
-
-	// Read until isPrefix is false as
-	// that means the line has been fully read
-	for isPrefix && err == nil {
-		line, isPrefix, err = reader.ReadLine()
-		totalLine = append(totalLine, line...)
-	}
-	return totalLine, err
 }
 
 // Convert the page number to the offset as one page might have x posts.

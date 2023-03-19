@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -61,6 +62,23 @@ func LogMessageToPath(message, filePath string, level int) {
 	pathLogger.LogBasedOnLvl(level, message)
 }
 
+// Uses bufio.Reader to read a line from a file and returns it as a byte slice
+//
+// Mostly thanks to https://devmarkpro.com/working-big-files-golang
+func ReadLine(reader *bufio.Reader) ([]byte, error) {
+	var err error
+	var isPrefix = true
+	var totalLine, line []byte
+
+	// Read until isPrefix is false as
+	// that means the line has been fully read
+	for isPrefix && err == nil {
+		line, isPrefix, err = reader.ReadLine()
+		totalLine = append(totalLine, line...)
+	}
+	return totalLine, err
+}
+
 // Removes any illegal characters in a path name
 // to prevent any error with file I/O using the path name
 func RemoveIllegalCharsInPathName(dirtyPathName string) string {
@@ -114,6 +132,80 @@ func GetDefaultDownloadPath() string {
 	return config.DownloadDir
 }
 
+// saves the new download path to the config file if it does not exist
+func saveConfig(newDownloadPath, configFilePath string) error {
+	config := ConfigFile{
+		DownloadDir: newDownloadPath,
+		Language:    "en",
+	}
+	configFile, err := json.MarshalIndent(config, "", "    ")
+	if err != nil {
+		return fmt.Errorf(
+			"error %d: failed to marshal config file, more info => %v",
+			JSON_ERROR,
+			err,
+		)
+	}
+
+	err = os.WriteFile(configFilePath, configFile, 0666)
+	if err != nil {
+		return fmt.Errorf(
+			"error %d: failed to write config file, more info => %v",
+			OS_ERROR,
+			err,
+		)
+	}
+	return nil
+}
+
+// saves the new download path to the config file and overwrites the old one
+func overwriteConfig(newDownloadPath, configFilePath string) error {
+	// read the file
+	configFile, err := os.ReadFile(configFilePath)
+	if err != nil {
+		return fmt.Errorf(
+			"error %d: failed to read config file, more info => %v",
+			OS_ERROR,
+			err,
+		)
+	}
+
+	var config ConfigFile
+	err = json.Unmarshal(configFile, &config)
+	if err != nil {
+		return fmt.Errorf(
+			"error %d: failed to unmarshal config file, more info => %v",
+			JSON_ERROR,
+			err,
+		)
+	}
+
+	// update the file if the download directory is different
+	if config.DownloadDir == newDownloadPath {
+		return nil
+	}
+
+	config.DownloadDir = newDownloadPath
+	configFile, err = json.MarshalIndent(config, "", "    ")
+	if err != nil {
+		return fmt.Errorf(
+			"error %d: failed to marshal config file, more info => %v",
+			JSON_ERROR,
+			err,
+		)
+	}
+
+	err = os.WriteFile(configFilePath, configFile, 0666)
+	if err != nil {
+		return fmt.Errorf(
+			"error %d: failed to write config file, more info => %v",
+			OS_ERROR,
+			err,
+		)
+	}
+	return nil
+}
+
 // Configure and saves the config file with updated download path
 func SetDefaultDownloadPath(newDownloadPath string) error {
 	if !PathExists(newDownloadPath) {
@@ -123,71 +215,7 @@ func SetDefaultDownloadPath(newDownloadPath string) error {
 	os.MkdirAll(APP_PATH, 0666)
 	configFilePath := filepath.Join(APP_PATH, "config.json")
 	if !PathExists(configFilePath) {
-		config := ConfigFile{
-			DownloadDir: newDownloadPath,
-			Language:    "en",
-		}
-		configFile, err := json.MarshalIndent(config, "", "    ")
-		if err != nil {
-			return fmt.Errorf(
-				"error %d: failed to marshal config file, more info => %v",
-				JSON_ERROR,
-				err,
-			)
-		}
-
-		err = os.WriteFile(configFilePath, configFile, 0666)
-		if err != nil {
-			return fmt.Errorf(
-				"error %d: failed to write config file, more info => %v",
-				OS_ERROR,
-				err,
-			)
-		}
-	} else {
-		// read the file
-		configFile, err := os.ReadFile(configFilePath)
-		if err != nil {
-			return fmt.Errorf(
-				"error %d: failed to read config file, more info => %v",
-				OS_ERROR,
-				err,
-			)
-		}
-
-		var config ConfigFile
-		err = json.Unmarshal(configFile, &config)
-		if err != nil {
-			return fmt.Errorf(
-				"error %d: failed to unmarshal config file, more info => %v",
-				JSON_ERROR,
-				err,
-			)
-		}
-
-		// update the file if the download directory is different
-		if config.DownloadDir == newDownloadPath {
-			return nil
-		}
-
-		config.DownloadDir = newDownloadPath
-		configFile, err = json.MarshalIndent(config, "", "    ")
-		if err != nil {
-			return fmt.Errorf(
-				"error %d: failed to marshal config file, more info => %v",
-				JSON_ERROR,
-				err,
-			)
-		}
-
-		err = os.WriteFile(configFilePath, configFile, 0666)
-		if err != nil {
-			return fmt.Errorf(
-				"error %d: failed to write config file, more info => %v",
-				OS_ERROR,
-				err,
-			)
-		}
+		return saveConfig(newDownloadPath, configFilePath)
 	}
-	return nil
+	return overwriteConfig(newDownloadPath, configFilePath)
 }

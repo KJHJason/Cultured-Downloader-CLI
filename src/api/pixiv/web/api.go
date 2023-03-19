@@ -105,12 +105,15 @@ func getArtworkDetails(artworkId, downloadPath string, config *configs.Config, c
 	headers := pixivcommon.GetPixivRequestHeaders()
 	headers["Referer"] = pixivcommon.GetUserUrl(artworkId)
 
+	useHttp3 := utils.IsHttp3Supported(utils.PIXIV, true)
 	reqArgs := &request.RequestArgs{
 		Url:       url,
 		Method:    "GET",
 		Cookies:   cookies,
 		Headers:   headers,
 		UserAgent: config.UserAgent,
+		Http2:     !useHttp3,
+		Http3:     useHttp3,
 	}
 	artworkDetailsJsonRes, err := getArtworkDetailsLogic(artworkId, reqArgs)
 	if err != nil {
@@ -213,6 +216,7 @@ func getIllustratorPosts(illustratorId, pageNum string, config *configs.Config, 
 	headers["Referer"] = pixivcommon.GetIllustUrl(illustratorId)
 	url := fmt.Sprintf("%s/user/%s/profile/all", utils.PIXIV_API_URL, illustratorId)
 
+	useHttp3 := utils.IsHttp3Supported(utils.PIXIV, true)
 	res, err := request.CallRequest(
 		&request.RequestArgs{
 			Url:       url,
@@ -220,6 +224,8 @@ func getIllustratorPosts(illustratorId, pageNum string, config *configs.Config, 
 			Cookies:   pixivDlOptions.SessionCookies,
 			Headers:   headers,
 			UserAgent: config.UserAgent,
+			Http2:     !useHttp3,
+			Http3:     useHttp3,
 		},
 	)
 	if err != nil {
@@ -384,6 +390,7 @@ func TagSearch(tagName, downloadPath, pageNum string, config *configs.Config, dl
 		"type": dlOptions.ArtworkType,
 	}
 
+	useHttp3 := utils.IsHttp3Supported(utils.PIXIV, true)
 	headers := pixivcommon.GetPixivRequestHeaders()
 	headers["Referer"] = fmt.Sprintf("%s/tags/%s/artworks", utils.PIXIV_URL, tagName)
 	artworkIds, errSlice := tagSearchLogic(
@@ -396,6 +403,8 @@ func TagSearch(tagName, downloadPath, pageNum string, config *configs.Config, dl
 			Params:      params,
 			CheckStatus: true,
 			UserAgent:   config.UserAgent,
+			Http2:       !useHttp3,
+			Http3:       useHttp3,
 		},
 		&pageNumArgs{
 			minPage: minPage,

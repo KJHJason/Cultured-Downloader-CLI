@@ -14,6 +14,7 @@ import (
 )
 
 const (
+	HTTP3_SUPPORTED       = true
 	GDRIVE_ERROR_FILENAME = "gdrive_download.log"
 
 	// file fields to fetch from GDrive API:
@@ -73,6 +74,8 @@ func (gdrive *GDrive) GDriveKeyIsValid(userAgent string) (bool, error) {
 			Timeout:   gdrive.timeout,
 			Params:    params,
 			UserAgent: userAgent,
+			Http2:     !HTTP3_SUPPORTED,
+			Http3:     HTTP3_SUPPORTED,
 		},
 	)
 	if err != nil {
@@ -169,6 +172,8 @@ func (gdrive *GDrive) GetFolderContents(folderId, logPath string, config *config
 				Timeout:   gdrive.timeout,
 				Params:    params,
 				UserAgent: config.UserAgent,
+				Http2:     !HTTP3_SUPPORTED,
+				Http3:     HTTP3_SUPPORTED,
 			},
 		)
 		if err != nil {
@@ -253,6 +258,8 @@ func (gdrive *GDrive) GetFileDetails(gdriveInfo *GDriveToDl, config *configs.Con
 			Timeout:   gdrive.timeout,
 			Params:    params,
 			UserAgent: config.UserAgent,
+			Http2:     !HTTP3_SUPPORTED,
+			Http3:     HTTP3_SUPPORTED,
 		},
 	)
 	if err != nil {

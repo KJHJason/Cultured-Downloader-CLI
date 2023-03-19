@@ -53,6 +53,7 @@ func (pf *PixivFanboxDl) getPostDetails(config *configs.Config, pixivFanboxDlOpt
 	)
 	progress.Start()
 
+	useHttp3 := utils.IsHttp3Supported(utils.PIXIV_FANBOX, true)
 	url := fmt.Sprintf("%s/post.info", utils.PIXIV_FANBOX_API_URL)
 	for _, postId := range pf.PostIds {
 		wg.Add(1)
@@ -73,6 +74,8 @@ func (pf *PixivFanboxDl) getPostDetails(config *configs.Config, pixivFanboxDlOpt
 					Headers:   header,
 					Params:    params,
 					UserAgent: config.UserAgent,
+					Http2:     !useHttp3,
+					Http3:     useHttp3,
 				},
 			)
 			if err != nil {
@@ -116,6 +119,7 @@ func getCreatorPaginatedPosts(creatorId string, config *configs.Config, dlOption
 		"%s/post.paginateCreator",
 		utils.PIXIV_FANBOX_API_URL,
 	)
+	useHttp3 := utils.IsHttp3Supported(utils.PIXIV_FANBOX, true)
 	res, err := request.CallRequest(
 		&request.RequestArgs{
 			Method:    "GET",
@@ -124,6 +128,8 @@ func getCreatorPaginatedPosts(creatorId string, config *configs.Config, dlOption
 			Headers:   headers,
 			Params:    params,
 			UserAgent: config.UserAgent,
+			Http2:     !useHttp3,
+			Http3:     useHttp3,
 		},
 	)
 	if err != nil || res.StatusCode != 200 {
@@ -174,6 +180,7 @@ func getFanboxPosts(creatorId, pageNum string, config *configs.Config, dlOption 
 		return nil, err
 	}
 
+	useHttp3 := utils.IsHttp3Supported(utils.PIXIV_FANBOX, true)
 	headers := GetPixivFanboxHeaders()
 	var wg sync.WaitGroup
 	maxConcurrency := utils.MAX_API_CALLS
@@ -205,6 +212,8 @@ func getFanboxPosts(creatorId, pageNum string, config *configs.Config, dlOption 
 					Cookies:   dlOption.SessionCookies,
 					Headers:   headers,
 					UserAgent: config.UserAgent,
+					Http2:     !useHttp3,
+					Http3:     useHttp3,
 				},
 			)
 			if err != nil || res.StatusCode != 200 {

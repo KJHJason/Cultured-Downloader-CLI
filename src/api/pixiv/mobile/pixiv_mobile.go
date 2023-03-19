@@ -97,7 +97,11 @@ func (pixiv *PixivMobile) SendRequest(reqArgs *request.RequestArgs) (*http.Respo
 	if reqArgs.Timeout == 0 {
 		reqArgs.Timeout = pixiv.apiTimeout
 	}
+	useHttp3 := utils.IsHttp3Supported(utils.PIXIV_MOBILE, true)
+	reqArgs.Http3 = useHttp3
+	reqArgs.Http2 = !useHttp3
 	reqArgs.ValidateArgs()
+
 	req, err := http.NewRequest(reqArgs.Method, reqArgs.Url, nil)
 	if err != nil {
 		return nil, err

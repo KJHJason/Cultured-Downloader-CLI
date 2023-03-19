@@ -61,6 +61,7 @@ func (pixiv *PixivMobile) StartOauthFlow() error {
 		color.Green("Opened a new tab in your browser to\n" + loginUrl)
 	}
 
+	useHttp3 := utils.IsHttp3Supported(utils.PIXIV_MOBILE, true)
 	color.Yellow("If unsure, follow the guide below:")
 	color.Yellow("https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/pixiv_oauth_guide.md\n")
 	for {
@@ -84,6 +85,8 @@ func (pixiv *PixivMobile) StartOauthFlow() error {
 				Timeout:     pixiv.apiTimeout,
 				CheckStatus: true,
 				UserAgent:   "PixivAndroidApp/5.0.234 (Android 11; Pixel 5)",
+				Http2:       !useHttp3,
+				Http3:       useHttp3,
 			},
 			map[string]string{
 				"client_id":      pixiv.clientId,
@@ -119,12 +122,15 @@ func (pixiv *PixivMobile) refreshAccessToken() error {
 	pixiv.accessTokenMu.Lock()
 	defer pixiv.accessTokenMu.Unlock()
 
+	useHttp3 := utils.IsHttp3Supported(utils.PIXIV_MOBILE, true)
 	res, err := request.CallRequestWithData(
 		&request.RequestArgs{
 			Url:       pixiv.authTokenUrl,
 			Method:    "POST",
 			Timeout:   pixiv.apiTimeout,
 			UserAgent: pixiv.userAgent,
+			Http2:       !useHttp3,
+			Http3:       useHttp3,
 		},
 		map[string]string{
 			"client_id":      pixiv.clientId,

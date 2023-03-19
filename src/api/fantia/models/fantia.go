@@ -1,5 +1,26 @@
 package models
 
+type FantiaContent struct {
+	// Any attachments such as pdfs that are on their dedicated section
+	AttachmentURI string `json:"attachment_uri"`
+
+	// For images that are uploaded to their own section
+	PostContentPhotos []struct {
+		ID  int `json:"id"`
+		URL struct {
+			Original string `json:"original"`
+		} `json:"url"`
+	} `json:"post_content_photos"`
+
+	// For images that are embedded in the post content blocks.
+	// Could also contain links to other external file hosting providers.
+	Comment string `json:"comment"`
+
+	// for attachments such as pdfs that are embedded in the post content
+	DownloadUri string `json:"download_uri"`
+	Filename    string `json:"filename"`
+}
+
 type FantiaPost struct {
 	Post struct {
 		ID      int    `json:"id"`
@@ -14,25 +35,6 @@ type FantiaPost struct {
 			} `json:"user"`
 		} `json:"fanclub"`
 		Status       string `json:"status"`
-		PostContents []struct {
-			// Any attachments such as pdfs that are on their dedicated section
-			AttachmentURI string `json:"attachment_uri"`
-
-			// For images that are uploaded to their own section
-			PostContentPhotos []struct {
-				ID  int `json:"id"`
-				URL struct {
-					Original string `json:"original"`
-				} `json:"url"`
-			} `json:"post_content_photos"`
-
-			// For images that are embedded in the post content blocks.
-			// Could also contain links to other external file hosting providers.
-			Comment string `json:"comment"`
-
-			// for attachments such as pdfs that are embedded in the post content
-			DownloadUri string `json:"download_uri"`
-			Filename    string `json:"filename"`
-		} `json:"post_contents"`
+		PostContents []FantiaContent `json:"post_contents"`
 	} `json:"post"`
 }

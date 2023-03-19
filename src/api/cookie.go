@@ -40,19 +40,14 @@ func GetCookie(sessionID, website string) *http.Cookie {
 func VerifyCookie(cookie *http.Cookie, website, userAgent string) (bool, error) {
 	// sends a request to the website to verify the cookie
 	var websiteUrl string
-	var useHttp3 bool
 	switch website {
 	case utils.FANTIA:
-		useHttp3 = true
 		websiteUrl = utils.FANTIA_URL + "/mypage/users/plans"
 	case utils.PIXIV_FANBOX:
-		useHttp3 = false
 		websiteUrl = utils.PIXIV_FANBOX_URL + "/creators/supporting"
 	case utils.PIXIV:
-		useHttp3 = true
 		websiteUrl = utils.PIXIV_URL + "/manage/requests"
 	case utils.KEMONO:
-		useHttp3 = false
 		websiteUrl = utils.KEMONO_URL + "/favorites"
 	default:
 		// Shouldn't happen but could happen during development
@@ -69,6 +64,7 @@ func VerifyCookie(cookie *http.Cookie, website, userAgent string) (bool, error) 
 		return false, nil
 	}
 
+	useHttp3 := utils.IsHttp3Supported(website, false)
 	cookies := []*http.Cookie{cookie}
 	resp, err := request.CallRequest(
 		&request.RequestArgs{
