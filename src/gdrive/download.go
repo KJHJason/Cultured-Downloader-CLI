@@ -17,16 +17,8 @@ import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive/models"
 )
-
-type gdriveFileToDl struct {
-	Id          string
-	Name        string
-	Size        string
-	MimeType    string
-	Md5Checksum string
-	FilePath    string
-}
 
 func md5HashFile(file *os.File) (string, error) {
 	md5Checksum := md5.New()
@@ -41,7 +33,7 @@ func md5HashFile(file *os.File) (string, error) {
 	return fmt.Sprintf("%x", md5Checksum.Sum(nil)), nil
 }
 
-func checkIfCanSkipDl(filePath string, fileInfo *gdriveFileToDl) (bool, error) {
+func checkIfCanSkipDl(filePath string, fileInfo *models.GdriveFileToDl) (bool, error) {
 	if !utils.PathExists(filePath) {
 		return false, nil
 	}
@@ -85,7 +77,7 @@ func checkIfCanSkipDl(filePath string, fileInfo *gdriveFileToDl) (bool, error) {
 // Downloads the given GDrive file using GDrive API v3
 //
 // If the md5Checksum has a mismatch, the file will be overwritten and downloaded again
-func (gdrive *GDrive) DownloadFile(fileInfo *gdriveFileToDl, filePath string, config *configs.Config, queue chan struct{}) error {
+func (gdrive *GDrive) DownloadFile(fileInfo *models.GdriveFileToDl, filePath string, config *configs.Config, queue chan struct{}) error {
 	skipDl, err := checkIfCanSkipDl(filePath, fileInfo)
 	if skipDl || err != nil {
 		return err
@@ -133,14 +125,9 @@ func (gdrive *GDrive) DownloadFile(fileInfo *gdriveFileToDl, filePath string, co
 	return request.DlToFile(res, url, filePath)
 }
 
-type gdriveError struct {
-	err      error
-	filePath string
-}
-
-func filterDownloads(files []*gdriveFileToDl) []*gdriveFileToDl {
-	var notAllowedForDownload []*gdriveFileToDl
-	allowedForDownload := make([]*gdriveFileToDl, 0, len(files))
+func filterDownloads(files []*models.GdriveFileToDl) []*models.GdriveFileToDl {
+	var notAllowedForDownload []*models.GdriveFileToDl
+	allowedForDownload := make([]*models.GdriveFileToDl, 0, len(files))
 	for _, file := range files {
 		if strings.Contains(file.MimeType, "application/vnd.google-apps") {
 			notAllowedForDownload = append(notAllowedForDownload, file)
@@ -162,10 +149,10 @@ func filterDownloads(files []*gdriveFileToDl) []*gdriveFileToDl {
 	return allowedForDownload
 }
 
-func processGdriveDlError(errChan chan *gdriveError, progress *spinner.Spinner) {
+func processGdriveDlError(errChan chan *models.GdriveError, progress *spinner.Spinner) {
 	killProgram := false
 	for errInfo := range errChan {
-		errMsg := errInfo.err.Error()
+		errMsg := censorApiKeyFromStr(errInfo.Err.Error())
 		if errMsg == context.Canceled.Error() {
 			if !killProgram {
 				killProgram = true
@@ -174,8 +161,8 @@ func processGdriveDlError(errChan chan *gdriveError, progress *spinner.Spinner) 
 		}
 
 		utils.LogMessageToPath(
-			errMsg,
-			errInfo.filePath,
+			censorApiKeyFromStr(errMsg),
+			errInfo.FilePath,
 			utils.ERROR,
 		)
 	}
@@ -188,7 +175,7 @@ func processGdriveDlError(errChan chan *gdriveError, progress *spinner.Spinner) 
 }
 
 // Downloads the multiple GDrive file in parallel using GDrive API v3
-func (gdrive *GDrive) DownloadMultipleFiles(files []*gdriveFileToDl, config *configs.Config) {
+func (gdrive *GDrive) DownloadMultipleFiles(files []*models.GdriveFileToDl, config *configs.Config) {
 	allowedForDownload := filterDownloads(files)
 	if len(allowedForDownload) == 0 {
 		return
@@ -200,7 +187,7 @@ func (gdrive *GDrive) DownloadMultipleFiles(files []*gdriveFileToDl, config *con
 	}
 	var wg sync.WaitGroup
 	queue := make(chan struct{}, maxConcurrency)
-	errChan := make(chan *gdriveError, len(allowedForDownload))
+	errChan := make(chan *models.GdriveError, len(allowedForDownload))
 
 	baseMsg := "Downloading GDrive files [%d/" + fmt.Sprintf("%d]...", len(allowedForDownload))
 	progress := spinner.New(
@@ -223,7 +210,7 @@ func (gdrive *GDrive) DownloadMultipleFiles(files []*gdriveFileToDl, config *con
 	progress.Start()
 	for _, file := range allowedForDownload {
 		wg.Add(1)
-		go func(file *gdriveFileToDl) {
+		go func(file *models.GdriveFileToDl) {
 			defer func() {
 				wg.Done()
 				<-queue
@@ -238,9 +225,9 @@ func (gdrive *GDrive) DownloadMultipleFiles(files []*gdriveFileToDl, config *con
 					"failed to download file: %s (ID: %s, MIME Type: %s)\nRefer to error details below:\n%v",
 					file.Name, file.Id, file.MimeType, err,
 				)
-				errChan <- &gdriveError{
-					err: err,
-					filePath: filepath.Join(
+				errChan <- &models.GdriveError{
+					Err: err,
+					FilePath: filepath.Join(
 						file.FilePath,
 						GDRIVE_ERROR_FILENAME,
 					),
@@ -286,7 +273,7 @@ func GetFileIdAndTypeFromUrl(url string) (string, string) {
 	return matched[utils.GDRIVE_REGEX_ID_INDEX], fileType
 }
 
-func (gdrive *GDrive) getGdriveFileInfo(gdriveId *GDriveToDl, config *configs.Config) ([]*gdriveFileToDl, *gdriveError) {
+func (gdrive *GDrive) getGdriveFileInfo(gdriveId *models.GDriveToDl, config *configs.Config) ([]*models.GdriveFileToDl, *models.GdriveError) {
 	switch gdriveId.Type {
 	case "file":
 		fileInfo, err := gdrive.GetFileDetails(
@@ -294,13 +281,13 @@ func (gdrive *GDrive) getGdriveFileInfo(gdriveId *GDriveToDl, config *configs.Co
 			config,
 		)
 		if err != nil {
-			return nil, &gdriveError{
-				err:      err,
-				filePath: gdriveId.FilePath,
+			return nil, &models.GdriveError{
+				Err:      err,
+				FilePath: gdriveId.FilePath,
 			}
 		}
 		fileInfo.FilePath = gdriveId.FilePath
-		return []*gdriveFileToDl{fileInfo}, nil
+		return []*models.GdriveFileToDl{fileInfo}, nil
 	case "folder":
 		filesInfo, err := gdrive.GetNestedFolderContents(
 			gdriveId.Id,
@@ -308,25 +295,25 @@ func (gdrive *GDrive) getGdriveFileInfo(gdriveId *GDriveToDl, config *configs.Co
 			config,
 		)
 		if err != nil {
-			return nil, &gdriveError{
-				err:      err,
-				filePath: gdriveId.FilePath,
+			return nil, &models.GdriveError{
+				Err:      err,
+				FilePath: gdriveId.FilePath,
 			}
 		}
-		var gdriveFilesInfo []*gdriveFileToDl
+		var gdriveFilesInfo []*models.GdriveFileToDl
 		for _, fileInfo := range filesInfo {
 			fileInfo.FilePath = gdriveId.FilePath
 			gdriveFilesInfo = append(gdriveFilesInfo, fileInfo)
 		}
 		return gdriveFilesInfo, nil
 	default:
-		return nil, &gdriveError{
-			err: fmt.Errorf(
+		return nil, &models.GdriveError{
+			Err: fmt.Errorf(
 				"gdrive error %d: unknown Google Drive URL type, %q",
 				utils.DEV_ERROR,
 				gdriveId.Type,
 			),
-			filePath: gdriveId.FilePath,
+			FilePath: gdriveId.FilePath,
 		}
 	}
 }
@@ -338,11 +325,11 @@ func (gdrive *GDrive) DownloadGdriveUrls(gdriveUrls []*request.ToDownload, confi
 	}
 
 	// Retrieve the id from the url text
-	var gdriveIds []*GDriveToDl
+	var gdriveIds []*models.GDriveToDl
 	for _, gdriveUrl := range gdriveUrls {
 		fileId, fileType := GetFileIdAndTypeFromUrl(gdriveUrl.Url)
 		if fileId != "" && fileType != "" {
-			gdriveIds = append(gdriveIds, &GDriveToDl{
+			gdriveIds = append(gdriveIds, &models.GDriveToDl{
 				Id:       fileId,
 				Type:     fileType,
 				FilePath: gdriveUrl.FilePath,
@@ -351,8 +338,8 @@ func (gdrive *GDrive) DownloadGdriveUrls(gdriveUrls []*request.ToDownload, confi
 	}
 
 	// Note: Can't do API calls concurrently as to avoid being blocked by Google's bot detection
-	var errSlice []*gdriveError
-	var gdriveFilesInfo []*gdriveFileToDl
+	var errSlice []*models.GdriveError
+	var gdriveFilesInfo []*models.GdriveFileToDl
 	baseMsg := "Getting GDrive file information from GDrive ID(s) [%d/" + fmt.Sprintf("%d]...", len(gdriveIds))
 	progress := spinner.New(
 		spinner.REQ_SPINNER,
@@ -387,8 +374,8 @@ func (gdrive *GDrive) DownloadGdriveUrls(gdriveUrls []*request.ToDownload, confi
 		hasErr = true
 		for _, err := range errSlice {
 			utils.LogMessageToPath(
-				err.err.Error(),
-				err.filePath,
+				censorApiKeyFromStr(err.Err.Error()),
+				err.FilePath,
 				utils.ERROR,
 			)
 		}
