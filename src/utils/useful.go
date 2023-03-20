@@ -270,13 +270,11 @@ func DetectPasswordInText(text string) bool {
 
 // Detects if the given string contains any GDrive links and logs it if detected
 func DetectGDriveLinks(text, postFolderPath string, isUrl bool) bool {
-	gdriveFilename := "detected_gdrive_links.txt"
-	gdriveFilepath := filepath.Join(postFolderPath, gdriveFilename)
-	driveSubstr := "https://drive.google.com"
+	gdriveFilepath := filepath.Join(postFolderPath, GDRIVE_FILENAME)
 	containsGDriveLink := false
-	if isUrl && strings.HasPrefix(text, driveSubstr) {
+	if isUrl && strings.HasPrefix(text, GDRIVE_URL) {
 		containsGDriveLink = true
-	} else if strings.Contains(text, driveSubstr) {
+	} else if strings.Contains(text, GDRIVE_URL) {
 		containsGDriveLink = true
 	}
 
@@ -294,8 +292,7 @@ func DetectGDriveLinks(text, postFolderPath string, isUrl bool) bool {
 
 // Detects if the given string contains any other external file hosting providers links and logs it if detected
 func DetectOtherExtDLLink(text, postFolderPath string) bool {
-	otherExtFilename := "detected_external_links.txt"
-	otherExtFilepath := filepath.Join(postFolderPath, otherExtFilename)
+	otherExtFilepath := filepath.Join(postFolderPath, OTHER_LINKS_FILENAME)
 	for _, extDownloadProvider := range EXTERNAL_DOWNLOAD_PLATFORMS {
 		if strings.Contains(text, extDownloadProvider) {
 			otherExtText := fmt.Sprintf(

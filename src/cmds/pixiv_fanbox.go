@@ -163,15 +163,4 @@ func init() {
 		true,
 		"Whether to download the Google Drive links of a Pixiv Fanbox post.",
 	)
-	pixivFanboxCmd.Flags().StringVar(
-		&fanboxGdriveApiKey,
-		"gdrive_api_key",
-		"",
-		utils.CombineStringsWithNewline(
-			[]string{
-				"Google Drive API key to use for downloading gdrive files.",
-				"Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_key_guide.md",
-			},
-		),
-	)
 }

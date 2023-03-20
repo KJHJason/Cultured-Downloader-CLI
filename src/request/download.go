@@ -150,6 +150,7 @@ func DownloadUrl(filePath string, queue chan struct{}, reqArgs *RequestArgs, ove
 			CheckStatus: true,
 			Http3:       reqArgs.Http3,
 			Http2:       reqArgs.Http2,
+			Context:     ctx,
 		},
 	)
 	if err != nil {

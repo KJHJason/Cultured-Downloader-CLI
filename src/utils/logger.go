@@ -27,9 +27,9 @@ func NewLogger(out io.Writer) *logger {
 	}
 
 	return &logger{
-		infoLogger:  log.New(out, loggerPrefix + "[INFO]: ", log.Ldate|log.Ltime|log.Lshortfile),
-		errorLogger: log.New(out, loggerPrefix + "[ERROR]: ", log.Ldate|log.Ltime|log.Lshortfile),
-		debugLogger: log.New(out, loggerPrefix + "[DEBUG]: ", log.Ldate|log.Ltime|log.Lshortfile),
+		infoLogger:  log.New(out, loggerPrefix + "[INFO]: ", log.Ldate|log.Ltime),
+		errorLogger: log.New(out, loggerPrefix + "[ERROR]: ", log.Ldate|log.Ltime),
+		debugLogger: log.New(out, loggerPrefix + "[DEBUG]: ", log.Ldate|log.Ltime),
 	}
 }
 

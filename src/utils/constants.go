@@ -80,7 +80,11 @@ const (
 	PASSWORD_FILENAME = "detected_passwords.txt"
 	ATTACHMENT_FOLDER = "attachments"
 	IMAGES_FOLDER     = "images"
-	GDRIVE_FOLDER     = "gdrive"
+
+	GDRIVE_URL 	         = "https://drive.google.com"
+	GDRIVE_FOLDER        = "gdrive"
+	GDRIVE_FILENAME      = "detected_gdrive_links.txt"
+	OTHER_LINKS_FILENAME = "detected_external_links.txt"
 )
 
 type cookieInfo struct {

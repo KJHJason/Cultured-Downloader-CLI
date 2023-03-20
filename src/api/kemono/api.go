@@ -135,11 +135,10 @@ func getCreatorPosts(config *configs.Config, creator *models.KemonoCreatorToDl, 
 	minOffset, maxOffset := utils.ConvertPageNumToOffset(minPage, maxPage, utils.KEMONO_PER_PAGE)
 
 	var postsToDl, gdriveLinksToDl []*request.ToDownload
-	params := map[string]string{
-		"o": strconv.Itoa(minOffset),
-	}
+	params := make(map[string]string)
 	curOffset := minOffset
 	for {
+		params["o"] = strconv.Itoa(curOffset)
 		res, err := request.CallRequest(
 			&request.RequestArgs{
 				Url: fmt.Sprintf(

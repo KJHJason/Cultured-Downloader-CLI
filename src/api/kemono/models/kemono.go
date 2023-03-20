@@ -9,7 +9,6 @@ type MainKemonoJson struct {
 	Content string `json:"content"`
 	Edited  string `json:"edited"`
 	Embed   struct {
-		// embed will be ignored regardless of its value
 		Description string `json:"description"`
 		Subject     string `json:"subject"`
 		Url         string `json:"url"`

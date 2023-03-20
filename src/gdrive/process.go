@@ -29,9 +29,8 @@ func ProcessPostText(postBodyStr, postFolderPath string, downloadGdrive bool) []
 			filePath := filepath.Join(postFolderPath, utils.PASSWORD_FILENAME)
 			if !utils.PathExists(filePath) {
 				loggedPassword = true
-				postBodyStr := strings.Join(postBodySlice, "\n")
 				utils.LogMessageToPath(
-					"Found potential password in the post:\n\n"+postBodyStr,
+					"Found potential password in the post:\n\n" + postBodyStr,
 					filePath,
 					utils.ERROR,
 				)

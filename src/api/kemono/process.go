@@ -1,6 +1,7 @@
 package kemono
 
 import (
+	"strings"
 	"regexp"
 	"path/filepath"
 
@@ -30,6 +31,15 @@ func getInlineImages(content, postFolderPath string) []*request.ToDownload {
 	return toDownload
 }
 
+// Since the name of each attachment or file is not always the filename of the file as it could be a URL,
+// we need to check if the returned name value is a URL and if it is, we just return the postFolderPath as the file path.
+func getKemonoFilePath(postFolderPath, fileName string) string {
+	if strings.HasPrefix(fileName, "http://") || strings.HasPrefix(fileName, "https://") {
+		return postFolderPath
+	}
+	return filepath.Join(postFolderPath, fileName)
+}
+
 func processJson(resJson *models.MainKemonoJson, downloadPath string, dlOption *KemonoDlOptions) ([]*request.ToDownload, []*request.ToDownload) {
 	postFolderPath := utils.GetPostFolder(
 		filepath.Join(downloadPath, "Kemono-Party", resJson.Service),
@@ -38,26 +48,41 @@ func processJson(resJson *models.MainKemonoJson, downloadPath string, dlOption *
 		resJson.Title,
 	)
 
+	var gdriveLinks []*request.ToDownload
 	var toDownload []*request.ToDownload
 	if dlOption.DlAttachments {
 		toDownload = getInlineImages(resJson.Content, postFolderPath)
 		for _, attachment := range resJson.Attachments {
 			toDownload = append(toDownload, &request.ToDownload{
 				Url:      utils.KEMONO_URL + attachment.Path,
-				FilePath: filepath.Join(postFolderPath, attachment.Name),
+				FilePath: getKemonoFilePath(postFolderPath, attachment.Name),
 			})
 		}
-		toDownload = append(toDownload, &request.ToDownload{
-			Url:      utils.KEMONO_URL + resJson.File.Path,
-			FilePath: filepath.Join(postFolderPath, resJson.File.Name),
-		})
+
+		if resJson.Embed.Url != "" {
+			utils.DetectOtherExtDLLink(resJson.Embed.Url, postFolderPath)
+			if utils.DetectGDriveLinks(resJson.Embed.Url, postFolderPath, true) && dlOption.DlGdrive {
+				gdriveLinks = append(gdriveLinks, &request.ToDownload{
+					Url:      resJson.Embed.Url,
+					FilePath: filepath.Join(postFolderPath, utils.GDRIVE_FOLDER),
+				})
+			}
+		}
+
+		if resJson.File.Path != "" {
+			toDownload = append(toDownload, &request.ToDownload{
+				Url:      utils.KEMONO_URL + resJson.File.Path,
+				FilePath: getKemonoFilePath(postFolderPath, resJson.File.Name),
+			})
+		}
 	}
 
-	gdriveLinks := gdrive.ProcessPostText(
+	contentGdriveLinks := gdrive.ProcessPostText(
 		resJson.Content,
 		postFolderPath,
 		dlOption.DlGdrive,
 	)
+	gdriveLinks = append(gdriveLinks, contentGdriveLinks...)
 	return toDownload, gdriveLinks
 }
 

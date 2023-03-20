@@ -14,20 +14,22 @@ type textFilePath struct {
 	desc     string
 }
 type commonFlags struct {
-	cmd           *cobra.Command
-	overwriteVar  *bool
-	cookieFileVar *string
-	userAgentVar  *string
-	textFile      textFilePath
+	cmd             *cobra.Command
+	overwriteVar    *bool
+	cookieFileVar   *string
+	userAgentVar    *string
+	gdriveApiKeyVar *string  
+	textFile        textFilePath
 }
 
 func init() {
 	commonCmdFlags := []commonFlags{
 		{
 			cmd: fantiaCmd,
-			overwriteVar:  &fantiaOverwrite,
-			cookieFileVar: &fantiaCookieFile,
-			userAgentVar:  &fantiaUserAgent,
+			overwriteVar:    &fantiaOverwrite,
+			cookieFileVar:   &fantiaCookieFile,
+			userAgentVar:    &fantiaUserAgent,
+			gdriveApiKeyVar: &fantiaGdriveApiKey,
 			textFile: textFilePath {
 				variable: &fantiaDlTextFile,
 				desc: "Path to a text file containing Fanclub and/or post URL(s) to download from Fantia.",
@@ -35,9 +37,10 @@ func init() {
 		},
 		{
 			cmd: pixivFanboxCmd,
-			overwriteVar:  &fanboxOverwriteFiles,
-			cookieFileVar: &fanboxCookieFile,
-			userAgentVar:  &fanboxUserAgent,
+			overwriteVar:    &fanboxOverwriteFiles,
+			cookieFileVar:   &fanboxCookieFile,
+			userAgentVar:    &fanboxUserAgent,
+			gdriveApiKeyVar: &fanboxGdriveApiKey,
 			textFile: textFilePath {
 				variable: &fanboxDlTextFile,
 				desc: "Path to a text file containing creator and/or post URL(s) to download from Pixiv Fanbox.",
@@ -58,6 +61,7 @@ func init() {
 			overwriteVar:  &kemonoOverwrite,
 			cookieFileVar: &kemonoCookieFile,
 			userAgentVar:  &kemonoUserAgent,
+			gdriveApiKeyVar: &kemonoGdriveApiKey,
 			textFile: textFilePath {
 				variable: &kemonoDlTextFile,
 				desc: "Path to a text file containing creator and/or post URL(s) to download from Kemono Party.",
@@ -103,6 +107,19 @@ func init() {
 				},
 			),
 		)
+		if cmdInfo.gdriveApiKeyVar != nil {
+			cmd.Flags().StringVar(
+				cmdInfo.gdriveApiKeyVar,
+				"gdrive_api_key",
+				"",
+				utils.CombineStringsWithNewline(
+					[]string{
+						"Google Drive API key to use for downloading gdrive files.",
+						"Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_key_guide.md",
+					},
+				),
+			)
+		}
 		RootCmd.AddCommand(cmd)
 	}
 }
