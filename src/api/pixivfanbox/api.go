@@ -59,8 +59,8 @@ func (pf *PixivFanboxDl) getPostDetails(config *configs.Config, pixivFanboxDlOpt
 		wg.Add(1)
 		go func(postId string) {
 			defer func() {
-				<-queue
 				wg.Done()
+				<-queue
 			}()
 
 			queue <- struct{}{}
@@ -201,8 +201,8 @@ func getFanboxPosts(creatorId, pageNum string, config *configs.Config, dlOption 
 		wg.Add(1)
 		go func(reqUrl string) {
 			defer func() {
-				<-queue
 				wg.Done()
+				<-queue
 			}()
 			queue <- struct{}{}
 			res, err := request.CallRequest(

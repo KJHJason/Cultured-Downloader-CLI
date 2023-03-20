@@ -128,8 +128,7 @@ func (gdrive *GDrive) DownloadFile(fileInfo *gdriveFileToDl, filePath string, co
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		LogFailedGdriveAPICalls(res, filePath, utils.ERROR)
-		return nil
+		return getFailedApiCallErr(res)
 	}
 	return request.DlToFile(res, url, filePath)
 }
@@ -163,7 +162,7 @@ func filterDownloads(files []*gdriveFileToDl) []*gdriveFileToDl {
 	return allowedForDownload
 }
 
-func processError(errChan chan *gdriveError, progress *spinner.Spinner) {
+func processGdriveDlError(errChan chan *gdriveError, progress *spinner.Spinner) {
 	killProgram := false
 	for errInfo := range errChan {
 		errMsg := errInfo.err.Error()
@@ -226,20 +225,19 @@ func (gdrive *GDrive) DownloadMultipleFiles(files []*gdriveFileToDl, config *con
 		wg.Add(1)
 		go func(file *gdriveFileToDl) {
 			defer func() {
-				<-queue
 				wg.Done()
+				<-queue
 			}()
 
 			os.MkdirAll(file.FilePath, 0666)
 			filePath := filepath.Join(file.FilePath, file.Name)
 
-			if err := gdrive.DownloadFile(file, filePath, config, queue); err != nil {
-				if err != context.Canceled {
-					err = fmt.Errorf(
-						"failed to download file: %s (ID: %s, MIME Type: %s)\nRefer to error details below:\n%v",
-						file.Name, file.Id, file.MimeType, err,
-					)
-				}
+			err := gdrive.DownloadFile(file, filePath, config, queue)
+			if err != nil && err != context.Canceled {
+				err = fmt.Errorf(
+					"failed to download file: %s (ID: %s, MIME Type: %s)\nRefer to error details below:\n%v",
+					file.Name, file.Id, file.MimeType, err,
+				)
 				errChan <- &gdriveError{
 					err: err,
 					filePath: filepath.Join(
@@ -248,7 +246,6 @@ func (gdrive *GDrive) DownloadMultipleFiles(files []*gdriveFileToDl, config *con
 					),
 				}
 			}
-
 			progress.MsgIncrement(baseMsg)
 		}(file)
 	}
@@ -259,7 +256,7 @@ func (gdrive *GDrive) DownloadMultipleFiles(files []*gdriveFileToDl, config *con
 	hasErr := false
 	if len(errChan) > 0 {
 		hasErr = true
-		processError(errChan, progress)
+		processGdriveDlError(errChan, progress)
 	}
 	progress.Stop(hasErr)
 }
@@ -353,9 +350,10 @@ func (gdrive *GDrive) DownloadGdriveUrls(gdriveUrls []*request.ToDownload, confi
 		}
 	}
 
+	// Note: Can't do API calls concurrently as to avoid being blocked by Google's bot detection
 	var errSlice []*gdriveError
 	var gdriveFilesInfo []*gdriveFileToDl
-	baseMsg := "Getting gdrive file info from gdrive ID(s) [%d/" + fmt.Sprintf("%d]...", len(gdriveIds))
+	baseMsg := "Getting GDrive file information from GDrive ID(s) [%d/" + fmt.Sprintf("%d]...", len(gdriveIds))
 	progress := spinner.New(
 		spinner.REQ_SPINNER,
 		"fgHiYellow",
@@ -364,11 +362,11 @@ func (gdrive *GDrive) DownloadGdriveUrls(gdriveUrls []*request.ToDownload, confi
 			0,
 		),
 		fmt.Sprintf(
-			"Finished getting gdrive file info from %d gdrive ID(s)!",
+			"Finished getting GDrive file information from %d GDrive ID(s)!",
 			len(gdriveIds),
 		),
 		fmt.Sprintf(
-			"Something went wrong while getting gdrive file info from %d gdrive ID(s)!\nPlease refer to the generated log files for more details.",
+			"Something went wrong while getting GDrive file information from %d GDrive ID(s)!\nPlease refer to the generated log files for more details.",
 			len(gdriveIds),
 		),
 		len(gdriveIds),

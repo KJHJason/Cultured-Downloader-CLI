@@ -297,8 +297,8 @@ func (f *FantiaDl) getCreatorsPosts(config *configs.Config, dlOption *FantiaDlOp
 		wg.Add(1)
 		go func(creatorId string, pageNumIdx int) {
 			defer func() {
-				<-queue
 				wg.Done()
+				<-queue
 			}()
 
 			queue <- struct{}{}

@@ -44,7 +44,7 @@ const (
 	MAX_RETRY_DELAY                = 3
 	MIN_RETRY_DELAY                = 1
 	RETRY_COUNTER                  = 4
-	MAX_CONCURRENT_DOWNLOADS       = 5
+	MAX_CONCURRENT_DOWNLOADS       = 4
 	PIXIV_MAX_CONCURRENT_DOWNLOADS = 3
 	MAX_API_CALLS                  = 10
 

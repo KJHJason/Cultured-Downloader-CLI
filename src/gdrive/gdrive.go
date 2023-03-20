@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"regexp"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
@@ -90,48 +89,17 @@ func (gdrive *GDrive) GDriveKeyIsValid(userAgent string) (bool, error) {
 	return res.StatusCode != 400, nil
 }
 
-// Logs any failed GDrive API calls to the given log path
-func LogFailedGdriveAPICalls(res *http.Response, downloadPath string, level int) {
+// Gets the error message for a failed GDrive API call
+func getFailedApiCallErr(res *http.Response) error {
 	requestUrl := res.Request.URL.String()
-	errorMsg := fmt.Sprintf(
-		"Error while fetching from GDrive...\n"+
-			"GDrive URL (May not be accurate): https://drive.google.com/file/d/%s/view?usp=sharing\n"+
-			"Status Code: %s\nURL: %s",
+	return fmt.Errorf(
+		"error while fetching from GDrive...\n" +
+			"GDrive URL (May not be accurate): https://drive.google.com/file/d/%s/view?usp=sharing\n" +
+				"Status Code: %s\nURL: %s",
 		utils.GetLastPartOfUrl(requestUrl),
 		res.Status,
 		requestUrl,
 	)
-	if downloadPath != "" {
-		utils.LogError(nil, errorMsg, false, level)
-		return
-	}
-
-	// create new text file
-	var logFilePath string
-	logFilename := GDRIVE_ERROR_FILENAME
-	if filepath.Ext(downloadPath) == "" {
-		logFilePath = filepath.Join(filepath.Dir(downloadPath), logFilename)
-	} else {
-		logFilePath = filepath.Join(downloadPath, logFilename)
-	}
-	file, err := os.OpenFile(
-		logFilePath,
-		os.O_WRONLY|os.O_CREATE|os.O_APPEND,
-		0666,
-	)
-	if err != nil {
-		err = fmt.Errorf(
-			"gdrive error %d: failed to open log file, more info => %v",
-			utils.OS_ERROR,
-			err,
-		)
-		utils.LogError(err, "", false, utils.ERROR)
-		return
-	}
-	defer file.Close()
-
-	pathLogger := utils.NewLogger(file)
-	pathLogger.LogBasedOnLvl(level, errorMsg)
 }
 
 type GDriveFile struct {
@@ -273,8 +241,7 @@ func (gdrive *GDrive) GetFileDetails(gdriveInfo *GDriveToDl, config *configs.Con
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		LogFailedGdriveAPICalls(res, gdriveInfo.FilePath, utils.ERROR)
-		return nil, nil
+		return nil, getFailedApiCallErr(res)
 	}
 
 	var gdriveFile GDriveFile

@@ -224,8 +224,8 @@ func DownloadUrlsWithHandler(urlInfoSlice []*ToDownload, dlOptions *DlOptions, c
 		wg.Add(1)
 		go func(fileUrl, filePath string) {
 			defer func() {
-				<-queue
 				wg.Done()
+				<-queue
 			}()
 			err := DownloadUrl(
 				filePath,
