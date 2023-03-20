@@ -35,49 +35,6 @@ func GetFileSize(filePath string) (int64, error) {
 	return fileInfo.Size(), nil
 }
 
-// Thread-safe logging function that logs to the provided file path
-func LogMessageToPath(message, filePath string, level int) {
-	os.MkdirAll(filepath.Dir(filePath), 0666)
-	logFileContents, err := os.ReadFile(filePath)
-	if err != nil {
-		err = fmt.Errorf(
-			"error %d: failed to read log file, more info => %v\nfile path: %s\noriginal message: %s",
-			OS_ERROR,
-			err,
-			filePath,
-			message,
-		)
-		LogError(err, "", false, ERROR)
-		return
-	}
-
-	// check if the same message has already been logged
-	if strings.Contains(string(logFileContents), message) {
-		return
-	}
-
-	logFile, err := os.OpenFile(
-		filePath,
-		os.O_RDWR|os.O_CREATE|os.O_APPEND,
-		0666,
-	)
-	if err != nil {
-		err = fmt.Errorf(
-			"error %d: failed to open log file, more info => %v\nfile path: %s\noriginal message: %s",
-			OS_ERROR,
-			err,
-			filePath,
-			message,
-		)
-		LogError(err, "", false, ERROR)
-		return
-	}
-	defer logFile.Close()
-
-	pathLogger := NewLogger(logFile)
-	pathLogger.LogBasedOnLvl(level, message)
-}
-
 // Uses bufio.Reader to read a line from a file and returns it as a byte slice
 //
 // Mostly thanks to https://devmarkpro.com/working-big-files-golang
