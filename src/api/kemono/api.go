@@ -17,6 +17,12 @@ type kemonoChanRes struct {
 	err            error
 }
 
+func getKemonoPartyHeaders() map[string]string {
+	return map[string]string{
+		"Host": utils.KEMONO_URL,
+	}
+}
+
 func getPostDetails(post *models.KemonoPostToDl, downloadPath string, dlOptions *KemonoDlOptions) ([]*request.ToDownload, []*request.ToDownload, error) {
 	useHttp3 := utils.IsHttp3Supported(utils.KEMONO, true)
 	res, err := request.CallRequest(
@@ -29,6 +35,7 @@ func getPostDetails(post *models.KemonoPostToDl, downloadPath string, dlOptions 
 				post.PostId,
 			),
 			Method:      "GET",
+			Headers:     getKemonoPartyHeaders(),
 			UserAgent:   dlOptions.Configs.UserAgent,
 			Cookies:     dlOptions.SessionCookies,
 			Http2:       !useHttp3,
@@ -148,6 +155,7 @@ func getCreatorPosts(creator *models.KemonoCreatorToDl, downloadPath string, dlO
 				),
 				Method:      "GET",
 				UserAgent:   dlOptions.Configs.UserAgent,
+				Headers:     getKemonoPartyHeaders(),
 				Cookies:     dlOptions.SessionCookies,
 				Params:      params,
 				Http2:       !useHttp3,
@@ -247,6 +255,7 @@ func getFavourites(downloadPath string, dlOptions *KemonoDlOptions) ([]*request.
 		Method:      "GET",
 		Cookies:     dlOptions.SessionCookies,
 		Params:      params,
+		Headers:     getKemonoPartyHeaders(),
 		UserAgent:   dlOptions.Configs.UserAgent,
 		Http2:       !useHttp3,
 		Http3:       useHttp3,

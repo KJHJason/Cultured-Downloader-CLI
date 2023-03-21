@@ -52,19 +52,29 @@ func ReadLine(reader *bufio.Reader) ([]byte, error) {
 	return totalLine, err
 }
 
+// Used in CleanPathName to remove illegal characters in a path name
+func removeIllegalRuneInPath(r rune) rune {
+	if strings.ContainsRune("<>:\"/\\|?*\n\r\t", r) {
+		return '-'
+	}
+	return r
+}
+
 // Removes any illegal characters in a path name
 // to prevent any error with file I/O using the path name
-func RemoveIllegalCharsInPathName(dirtyPathName string) string {
-	dirtyPathName = strings.TrimSpace(dirtyPathName)
-	partiallyCleanedPathName := strings.ReplaceAll(dirtyPathName, ".", " ")
-	return ILLEGAL_PATH_CHARS_REGEX.ReplaceAllString(partiallyCleanedPathName, "-")
+func CleanPathName(pathName string) string {
+	pathName = strings.TrimSpace(pathName)
+	if len(pathName) > 255 {
+		pathName = pathName[:255]
+	}
+	return strings.Map(removeIllegalRuneInPath, pathName)
 }
 
 // Returns a directory path for a post, artwork, etc.
 // based on the user's saved download path and the provided arguments
 func GetPostFolder(downloadPath, creatorName, postId, postTitle string) string {
-	creatorName = RemoveIllegalCharsInPathName(creatorName)
-	postTitle = RemoveIllegalCharsInPathName(postTitle)
+	creatorName = CleanPathName(creatorName)
+	postTitle = CleanPathName(postTitle)
 
 	postFolderPath := filepath.Join(
 		downloadPath,

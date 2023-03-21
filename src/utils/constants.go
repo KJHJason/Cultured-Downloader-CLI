@@ -108,7 +108,6 @@ var (
 		fmt.Sprintf(`^%s$`, PAGE_NUM_REGEX_STR),
 	)
 	NUMBER_REGEX             = regexp.MustCompile(`^\d+$`)
-	ILLEGAL_PATH_CHARS_REGEX = regexp.MustCompile(`[<>:"/\\|?*]`)
 	GDRIVE_URL_REGEX         = regexp.MustCompile(
 		`https://drive\.google\.com/(?P<type>file/d|drive/(u/\d+/)?folders)/(?P<id>[\w-]+)`,
 	)
