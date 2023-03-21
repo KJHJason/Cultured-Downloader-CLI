@@ -40,7 +40,7 @@ func getKemonoFilePath(postFolderPath, fileName string) string {
 	return filepath.Join(postFolderPath, fileName)
 }
 
-func processJson(resJson *models.MainKemonoJson, downloadPath string, dlOption *KemonoDlOptions) ([]*request.ToDownload, []*request.ToDownload) {
+func processJson(resJson *models.MainKemonoJson, downloadPath string, dlOptions *KemonoDlOptions) ([]*request.ToDownload, []*request.ToDownload) {
 	postFolderPath := utils.GetPostFolder(
 		filepath.Join(downloadPath, "Kemono-Party", resJson.Service),
 		resJson.User,
@@ -50,7 +50,7 @@ func processJson(resJson *models.MainKemonoJson, downloadPath string, dlOption *
 
 	var gdriveLinks []*request.ToDownload
 	var toDownload []*request.ToDownload
-	if dlOption.DlAttachments {
+	if dlOptions.DlAttachments {
 		toDownload = getInlineImages(resJson.Content, postFolderPath)
 		for _, attachment := range resJson.Attachments {
 			toDownload = append(toDownload, &request.ToDownload{
@@ -60,8 +60,10 @@ func processJson(resJson *models.MainKemonoJson, downloadPath string, dlOption *
 		}
 
 		if resJson.Embed.Url != "" {
-			utils.DetectOtherExtDLLink(resJson.Embed.Url, postFolderPath)
-			if utils.DetectGDriveLinks(resJson.Embed.Url, postFolderPath, true) && dlOption.DlGdrive {
+			if dlOptions.Configs.LogUrls {
+				utils.DetectOtherExtDLLink(resJson.Embed.Url, postFolderPath)
+			}
+			if utils.DetectGDriveLinks(resJson.Embed.Url, postFolderPath, true, dlOptions.Configs.LogUrls,) && dlOptions.DlGdrive {
 				gdriveLinks = append(gdriveLinks, &request.ToDownload{
 					Url:      resJson.Embed.Url,
 					FilePath: filepath.Join(postFolderPath, utils.GDRIVE_FOLDER),
@@ -80,16 +82,17 @@ func processJson(resJson *models.MainKemonoJson, downloadPath string, dlOption *
 	contentGdriveLinks := gdrive.ProcessPostText(
 		resJson.Content,
 		postFolderPath,
-		dlOption.DlGdrive,
+		dlOptions.DlGdrive,
+		dlOptions.Configs.LogUrls,
 	)
 	gdriveLinks = append(gdriveLinks, contentGdriveLinks...)
 	return toDownload, gdriveLinks
 }
 
-func processMultipleJson(resJson models.KemonoJson, downloadPath string, dlOption *KemonoDlOptions) ([]*request.ToDownload, []*request.ToDownload) {
+func processMultipleJson(resJson models.KemonoJson, downloadPath string, dlOptions *KemonoDlOptions) ([]*request.ToDownload, []*request.ToDownload) {
 	var urlsToDownload, gdriveLinks []*request.ToDownload
 	for _, post := range resJson {
-		toDownload, foundGdriveLinks := processJson(post, downloadPath, dlOption)
+		toDownload, foundGdriveLinks := processJson(post, downloadPath, dlOptions)
 		urlsToDownload = append(urlsToDownload, toDownload...)
 		gdriveLinks = append(gdriveLinks, foundGdriveLinks...)
 	}

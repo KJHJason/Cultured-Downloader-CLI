@@ -8,6 +8,7 @@ import (
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/api"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/kemono/models"
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/fatih/color"
@@ -164,6 +165,8 @@ func (k *KemonoDl) ValidateArgs() {
 type KemonoDlOptions struct {
 	DlAttachments bool
 	DlGdrive      bool
+
+	Configs       *configs.Config
 
 	// GdriveClient is the Google Drive client to be
 	// used in the download process for Pixiv Fanbox posts

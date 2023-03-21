@@ -21,6 +21,7 @@ var (
 	kemonoGdriveApiKey  string
 	kemonoDlAttachments bool
 	kemonoOverwrite     bool
+	kemonoLogUrls       bool
 	kemonoDlFav         bool
 	kemonoUserAgent     string
 	kemonoCmd           = &cobra.Command{
@@ -33,6 +34,7 @@ var (
 			kemonoConfig := &configs.Config{
 				OverwriteFiles: kemonoOverwrite,
 				UserAgent:      kemonoUserAgent,
+				LogUrls:        kemonoLogUrls,
 			}
 			var gdriveClient *gdrive.GDrive
 			if kemonoGdriveApiKey != "" {
@@ -58,6 +60,7 @@ var (
 			kemonoDlOptions := &kemono.KemonoDlOptions{
 				DlAttachments:   kemonoDlAttachments,
 				DlGdrive:        kemonoDlGdrive,
+				Configs:         kemonoConfig,
 				SessionCookieId: kemonoSession,
 				GdriveClient:    gdriveClient,
 			}

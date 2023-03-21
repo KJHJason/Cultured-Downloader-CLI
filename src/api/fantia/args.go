@@ -2,17 +2,18 @@ package fantia
 
 import (
 	"fmt"
-	"sync"
 	"net/http"
+	"sync"
 
-	"github.com/PuerkitoBio/goquery"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api"
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/PuerkitoBio/goquery"
 )
 
-// FantiaDl is the struct that contains the 
+// FantiaDl is the struct that contains the
 // IDs of the Fantia fanclubs and posts to download.
 type FantiaDl struct {
 	FanclubIds []string
@@ -57,6 +58,8 @@ type FantiaDlOptions struct {
 	DlGdrive        bool
 
 	GdriveClient    *gdrive.GDrive
+
+	Configs         *configs.Config
 
 	SessionCookieId string
 	SessionCookies  []*http.Cookie

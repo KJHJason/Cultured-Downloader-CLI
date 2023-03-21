@@ -107,11 +107,11 @@ var (
 					SearchMode:      pixivSearchMode,
 					RatingMode:      pixivRatingMode,
 					ArtworkType:     pixivArtworkType,
+					Configs:         pixivConfig,
 					RefreshToken:    pixivRefreshToken,
 				}
 				pixivDlOptions.ValidateArgs(pixivUserAgent)
 				pixiv.PixivMobileDownloadProcess(
-					pixivConfig,
 					pixivDl,
 					pixivDlOptions,
 					pixivUgoiraOptions,
@@ -122,6 +122,7 @@ var (
 					SearchMode:      pixivSearchMode,
 					RatingMode:      pixivRatingMode,
 					ArtworkType:     pixivArtworkType,
+					Configs:         pixivConfig,
 					SessionCookieId: pixivSession,
 				}
 				if pixivCookieFile != "" {
@@ -142,7 +143,6 @@ var (
 				}
 				pixivDlOptions.ValidateArgs(pixivUserAgent)
 				pixiv.PixivWebDownloadProcess(
-					pixivConfig,
 					pixivDl,
 					pixivDlOptions,
 					pixivUgoiraOptions,

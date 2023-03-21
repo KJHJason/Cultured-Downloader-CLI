@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"net/http"
 
-	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
@@ -21,7 +20,7 @@ type fantiaPostArgs struct {
 	postIdsLen int
 }
 
-func getFantiaPostDetails(postArg *fantiaPostArgs, fantiaDlOptions *FantiaDlOptions, config *configs.Config) (*http.Response, error) {
+func getFantiaPostDetails(postArg *fantiaPostArgs, dlOptionss *FantiaDlOptions) (*http.Response, error) {
 	// Now that we have the post ID, we can query Fantia's API
 	// to get the post's contents from the JSON response.
 	progress := spinner.New(
@@ -49,18 +48,18 @@ func getFantiaPostDetails(postArg *fantiaPostArgs, fantiaDlOptions *FantiaDlOpti
 	postApiUrl := postArg.url + postArg.postId
 	header := map[string]string{
 		"Referer":      fmt.Sprintf("%s/posts/%s", utils.FANTIA_URL, postArg.postId),
-		"x-csrf-token": fantiaDlOptions.CsrfToken,
+		"x-csrf-token": dlOptionss.CsrfToken,
 	}
 	useHttp3 := utils.IsHttp3Supported(utils.FANTIA, true)
 	res, err := request.CallRequest(
 		&request.RequestArgs{
 			Method:    "GET",
 			Url:       postApiUrl,
-			Cookies:   fantiaDlOptions.SessionCookies,
+			Cookies:   dlOptionss.SessionCookies,
 			Headers:   header,
 			Http2:     !useHttp3,
 			Http3:     useHttp3,
-			UserAgent: config.UserAgent,
+			UserAgent: dlOptionss.Configs.UserAgent,
 		},
 	)
 	if err != nil || res.StatusCode != 200 {
@@ -97,7 +96,7 @@ func getFantiaPostDetails(postArg *fantiaPostArgs, fantiaDlOptions *FantiaDlOpti
 // Note that only the downloading of the URL(s) is/are executed concurrently
 // to reduce the chance of the signed AWS S3 URL(s) from expiring before the download is
 // executed or completed due to a download queue to avoid resource exhaustion of the user's system.
-func (f *FantiaDl) dlFantiaPosts(fantiaDlOptions *FantiaDlOptions, config *configs.Config) []*request.ToDownload {
+func (f *FantiaDl) dlFantiaPosts(dlOptionss *FantiaDlOptions) []*request.ToDownload {
 	var errSlice []error
 	var gdriveLinks []*request.ToDownload
 	postIdsLen := len(f.PostIds)
@@ -117,8 +116,7 @@ func (f *FantiaDl) dlFantiaPosts(fantiaDlOptions *FantiaDlOptions, config *confi
 				url:        url,
 				postIdsLen: postIdsLen,
 			},
-			fantiaDlOptions,
-			config,
+			dlOptionss,
 		)
 		if err != nil {
 			errSlice = append(errSlice, err)
@@ -132,7 +130,7 @@ func (f *FantiaDl) dlFantiaPosts(fantiaDlOptions *FantiaDlOptions, config *confi
 				postIdsLen:  postIdsLen,
 				msgSuffix:   msgSuffix,
 			},
-			fantiaDlOptions,
+			dlOptionss,
 		)
 		if err != nil {
 			errSlice = append(errSlice, err)
@@ -146,10 +144,10 @@ func (f *FantiaDl) dlFantiaPosts(fantiaDlOptions *FantiaDlOptions, config *confi
 			&request.DlOptions{
 				MaxConcurrency: utils.MAX_CONCURRENT_DOWNLOADS,
 				Headers:        nil,
-				Cookies:        fantiaDlOptions.SessionCookies,
+				Cookies:        dlOptionss.SessionCookies,
 				UseHttp3:       false,
 			},
-			config,
+			dlOptionss.Configs,
 		)
 		fmt.Println()
 	}
@@ -197,7 +195,7 @@ func parseCreatorHtml(res *http.Response, creatorId string) ([]string, error) {
 }
 
 // Get all the creator's posts by using goquery to parse the HTML response to get the post IDs
-func getCreatorPosts(creatorId, pageNum string, config *configs.Config, dlOption *FantiaDlOptions) ([]string, error) {
+func getCreatorPosts(creatorId, pageNum string, dlOptions *FantiaDlOptions) ([]string, error) {
 	var postIds []string
 	minPage, maxPage, hasMax, err := utils.GetMinMaxFromStr(pageNum)
 	if err != nil {
@@ -220,12 +218,12 @@ func getCreatorPosts(creatorId, pageNum string, config *configs.Config, dlOption
 			&request.RequestArgs{
 				Method:      "GET",
 				Url:         url,
-				Cookies:     dlOption.SessionCookies,
+				Cookies:     dlOptions.SessionCookies,
 				Params:      params,
 				Http2:       !useHttp3,
 				Http3:       useHttp3,
 				CheckStatus: true,
-				UserAgent:   config.UserAgent,
+				UserAgent:   dlOptions.Configs.UserAgent,
 			},
 		)
 		if err != nil {
@@ -254,7 +252,7 @@ func getCreatorPosts(creatorId, pageNum string, config *configs.Config, dlOption
 }
 
 // Retrieves all the posts based on the slice of creator IDs and updates its PostIds slice
-func (f *FantiaDl) getCreatorsPosts(config *configs.Config, dlOption *FantiaDlOptions) {
+func (f *FantiaDl) getCreatorsPosts(dlOptions *FantiaDlOptions) {
 	creatorIdsLen := len(f.FanclubIds)
 	if creatorIdsLen != len(f.FanclubPageNums) {
 		panic(
@@ -305,8 +303,7 @@ func (f *FantiaDl) getCreatorsPosts(config *configs.Config, dlOption *FantiaDlOp
 			postIds, err := getCreatorPosts(
 				creatorId,
 				f.FanclubPageNums[pageNumIdx],
-				config,
-				dlOption,
+				dlOptions,
 			)
 			if err != nil {
 				errChan <- err

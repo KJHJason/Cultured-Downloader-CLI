@@ -9,7 +9,7 @@ import (
 )
 
 // Process and detects for any external download links from the post's text content
-func ProcessPostText(postBodyStr, postFolderPath string, downloadGdrive bool) []*request.ToDownload {
+func ProcessPostText(postBodyStr, postFolderPath string, downloadGdrive bool, logUrls bool) []*request.ToDownload {
 	if postBodyStr == "" {
 		return nil
 	}
@@ -37,8 +37,10 @@ func ProcessPostText(postBodyStr, postFolderPath string, downloadGdrive bool) []
 			}
 		}
 
-		utils.DetectOtherExtDLLink(text, postFolderPath)
-		if utils.DetectGDriveLinks(text, postFolderPath, false) && downloadGdrive {
+		if logUrls {
+			utils.DetectOtherExtDLLink(text, postFolderPath)
+		}	
+		if utils.DetectGDriveLinks(text, postFolderPath, false, logUrls) && downloadGdrive {
 			detectedGdriveLinks = append(detectedGdriveLinks, &request.ToDownload{
 				Url:      text,
 				FilePath: filepath.Join(postFolderPath, utils.GDRIVE_FOLDER),

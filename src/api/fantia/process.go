@@ -65,7 +65,7 @@ func dlAttachmentsFromPost(content *models.FantiaContent, postFolderPath string)
 
 // Process the JSON response from Fantia's API and
 // returns a slice of urls and a slice of gdrive urls to download from
-func processFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions *FantiaDlOptions) ([]*request.ToDownload, []*request.ToDownload, error) {
+func processFantiaPost(res *http.Response, downloadPath string, dlOptions *FantiaDlOptions) ([]*request.ToDownload, []*request.ToDownload, error) {
 	// processes a fantia post
 	// returns a map containing the post id and the url to download the file from
 	var postJson models.FantiaPost
@@ -90,7 +90,7 @@ func processFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 
 	var urlsSlice []*request.ToDownload
 	thumbnail := post.Thumb.Original
-	if fantiaDlOptions.DlThumbnails && thumbnail != "" {
+	if dlOptions.DlThumbnails && thumbnail != "" {
 		urlsSlice = append(urlsSlice, &request.ToDownload{
 			Url:      thumbnail,
 			FilePath: postFolderPath,
@@ -100,7 +100,8 @@ func processFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 	gdriveLinks := gdrive.ProcessPostText(
 		post.Comment,
 		postFolderPath,
-		fantiaDlOptions.DlGdrive,
+		dlOptions.DlGdrive,
+		dlOptions.Configs.LogUrls,
 	)
 
 	postContent := post.PostContents
@@ -111,15 +112,16 @@ func processFantiaPost(res *http.Response, downloadPath string, fantiaDlOptions 
 		commentGdriveLinks := gdrive.ProcessPostText(
 			content.Comment,
 			postFolderPath,
-			fantiaDlOptions.DlGdrive,
+			dlOptions.DlGdrive,
+			dlOptions.Configs.LogUrls,
 		)
 		if len(commentGdriveLinks) > 0 {
 			gdriveLinks = append(gdriveLinks, commentGdriveLinks...)
 		}
-		if fantiaDlOptions.DlImages {
+		if dlOptions.DlImages {
 			urlsSlice = append(urlsSlice, dlImagesFromPost(&content, postFolderPath)...)
 		}
-		if fantiaDlOptions.DlAttachments {
+		if dlOptions.DlAttachments {
 			urlsSlice = append(urlsSlice, dlAttachmentsFromPost(&content, postFolderPath)...)
 		}
 	}
@@ -134,7 +136,7 @@ type processIllustArgs struct {
 }
 
 // Process the JSON response to get the urls to download
-func processIllustDetailApiRes(illustArgs *processIllustArgs, fantiaDlOptions *FantiaDlOptions) ([]*request.ToDownload, []*request.ToDownload, error) {
+func processIllustDetailApiRes(illustArgs *processIllustArgs, dlOptions *FantiaDlOptions) ([]*request.ToDownload, []*request.ToDownload, error) {
 	progress := spinner.New(
 		spinner.JSON_SPINNER,
 		"fgHiYellow",
@@ -159,7 +161,7 @@ func processIllustDetailApiRes(illustArgs *processIllustArgs, fantiaDlOptions *F
 	urlsToDownload, gdriveLinks, err := processFantiaPost(
 		illustArgs.res,
 		utils.DOWNLOAD_PATH,
-		fantiaDlOptions,
+		dlOptions,
 	)
 	if err != nil {
 		progress.Stop(true)

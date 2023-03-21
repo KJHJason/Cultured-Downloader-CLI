@@ -12,17 +12,11 @@ func FantiaDownloadProcess(config *configs.Config, fantiaDl *FantiaDl, fantiaDlO
 	}
 
 	if len(fantiaDl.FanclubIds) > 0 {
-		fantiaDl.getCreatorsPosts(
-			config,
-			fantiaDlOptions,
-		)
+		fantiaDl.getCreatorsPosts(fantiaDlOptions)
 	}
 	var gdriveLinks []*request.ToDownload
 	if len(fantiaDl.PostIds) > 0 {
-		fantiaDl.dlFantiaPosts(
-			fantiaDlOptions,
-			config,
-		)
+		fantiaDl.dlFantiaPosts(fantiaDlOptions)
 	}
 
 	if fantiaDlOptions.GdriveClient != nil && len(gdriveLinks) > 0 {

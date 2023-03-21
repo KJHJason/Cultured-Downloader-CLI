@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/api"
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
 
@@ -16,6 +17,8 @@ type PixivWebDlOptions struct {
 	SearchMode  string
 	RatingMode  string
 	ArtworkType string
+
+	Configs     *configs.Config
 
 	SessionCookies  []*http.Cookie
 	SessionCookieId string

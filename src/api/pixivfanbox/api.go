@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixivfanbox/models"
-	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
@@ -22,7 +21,7 @@ func GetPixivFanboxHeaders() map[string]string {
 
 // Query Pixiv Fanbox's API based on the slice of post IDs and
 // returns a map of urls and a map of GDrive urls to download from.
-func (pf *PixivFanboxDl) getPostDetails(config *configs.Config, pixivFanboxDlOptions *PixivFanboxDlOptions) ([]*request.ToDownload, []*request.ToDownload) {
+func (pf *PixivFanboxDl) getPostDetails(dlOptions *PixivFanboxDlOptions) ([]*request.ToDownload, []*request.ToDownload) {
 	maxConcurrency := utils.MAX_API_CALLS
 	postIdsLen := len(pf.PostIds)
 	if postIdsLen < maxConcurrency {
@@ -70,10 +69,10 @@ func (pf *PixivFanboxDl) getPostDetails(config *configs.Config, pixivFanboxDlOpt
 				&request.RequestArgs{
 					Method:    "GET",
 					Url:       url,
-					Cookies:   pixivFanboxDlOptions.SessionCookies,
+					Cookies:   dlOptions.SessionCookies,
 					Headers:   header,
 					Params:    params,
-					UserAgent: config.UserAgent,
+					UserAgent: dlOptions.Configs.UserAgent,
 					Http2:     !useHttp3,
 					Http3:     useHttp3,
 				},
@@ -109,10 +108,10 @@ func (pf *PixivFanboxDl) getPostDetails(config *configs.Config, pixivFanboxDlOpt
 		utils.LogErrors(false, errChan, utils.ERROR)
 	}
 	progress.Stop(hasErr)
-	return processMultiplePostJson(resChan, pixivFanboxDlOptions)
+	return processMultiplePostJson(resChan, dlOptions)
 }
 
-func getCreatorPaginatedPosts(creatorId string, config *configs.Config, dlOption *PixivFanboxDlOptions) ([]string, error) {
+func getCreatorPaginatedPosts(creatorId string, dlOptions *PixivFanboxDlOptions) ([]string, error) {
 	params := map[string]string{"creatorId": creatorId}
 	headers := GetPixivFanboxHeaders()
 	url := fmt.Sprintf(
@@ -124,10 +123,10 @@ func getCreatorPaginatedPosts(creatorId string, config *configs.Config, dlOption
 		&request.RequestArgs{
 			Method:    "GET",
 			Url:       url,
-			Cookies:   dlOption.SessionCookies,
+			Cookies:   dlOptions.SessionCookies,
 			Headers:   headers,
 			Params:    params,
-			UserAgent: config.UserAgent,
+			UserAgent: dlOptions.Configs.UserAgent,
 			Http2:     !useHttp3,
 			Http3:     useHttp3,
 		},
@@ -169,8 +168,8 @@ type resStruct struct {
 }
 
 // GetFanboxCreatorPosts returns a slice of post IDs for a given creator
-func getFanboxPosts(creatorId, pageNum string, config *configs.Config, dlOption *PixivFanboxDlOptions) ([]string, error) {
-	paginatedUrls, err := getCreatorPaginatedPosts(creatorId, config, dlOption)
+func getFanboxPosts(creatorId, pageNum string, dlOptions *PixivFanboxDlOptions) ([]string, error) {
+	paginatedUrls, err := getCreatorPaginatedPosts(creatorId, dlOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -209,9 +208,9 @@ func getFanboxPosts(creatorId, pageNum string, config *configs.Config, dlOption 
 				&request.RequestArgs{
 					Method:    "GET",
 					Url:       reqUrl,
-					Cookies:   dlOption.SessionCookies,
+					Cookies:   dlOptions.SessionCookies,
 					Headers:   headers,
-					UserAgent: config.UserAgent,
+					UserAgent: dlOptions.Configs.UserAgent,
 					Http2:     !useHttp3,
 					Http3:     useHttp3,
 				},
@@ -263,7 +262,7 @@ func getFanboxPosts(creatorId, pageNum string, config *configs.Config, dlOption 
 }
 
 // Retrieves all the posts based on the slice of creator IDs and updates its slice of post IDs accordingly
-func (pf *PixivFanboxDl) getCreatorsPosts(config *configs.Config, dlOptions *PixivFanboxDlOptions) {
+func (pf *PixivFanboxDl) getCreatorsPosts(dlOptions *PixivFanboxDlOptions) {
 	creatorIdsLen := len(pf.CreatorIds)
 	if creatorIdsLen != len(pf.CreatorPageNums) {
 		panic(
@@ -298,7 +297,6 @@ func (pf *PixivFanboxDl) getCreatorsPosts(config *configs.Config, dlOptions *Pix
 		retrievedPostIds, err := getFanboxPosts(
 			creatorId,
 			pf.CreatorPageNums[idx],
-			config,
 			dlOptions,
 		)
 		if err != nil {

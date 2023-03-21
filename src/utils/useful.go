@@ -269,7 +269,7 @@ func DetectPasswordInText(text string) bool {
 }
 
 // Detects if the given string contains any GDrive links and logs it if detected
-func DetectGDriveLinks(text, postFolderPath string, isUrl bool) bool {
+func DetectGDriveLinks(text, postFolderPath string, isUrl, logUrls bool) bool {
 	gdriveFilepath := filepath.Join(postFolderPath, GDRIVE_FILENAME)
 	containsGDriveLink := false
 	if isUrl && strings.HasPrefix(text, GDRIVE_URL) {
@@ -282,11 +282,13 @@ func DetectGDriveLinks(text, postFolderPath string, isUrl bool) bool {
 		return false
 	}
 
-	gdriveText := fmt.Sprintf(
-		"Google Drive link detected: %s\n\n",
-		text,
-	)
-	LogMessageToPath(gdriveText, gdriveFilepath, INFO)
+	if isUrl {
+		gdriveText := fmt.Sprintf(
+			"Google Drive link detected: %s\n\n",
+			text,
+		)
+		LogMessageToPath(gdriveText, gdriveFilepath, INFO)
+	}
 	return true
 }
 

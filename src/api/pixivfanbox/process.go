@@ -16,7 +16,7 @@ import (
 // https://fanbox.pixiv.help/hc/en-us/articles/360011057793-What-types-of-attachments-can-I-post-
 var pixivFanboxAllowedImageExt = []string{"jpg", "jpeg", "png", "gif"}
 
-func detectUrlsAndPasswordsInPost(text, postFolderPath string, articleBlocks models.FanboxArticleBlocks, pixivFanboxDlOptions *PixivFanboxDlOptions) ([]*request.ToDownload, bool) {
+func detectUrlsAndPasswordsInPost(text, postFolderPath string, articleBlocks models.FanboxArticleBlocks, dlOptions *PixivFanboxDlOptions) ([]*request.ToDownload, bool) {
 	loggedPassword := false 
 	if utils.DetectPasswordInText(text) {
 		// Log the entire post text if it contains a password
@@ -39,8 +39,10 @@ func detectUrlsAndPasswordsInPost(text, postFolderPath string, articleBlocks mod
 	}
 
 	var gdriveLinks []*request.ToDownload
-	utils.DetectOtherExtDLLink(text, postFolderPath)
-	if utils.DetectGDriveLinks(text, postFolderPath, false) && pixivFanboxDlOptions.DlGdrive {
+	if dlOptions.Configs.LogUrls {
+		utils.DetectOtherExtDLLink(text, postFolderPath)
+	}
+	if utils.DetectGDriveLinks(text, postFolderPath, false, dlOptions.Configs.LogUrls) && dlOptions.DlGdrive {
 		gdriveLinks = append(gdriveLinks, &request.ToDownload{
 			Url:      text,
 			FilePath: filepath.Join(postFolderPath, utils.GDRIVE_FOLDER),
@@ -49,7 +51,7 @@ func detectUrlsAndPasswordsInPost(text, postFolderPath string, articleBlocks mod
 	return gdriveLinks, loggedPassword
 }
 
-func processFanboxArticlePost(postBody interface{}, postFolderPath string, pixivFanboxDlOptions *PixivFanboxDlOptions) ([]*request.ToDownload, []*request.ToDownload) {
+func processFanboxArticlePost(postBody interface{}, postFolderPath string, dlOptions *PixivFanboxDlOptions) ([]*request.ToDownload, []*request.ToDownload) {
 	var urlsSlice []*request.ToDownload
 	var gdriveLinks []*request.ToDownload
 
@@ -58,7 +60,7 @@ func processFanboxArticlePost(postBody interface{}, postFolderPath string, pixiv
 
 	// retrieve images and attachments url(s)
 	imageMap := articleJson.ImageMap
-	if imageMap != nil && pixivFanboxDlOptions.DlImages {
+	if imageMap != nil && dlOptions.DlImages {
 		for _, imageInfo := range imageMap {
 			urlsSlice = append(urlsSlice, &request.ToDownload{
 				Url:      imageInfo.OriginalUrl,
@@ -68,7 +70,7 @@ func processFanboxArticlePost(postBody interface{}, postFolderPath string, pixiv
 	}
 
 	attachmentMap := articleJson.FileMap
-	if attachmentMap != nil && pixivFanboxDlOptions.DlAttachments {
+	if attachmentMap != nil && dlOptions.DlAttachments {
 		for _, attachmentInfo := range attachmentMap {
 			attachmentUrl := attachmentInfo.Url
 			filename := attachmentInfo.Name + "." + attachmentInfo.Extension
@@ -93,7 +95,7 @@ func processFanboxArticlePost(postBody interface{}, postFolderPath string, pixiv
 				text, 
 				postFolderPath, 
 				articleBlocks, 
-				pixivFanboxDlOptions,
+				dlOptions,
 			)
 			gdriveLinks = append(gdriveLinks, detectedGdriveUrls...)
 		}
@@ -103,7 +105,7 @@ func processFanboxArticlePost(postBody interface{}, postFolderPath string, pixiv
 			for _, articleLink := range articleLinks {
 				linkUrl := articleLink.Url
 				utils.DetectOtherExtDLLink(linkUrl, postFolderPath)
-				if utils.DetectGDriveLinks(linkUrl, postFolderPath, true) && pixivFanboxDlOptions.DlGdrive {
+				if utils.DetectGDriveLinks(linkUrl, postFolderPath, true, dlOptions.Configs.LogUrls) && dlOptions.DlGdrive {
 					gdriveLinks = append(gdriveLinks, &request.ToDownload{
 						Url:      linkUrl,
 						FilePath: filepath.Join(postFolderPath, utils.GDRIVE_FOLDER),
@@ -117,21 +119,22 @@ func processFanboxArticlePost(postBody interface{}, postFolderPath string, pixiv
 	return urlsSlice, gdriveLinks
 }
 
-func processFanboxFilePost(postBody interface{}, postFolderPath string, pixivFanboxDlOptions *PixivFanboxDlOptions) ([]*request.ToDownload, []*request.ToDownload) {
+func processFanboxFilePost(postBody interface{}, postFolderPath string, dlOptions *PixivFanboxDlOptions) ([]*request.ToDownload, []*request.ToDownload) {
 	// process the text in the post
 	var urlsSlice, gdriveLinks []*request.ToDownload
 	filePostJson := postBody.(*models.FanboxFilePostJson)
 	detectedGdriveLinks := gdrive.ProcessPostText(
 		filePostJson.Text,
 		postFolderPath,
-		pixivFanboxDlOptions.DlGdrive,
+		dlOptions.DlGdrive,
+		dlOptions.Configs.LogUrls,
 	)
 	if detectedGdriveLinks != nil {
 		gdriveLinks = append(gdriveLinks, detectedGdriveLinks...)
 	}
 
 	imageAndAttachmentUrls := filePostJson.Files
-	if !pixivFanboxDlOptions.DlImages && !pixivFanboxDlOptions.DlAttachments {
+	if !dlOptions.DlImages && !dlOptions.DlAttachments {
 		return nil, nil
 	}
 
@@ -148,7 +151,7 @@ func processFanboxFilePost(postBody interface{}, postFolderPath string, pixivFan
 			filePath = filepath.Join(postFolderPath, utils.ATTACHMENT_FOLDER, filename)
 		}
 
-		if (isImage && pixivFanboxDlOptions.DlImages) || (!isImage && pixivFanboxDlOptions.DlAttachments) {
+		if (isImage && dlOptions.DlImages) || (!isImage && dlOptions.DlAttachments) {
 			urlsSlice = append(urlsSlice, &request.ToDownload{
 				Url:      fileUrl,
 				FilePath: filePath,
@@ -158,14 +161,15 @@ func processFanboxFilePost(postBody interface{}, postFolderPath string, pixivFan
 	return urlsSlice, gdriveLinks
 }
 
-func processFanboxImagePost(postBody interface{}, postFolderPath string, pixivFanboxDlOptions *PixivFanboxDlOptions) ([]*request.ToDownload, []*request.ToDownload) {
+func processFanboxImagePost(postBody interface{}, postFolderPath string, dlOptions *PixivFanboxDlOptions) ([]*request.ToDownload, []*request.ToDownload) {
 	// process the text in the post
 	var urlsSlice, gdriveLinks []*request.ToDownload
 	imagePostJson := postBody.(*models.FanboxImagePostJson)
 	detectedGdriveLinks := gdrive.ProcessPostText(
 		imagePostJson.Text,
 		postFolderPath,
-		pixivFanboxDlOptions.DlGdrive,
+		dlOptions.DlGdrive,
+		dlOptions.Configs.LogUrls,
 	)
 	if detectedGdriveLinks != nil {
 		gdriveLinks = append(gdriveLinks, detectedGdriveLinks...)
@@ -173,7 +177,7 @@ func processFanboxImagePost(postBody interface{}, postFolderPath string, pixivFa
 
 	// retrieve images and attachments url(s)
 	imageAndAttachmentUrls := imagePostJson.Images
-	if !pixivFanboxDlOptions.DlImages && !pixivFanboxDlOptions.DlAttachments {
+	if !dlOptions.DlImages && !dlOptions.DlAttachments {
 		return nil, nil
 	}
 
@@ -190,7 +194,7 @@ func processFanboxImagePost(postBody interface{}, postFolderPath string, pixivFa
 			filePath = filepath.Join(postFolderPath, utils.ATTACHMENT_FOLDER, filename)
 		}
 
-		if (isImage && pixivFanboxDlOptions.DlImages) || (!isImage && pixivFanboxDlOptions.DlAttachments) {
+		if (isImage && dlOptions.DlImages) || (!isImage && dlOptions.DlAttachments) {
 			urlsSlice = append(urlsSlice, &request.ToDownload{
 				Url:      fileUrl,
 				FilePath: filePath,
@@ -202,7 +206,7 @@ func processFanboxImagePost(postBody interface{}, postFolderPath string, pixivFa
 
 // Process the JSON response from Pixiv Fanbox's API and
 // returns a map of urls and a map of GDrive urls to download from
-func processFanboxPostJson(res *http.Response, downloadPath string, pixivFanboxDlOptions *PixivFanboxDlOptions) ([]*request.ToDownload, []*request.ToDownload, error) {
+func processFanboxPostJson(res *http.Response, downloadPath string, dlOptions *PixivFanboxDlOptions) ([]*request.ToDownload, []*request.ToDownload, error) {
 	var err error
 	var post models.FanboxPostJson
 	var postJsonBody []byte
@@ -224,7 +228,7 @@ func processFanboxPostJson(res *http.Response, downloadPath string, pixivFanboxD
 
 	var urlsSlice []*request.ToDownload
 	thumbnail := postJson.CoverImageUrl
-	if pixivFanboxDlOptions.DlThumbnails && thumbnail != "" {
+	if dlOptions.DlThumbnails && thumbnail != "" {
 		urlsSlice = append(urlsSlice, &request.ToDownload{
 			Url:      thumbnail,
 			FilePath: postFolderPath,
@@ -244,18 +248,19 @@ func processFanboxPostJson(res *http.Response, downloadPath string, pixivFanboxD
 	var gdriveLinks []*request.ToDownload
 	switch postType {
 	case "file":
-		newUrlsSlice, gdriveLinks = processFanboxFilePost(postBody, postFolderPath, pixivFanboxDlOptions)
+		newUrlsSlice, gdriveLinks = processFanboxFilePost(postBody, postFolderPath, dlOptions)
 	case "image":
-		newUrlsSlice, gdriveLinks = processFanboxImagePost(postBody, postFolderPath, pixivFanboxDlOptions)
+		newUrlsSlice, gdriveLinks = processFanboxImagePost(postBody, postFolderPath, dlOptions)
 	case "article":
-		newUrlsSlice, gdriveLinks = processFanboxArticlePost(postJsonBody, postFolderPath, pixivFanboxDlOptions)
+		newUrlsSlice, gdriveLinks = processFanboxArticlePost(postJsonBody, postFolderPath, dlOptions)
 	case "text": // text post
 		// Usually has no content but try to detect for any external download links
 		textContent := postBody.(*models.FanboxTextPostJson)
 		gdriveLinks = gdrive.ProcessPostText(
 			textContent.Text,
 			postFolderPath,
-			pixivFanboxDlOptions.DlGdrive,
+			dlOptions.DlGdrive,
+			dlOptions.Configs.LogUrls,
 		)
 	default: // unknown post type
 		return nil, nil, fmt.Errorf(
@@ -270,7 +275,7 @@ func processFanboxPostJson(res *http.Response, downloadPath string, pixivFanboxD
 	return urlsSlice, gdriveLinks, nil
 }
 
-func processMultiplePostJson(resChan chan *http.Response, pixivFanboxDlOptions *PixivFanboxDlOptions) ([]*request.ToDownload, []*request.ToDownload) {
+func processMultiplePostJson(resChan chan *http.Response, dlOptions *PixivFanboxDlOptions) ([]*request.ToDownload, []*request.ToDownload) {
 	// parse the responses
 	var errSlice []error
 	var urlsSlice, gdriveUrls []*request.ToDownload
@@ -297,7 +302,7 @@ func processMultiplePostJson(resChan chan *http.Response, pixivFanboxDlOptions *
 		postUrls, postGdriveLinks, err := processFanboxPostJson(
 			res,
 			utils.DOWNLOAD_PATH,
-			pixivFanboxDlOptions,
+			dlOptions,
 		)
 		if err != nil {
 			errSlice = append(errSlice, err)

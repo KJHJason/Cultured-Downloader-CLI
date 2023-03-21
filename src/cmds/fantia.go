@@ -23,6 +23,7 @@ var (
 	fantiaDlImages      bool
 	fantiaDlAttachments bool
 	fantiaOverwrite     bool
+	fantiaLogUrls       bool
 	fantiaUserAgent     string
 	fantiaCmd           = &cobra.Command{
 		Use:   "fantia",
@@ -44,6 +45,7 @@ var (
 			fantiaConfig := &configs.Config{
 				OverwriteFiles: fantiaOverwrite,
 				UserAgent:      fantiaUserAgent,
+				LogUrls:        fantiaLogUrls,
 			}
 
 			var gdriveClient *gdrive.GDrive

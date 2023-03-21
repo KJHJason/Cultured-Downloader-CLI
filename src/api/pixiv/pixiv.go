@@ -8,14 +8,13 @@ import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/common"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/web"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/mobile"
-	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
 
 // Start the download process for Pixiv
-func PixivWebDownloadProcess(config *configs.Config, pixivDl *PixivDl, pixivDlOptions *pixivweb.PixivWebDlOptions, pixivUgoiraOptions *ugoira.UgoiraOptions) {
+func PixivWebDownloadProcess(pixivDl *PixivDl, pixivDlOptions *pixivweb.PixivWebDlOptions, pixivUgoiraOptions *ugoira.UgoiraOptions) {
 	var ugoiraToDl []*models.Ugoira
 	var artworksToDl []*request.ToDownload
 	if len(pixivDl.IllustratorIds) > 0 {
@@ -23,7 +22,6 @@ func PixivWebDownloadProcess(config *configs.Config, pixivDl *PixivDl, pixivDlOp
 			pixivDl.IllustratorIds,
 			pixivDl.IllustratorPageNums,
 			utils.DOWNLOAD_PATH,
-			config,
 			pixivDlOptions,
 		)
 		pixivDl.ArtworkIds = append(pixivDl.ArtworkIds, artworkIdsSlice...)
@@ -34,8 +32,7 @@ func PixivWebDownloadProcess(config *configs.Config, pixivDl *PixivDl, pixivDlOp
 		artworkSlice, ugoiraSlice := pixivweb.GetMultipleArtworkDetails(
 			pixivDl.ArtworkIds,
 			utils.DOWNLOAD_PATH,
-			config,
-			pixivDlOptions.SessionCookies,
+			pixivDlOptions,
 		)
 		artworksToDl = append(artworksToDl, artworkSlice...)
 		ugoiraToDl = append(ugoiraToDl, ugoiraSlice...)
@@ -70,7 +67,6 @@ func PixivWebDownloadProcess(config *configs.Config, pixivDl *PixivDl, pixivDlOp
 				tagName,
 				utils.DOWNLOAD_PATH,
 				pixivDl.TagNamesPageNums[idx],
-				config,
 				pixivDlOptions,
 			)
 			artworksToDl = append(artworksToDl, artworksSlice...)
@@ -89,7 +85,7 @@ func PixivWebDownloadProcess(config *configs.Config, pixivDl *PixivDl, pixivDlOp
 				Cookies:        pixivDlOptions.SessionCookies,
 				UseHttp3:       false,
 			},
-			config,
+			pixivDlOptions.Configs,
 		)
 	}
 	if len(ugoiraToDl) > 0 {
@@ -100,14 +96,14 @@ func PixivWebDownloadProcess(config *configs.Config, pixivDl *PixivDl, pixivDlOp
 				Cookies:      pixivDlOptions.SessionCookies,
 			},
 			pixivUgoiraOptions,
-			config,
+			pixivDlOptions.Configs,
 			request.CallRequest,
 		)
 	}
 }
 
 // Start the download process for Pixiv
-func PixivMobileDownloadProcess(config *configs.Config, pixivDl *PixivDl, pixivDlOptions *pixivmobile.PixivMobileDlOptions, pixivUgoiraOptions *ugoira.UgoiraOptions) {
+func PixivMobileDownloadProcess(pixivDl *PixivDl, pixivDlOptions *pixivmobile.PixivMobileDlOptions, pixivUgoiraOptions *ugoira.UgoiraOptions) {
 	var ugoiraToDl []*models.Ugoira
 	var artworksToDl []*request.ToDownload
 	if len(pixivDl.IllustratorIds) > 0 {
@@ -176,7 +172,7 @@ func PixivMobileDownloadProcess(config *configs.Config, pixivDl *PixivDl, pixivD
 				Headers:        pixivcommon.GetPixivRequestHeaders(),
 				UseHttp3:       false,
 			},
-			config,
+			pixivDlOptions.Configs,
 		)
 	}
 	if len(ugoiraToDl) > 0 {
@@ -187,7 +183,7 @@ func PixivMobileDownloadProcess(config *configs.Config, pixivDl *PixivDl, pixivD
 				Cookies:      nil,
 			},
 			pixivUgoiraOptions,
-			config,
+			pixivDlOptions.Configs,
 			pixivDlOptions.MobileClient.SendRequest,
 		)
 	}

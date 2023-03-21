@@ -7,8 +7,8 @@ import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
 
-func KemonoDownloadProcess(config *configs.Config, kemonoDl *KemonoDl, kemonoDlOptions *KemonoDlOptions, dlFav bool) {
-	if !kemonoDlOptions.DlAttachments && !kemonoDlOptions.DlGdrive {
+func KemonoDownloadProcess(config *configs.Config, kemonoDl *KemonoDl, dlOptions *KemonoDlOptions, dlFav bool) {
+	if !dlOptions.DlAttachments && !dlOptions.DlGdrive {
 		return
 	}
 
@@ -24,9 +24,8 @@ func KemonoDownloadProcess(config *configs.Config, kemonoDl *KemonoDl, kemonoDlO
 		)
 		progress.Start()
 		favToDl, favGdriveLinks, err := getFavourites(
-			config,
 			utils.DOWNLOAD_PATH,
-			kemonoDlOptions,
+			dlOptions,
 		)
 		hasErr := (err != nil)
 		if hasErr {
@@ -40,20 +39,18 @@ func KemonoDownloadProcess(config *configs.Config, kemonoDl *KemonoDl, kemonoDlO
 
 	if len(kemonoDl.PostsToDl) > 0 {
 		postsToDl, gdriveLinksToDl := getMultiplePosts(
-			config,
 			kemonoDl.PostsToDl,
 			utils.DOWNLOAD_PATH,
-			kemonoDlOptions,
+			dlOptions,
 		)
 		toDownload = append(toDownload, postsToDl...)
 		gdriveLinks = append(gdriveLinks, gdriveLinksToDl...)
 	}
 	if len(kemonoDl.CreatorsToDl) > 0 {
 		creatorsToDl, gdriveLinksToDl := getMultipleCreators(
-			config,
 			kemonoDl.CreatorsToDl,
 			utils.DOWNLOAD_PATH,
-			kemonoDlOptions,
+			dlOptions,
 		)
 		toDownload = append(toDownload, creatorsToDl...)
 		gdriveLinks = append(gdriveLinks, gdriveLinksToDl...)
@@ -64,13 +61,13 @@ func KemonoDownloadProcess(config *configs.Config, kemonoDl *KemonoDl, kemonoDlO
 			toDownload,
 			&request.DlOptions{
 				MaxConcurrency: utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
-				Cookies:        kemonoDlOptions.SessionCookies,
+				Cookies:        dlOptions.SessionCookies,
 				UseHttp3:       utils.IsHttp3Supported(utils.KEMONO, false),
 			},
 			config,
 		)
 	}
-	if kemonoDlOptions.GdriveClient != nil && len(gdriveLinks) > 0 {
-		kemonoDlOptions.GdriveClient.DownloadGdriveUrls(gdriveLinks, config)
+	if dlOptions.GdriveClient != nil && len(gdriveLinks) > 0 {
+		dlOptions.GdriveClient.DownloadGdriveUrls(gdriveLinks, config)
 	}
 }

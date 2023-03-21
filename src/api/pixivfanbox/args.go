@@ -6,6 +6,7 @@ import (
 	"regexp"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/api"
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/fatih/color"
@@ -64,6 +65,8 @@ type PixivFanboxDlOptions struct {
 	DlImages      bool
 	DlAttachments bool
 	DlGdrive      bool
+
+	Configs       *configs.Config
 
 	// GdriveClient is the Google Drive client to be
 	// used in the download process for Pixiv Fanbox posts

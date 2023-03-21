@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/fatih/color"
 )
@@ -15,6 +16,8 @@ type PixivMobileDlOptions struct {
 	SearchMode  string
 	RatingMode  string
 	ArtworkType string
+
+	Configs     *configs.Config
 
 	MobileClient *PixivMobile
 	RefreshToken string

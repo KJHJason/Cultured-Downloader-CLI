@@ -23,6 +23,7 @@ var (
 	fanboxDlGdrive       bool
 	fanboxGdriveApiKey   string
 	fanboxOverwriteFiles bool
+	fanboxLogUrls        bool
 	fanboxUserAgent      string
 	pixivFanboxCmd       = &cobra.Command{
 		Use:   "pixiv_fanbox",
@@ -34,6 +35,7 @@ var (
 			pixivFanboxConfig := &configs.Config{
 				OverwriteFiles: fanboxOverwriteFiles,
 				UserAgent:      fanboxUserAgent,
+				LogUrls:        fanboxLogUrls,
 			}
 			var gdriveClient *gdrive.GDrive
 			if fanboxGdriveApiKey != "" {
@@ -64,6 +66,7 @@ var (
 				DlThumbnails:    fanboxDlThumbnails,
 				DlImages:        fanboxDlImages,
 				DlAttachments:   fanboxDlAttachments,
+				Configs:         pixivFanboxConfig,
 				GdriveClient:    gdriveClient,
 				DlGdrive:        fanboxDlGdrive,
 				SessionCookieId: fanboxSession,
@@ -88,7 +91,6 @@ var (
 
 			utils.PrintWarningMsg()
 			pixivfanbox.PixivFanboxDownloadProcess(
-				pixivFanboxConfig,
 				pixivFanboxDl,
 				pixivFanboxDlOptions,
 			)
