@@ -85,6 +85,8 @@ func VerifyCookie(cookie *http.Cookie, website, userAgent string) (bool, error) 
 	// check if the cookie is valid
 	resUrl := resp.Request.URL.String()
 	if website == utils.FANTIA && resUrl == utils.FANTIA_URL + "/recaptcha" {
+		// Could consider using https://github.com/chromedp/chromedp to solve the captcha
+		// by clicking the <input type="submit" name="commit"...> button
 		color.Red(
 			fmt.Sprintf(
 				"fantia error %d: recaptcha detected, skipping cookie verification",
