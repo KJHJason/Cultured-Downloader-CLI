@@ -83,7 +83,17 @@ func VerifyCookie(cookie *http.Cookie, website, userAgent string) (bool, error) 
 	resp.Body.Close()
 
 	// check if the cookie is valid
-	return resp.Request.URL.String() == websiteUrl, nil
+	resUrl := resp.Request.URL.String()
+	if website == utils.FANTIA && resUrl == utils.FANTIA_URL + "/recaptcha" {
+		color.Red(
+			fmt.Sprintf(
+				"fantia error %d: recaptcha detected, skipping cookie verification",
+				utils.UNEXPECTED_ERROR,
+			),
+		)
+		return true, nil
+	}
+	return resUrl == websiteUrl, nil
 }
 
 // Verifies the given cookie by making a request to the website and checks if the cookie is valid

@@ -70,6 +70,7 @@ var (
 				DlAttachments:   fantiaDlAttachments,
 				DlGdrive:        fantiaDlGdrive,
 				GdriveClient:    gdriveClient,
+				Configs:         fantiaConfig,
 				SessionCookieId: fantiaSession,
 			}
 			if fantiaCookieFile != "" {
@@ -101,7 +102,6 @@ var (
 
 			utils.PrintWarningMsg()
 			fantia.FantiaDownloadProcess(
-				fantiaConfig,
 				fantiaDl,
 				fantiaDlOptions,
 			)
