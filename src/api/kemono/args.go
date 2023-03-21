@@ -115,14 +115,6 @@ func (k *KemonoDl) RemoveDuplicates() {
 }
 
 func (k *KemonoDl) ValidateArgs() {
-	utils.ValidatePageNumInput(
-		len(k.CreatorUrls),
-		k.CreatorPageNums,
-		[]string{
-			"Number of creator URL(s) and page numbers must be equal.",
-		},
-	)
-
 	valid, outlier := utils.SliceMatchesRegex(CREATOR_URL_REGEX, k.CreatorUrls)
 	if !valid {
 		color.Red(
@@ -148,6 +140,17 @@ func (k *KemonoDl) ValidateArgs() {
 	}
 
 	if len(k.CreatorUrls) > 0 {
+		if len(k.CreatorPageNums) == 0 {
+			k.CreatorPageNums = make([]string, len(k.CreatorUrls))
+		} else {
+			utils.ValidatePageNumInput(
+				len(k.CreatorUrls),
+				k.CreatorPageNums,
+				[]string{
+					"Number of creator URL(s) and page numbers must be equal.",
+				},
+			)
+		}
 		creatorsToDl := ProcessCreatorUrls(k.CreatorUrls, k.CreatorPageNums)
 		k.CreatorsToDl = append(k.CreatorsToDl, creatorsToDl...)
 		k.CreatorUrls = nil

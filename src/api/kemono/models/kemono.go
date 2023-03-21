@@ -14,6 +14,7 @@ type MainKemonoJson struct {
 		Url         string `json:"url"`
 	} `json:"embed"`
 	File struct {
+		// usually is for the post thumbnail
 		Name string `json:"name"`
 		Path string `json:"path"`
 	} `json:"file"`

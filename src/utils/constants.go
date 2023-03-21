@@ -81,6 +81,9 @@ const (
 	ATTACHMENT_FOLDER = "attachments"
 	IMAGES_FOLDER     = "images"
 
+	KEMONO_EMBEDS_FOLDER   = "embeds"
+	KEMONO_CONTENT_FOLDER  = "post_content"
+
 	GDRIVE_URL 	         = "https://drive.google.com"
 	GDRIVE_FOLDER        = "gdrive"
 	GDRIVE_FILENAME      = "detected_gdrive_links.txt"

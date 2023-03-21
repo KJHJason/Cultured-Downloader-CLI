@@ -25,7 +25,7 @@ func getInlineImages(content, postFolderPath string) []*request.ToDownload {
 		}
 		toDownload = append(toDownload, &request.ToDownload{
 			Url:      utils.KEMONO_URL + imgSrc,
-			FilePath: filepath.Join(postFolderPath, utils.GetLastPartOfUrl(imgSrc)),
+			FilePath: filepath.Join(postFolderPath, utils.IMAGES_FOLDER, utils.GetLastPartOfUrl(imgSrc)),
 		})
 	}
 	return toDownload
@@ -33,11 +33,11 @@ func getInlineImages(content, postFolderPath string) []*request.ToDownload {
 
 // Since the name of each attachment or file is not always the filename of the file as it could be a URL,
 // we need to check if the returned name value is a URL and if it is, we just return the postFolderPath as the file path.
-func getKemonoFilePath(postFolderPath, fileName string) string {
+func getKemonoFilePath(postFolderPath, childDir, fileName string) string {
 	if strings.HasPrefix(fileName, "http://") || strings.HasPrefix(fileName, "https://") {
-		return postFolderPath
+		return filepath.Join(postFolderPath, childDir)
 	}
-	return filepath.Join(postFolderPath, fileName)
+	return filepath.Join(postFolderPath, childDir, fileName)
 }
 
 func processJson(resJson *models.MainKemonoJson, downloadPath string, dlOptions *KemonoDlOptions) ([]*request.ToDownload, []*request.ToDownload) {
@@ -55,26 +55,28 @@ func processJson(resJson *models.MainKemonoJson, downloadPath string, dlOptions 
 		for _, attachment := range resJson.Attachments {
 			toDownload = append(toDownload, &request.ToDownload{
 				Url:      utils.KEMONO_URL + attachment.Path,
-				FilePath: getKemonoFilePath(postFolderPath, attachment.Name),
+				FilePath: getKemonoFilePath(postFolderPath, utils.KEMONO_CONTENT_FOLDER, attachment.Name),
 			})
 		}
 
 		if resJson.Embed.Url != "" {
+			embedsDirPath := filepath.Join(postFolderPath, utils.KEMONO_EMBEDS_FOLDER)
 			if dlOptions.Configs.LogUrls {
-				utils.DetectOtherExtDLLink(resJson.Embed.Url, postFolderPath)
+				utils.DetectOtherExtDLLink(resJson.Embed.Url, embedsDirPath)
 			}
 			if utils.DetectGDriveLinks(resJson.Embed.Url, postFolderPath, true, dlOptions.Configs.LogUrls,) && dlOptions.DlGdrive {
 				gdriveLinks = append(gdriveLinks, &request.ToDownload{
 					Url:      resJson.Embed.Url,
-					FilePath: filepath.Join(postFolderPath, utils.GDRIVE_FOLDER),
+					FilePath: embedsDirPath,
 				})
 			}
 		}
 
-		if resJson.File.Path != "" {
+		if resJson.File.Path != "" { 
+			// usually is the thumbnail of the post
 			toDownload = append(toDownload, &request.ToDownload{
 				Url:      utils.KEMONO_URL + resJson.File.Path,
-				FilePath: getKemonoFilePath(postFolderPath, resJson.File.Name),
+				FilePath: getKemonoFilePath(postFolderPath, "", resJson.File.Name),
 			})
 		}
 	}
