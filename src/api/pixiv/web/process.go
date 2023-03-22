@@ -67,8 +67,7 @@ func processIllustratorPostJson(resJson *models.PixivWebIllustratorJson, pageNum
 func processArtworkJson(res *http.Response, artworkType int64, postDownloadDir string) ([]*request.ToDownload, *models.Ugoira, error) {
 	if artworkType == UGOIRA {
 		var ugoiraJson models.PixivWebArtworkUgoiraJson
-		err := utils.LoadJsonFromResponse(res, &ugoiraJson)
-		if err != nil {
+		if err := utils.LoadJsonFromResponse(res, &ugoiraJson); err != nil {
 			return nil, nil, err
 		}
 
@@ -83,8 +82,7 @@ func processArtworkJson(res *http.Response, artworkType int64, postDownloadDir s
 	}
 
 	var artworkUrls models.PixivWebArtworkJson
-	err := utils.LoadJsonFromResponse(res, &artworkUrls)
-	if err != nil {
+	if err := utils.LoadJsonFromResponse(res, &artworkUrls); err != nil {
 		return nil, nil, err
 	}
 
@@ -101,8 +99,7 @@ func processArtworkJson(res *http.Response, artworkType int64, postDownloadDir s
 // Process the tag search results JSON and returns a slice of artwork IDs
 func processTagJsonResults(res *http.Response) ([]string, error) {
 	var pixivTagJson models.PixivTag
-	err := utils.LoadJsonFromResponse(res, &pixivTagJson)
-	if err != nil {
+	if err := utils.LoadJsonFromResponse(res, &pixivTagJson); err != nil {
 		return nil, err
 	}
 

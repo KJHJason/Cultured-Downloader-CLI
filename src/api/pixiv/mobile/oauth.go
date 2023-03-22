@@ -104,8 +104,7 @@ func (pixiv *PixivMobile) StartOauthFlow() error {
 		}
 
 		var oauthFlowJson models.PixivOauthFlowJson
-		err = utils.LoadJsonFromResponse(res, &oauthFlowJson)
-		if err != nil {
+		if err := utils.LoadJsonFromResponse(res, &oauthFlowJson); err != nil {
 			color.Red(err.Error())
 			continue
 		}
@@ -164,8 +163,7 @@ func (pixiv *PixivMobile) refreshAccessToken() error {
 	}
 
 	var oauthJson models.PixivOauthJson
-	err = utils.LoadJsonFromResponse(res, &oauthJson)
-	if err != nil {
+	if err := utils.LoadJsonFromResponse(res, &oauthJson); err != nil {
 		return err
 	}
 

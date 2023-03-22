@@ -69,8 +69,7 @@ func processFantiaPost(res *http.Response, downloadPath string, dlOptions *Fanti
 	// processes a fantia post
 	// returns a map containing the post id and the url to download the file from
 	var postJson models.FantiaPost
-	err := utils.LoadJsonFromResponse(res, &postJson)
-	if err != nil {
+	if err := utils.LoadJsonFromResponse(res, &postJson); err != nil {
 		return nil, nil, err
 	}
 

@@ -46,8 +46,7 @@ func (pixiv *PixivMobile) getUgoiraMetadata(illustId, dlFilePath string) (*model
 	}
 
 	var ugoiraJson models.UgoiraJson
-	err = utils.LoadJsonFromResponse(res, &ugoiraJson)
-	if err != nil {
+	if err := utils.LoadJsonFromResponse(res, &ugoiraJson); err != nil {
 		return nil, err
 	}
 
@@ -87,8 +86,7 @@ func (pixiv *PixivMobile) getArtworkDetails(artworkId, downloadPath string) ([]*
 	}
 
 	var artworkJson models.PixivMobileArtworkJson
-	err = utils.LoadJsonFromResponse(res, &artworkJson)
-	if err != nil {
+	if err := utils.LoadJsonFromResponse(res, &artworkJson); err != nil {
 		return nil, nil, err
 	}
 
@@ -177,8 +175,7 @@ func (pixiv *PixivMobile) getIllustratorPostMainLogic(params map[string]string, 
 		}
 
 		var resJson models.PixivMobileArtworksJson
-		err = utils.LoadJsonFromResponse(res, &resJson)
-		if err != nil {
+		if err := utils.LoadJsonFromResponse(res, &resJson); err != nil {
 			return nil, nil, []error{err}
 		}
 
@@ -338,8 +335,7 @@ func (pixiv *PixivMobile) tagSearchLogic(tagName, downloadPath string, dlOptions
 		}
 
 		var resJson models.PixivMobileArtworksJson
-		err = utils.LoadJsonFromResponse(res, &resJson)
-		if err != nil {
+		if err := utils.LoadJsonFromResponse(res, &resJson); err != nil {
 			errSlice = append(errSlice, err)
 			continue
 		}

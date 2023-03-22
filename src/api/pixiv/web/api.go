@@ -38,8 +38,7 @@ func getArtworkDetailsLogic(artworkId string, reqArgs *request.RequestArgs) (*mo
 	}
 
 	var artworkDetailsJsonRes models.ArtworkDetails
-	err = utils.LoadJsonFromResponse(artworkDetailsRes, &artworkDetailsJsonRes)
-	if err != nil {
+	if err := utils.LoadJsonFromResponse(artworkDetailsRes, &artworkDetailsJsonRes); err != nil {
 		err = fmt.Errorf(
 			"%v\ndetails: failed to read response body for Pixiv artwork ID %s",
 			err,
@@ -247,8 +246,7 @@ func getIllustratorPosts(illustratorId, pageNum string, dlOptions *PixivWebDlOpt
 	}
 
 	var jsonBody models.PixivWebIllustratorJson
-	err = utils.LoadJsonFromResponse(res, &jsonBody)
-	if err != nil {
+	if err := utils.LoadJsonFromResponse(res, &jsonBody); err != nil {
 		return nil, err
 	}
 	artworkIds, err := processIllustratorPostJson(&jsonBody, pageNum, dlOptions)

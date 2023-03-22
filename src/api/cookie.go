@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
@@ -84,15 +85,8 @@ func VerifyCookie(cookie *http.Cookie, website, userAgent string) (bool, error) 
 
 	// check if the cookie is valid
 	resUrl := resp.Request.URL.String()
-	if website == utils.FANTIA && resUrl == utils.FANTIA_URL + "/recaptcha" {
-		// Could consider using https://github.com/chromedp/chromedp to solve the captcha
-		// by clicking the <input type="submit" name="commit"...> button
-		color.Red(
-			fmt.Sprintf(
-				"fantia error %d: recaptcha detected, skipping cookie verification",
-				utils.UNEXPECTED_ERROR,
-			),
-		)
+	if website == utils.FANTIA && strings.HasSuffix(resUrl, "/recaptcha") {
+		// This would still mean that the cookie is still valid.
 		return true, nil
 	}
 	return resUrl == websiteUrl, nil

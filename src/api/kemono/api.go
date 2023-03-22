@@ -48,8 +48,7 @@ func getPostDetails(post *models.KemonoPostToDl, downloadPath string, dlOptions 
 	}
 
 	var resJson models.KemonoJson
-	err = utils.LoadJsonFromResponse(res, &resJson)
-	if err != nil {
+	if err := utils.LoadJsonFromResponse(res, &resJson); err != nil {
 		return nil, nil, err
 	}
 
@@ -168,8 +167,7 @@ func getCreatorPosts(creator *models.KemonoCreatorToDl, downloadPath string, dlO
 		}
 
 		var resJson models.KemonoJson
-		err = utils.LoadJsonFromResponse(res, &resJson)
-		if err != nil {
+		if err := utils.LoadJsonFromResponse(res, &resJson); err != nil {
 			return nil, nil, err
 		}
 
@@ -267,8 +265,7 @@ func getFavourites(downloadPath string, dlOptions *KemonoDlOptions) ([]*request.
 	}
 
 	var creatorResJson models.KemonoFavCreatorJson
-	err = utils.LoadJsonFromResponse(res, &creatorResJson)
-	if err != nil {
+	if err := utils.LoadJsonFromResponse(res, &creatorResJson); err != nil {
 		return nil, nil, err
 	}
 	artistToDl := processFavCreator(creatorResJson)
@@ -282,8 +279,7 @@ func getFavourites(downloadPath string, dlOptions *KemonoDlOptions) ([]*request.
 	}
 
 	var postResJson models.KemonoJson
-	err = utils.LoadJsonFromResponse(res, &postResJson)
-	if err != nil {
+	if err := utils.LoadJsonFromResponse(res, &postResJson); err != nil {
 		return nil, nil, err
 	}
 	urlsToDownload, gdriveLinks := processMultipleJson(postResJson, downloadPath, dlOptions)

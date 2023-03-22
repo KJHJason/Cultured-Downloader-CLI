@@ -155,8 +155,7 @@ func getCreatorPaginatedPosts(creatorId string, dlOptions *PixivFanboxDlOptions)
 	}
 
 	var resJson models.CreatorPaginatedPostsJson
-	err = utils.LoadJsonFromResponse(res, &resJson)
-	if err != nil {
+	if err := utils.LoadJsonFromResponse(res, &resJson); err != nil {
 		return nil, err
 	}
 	return resJson.Body, nil
@@ -229,8 +228,7 @@ func getFanboxPosts(creatorId, pageNum string, dlOptions *PixivFanboxDlOptions) 
 			}
 
 			var resJson *models.FanboxCreatorPostsJson
-			err = utils.LoadJsonFromResponse(res, &resJson)
-			if err != nil {
+			if err := utils.LoadJsonFromResponse(res, &resJson); err != nil {
 				resChan <- &resStruct{err: err}
 			} else {
 				resChan <- &resStruct{json: resJson}

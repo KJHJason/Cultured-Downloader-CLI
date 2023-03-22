@@ -76,8 +76,7 @@ func (gdrive *GDrive) GetFolderContents(folderId, logPath string, config *config
 		}
 
 		var gdriveFolder models.GDriveFolder
-		err = utils.LoadJsonFromResponse(res, &gdriveFolder)
-		if err != nil {
+		if err := utils.LoadJsonFromResponse(res, &gdriveFolder); err != nil {
 			return nil, err
 		}
 
@@ -156,8 +155,7 @@ func (gdrive *GDrive) GetFileDetails(gdriveInfo *models.GDriveToDl, config *conf
 	}
 
 	var gdriveFile models.GDriveFile
-	err = utils.LoadJsonFromResponse(res, &gdriveFile)
-	if err != nil {
+	if err := utils.LoadJsonFromResponse(res, &gdriveFile); err != nil {
 		return nil, err
 	}
 

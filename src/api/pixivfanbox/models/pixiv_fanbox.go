@@ -1,5 +1,7 @@
 package models
 
+import "encoding/json"
+
 type CreatorPaginatedPostsJson struct {
 	Body []string `json:"body"`
 }
@@ -14,12 +16,12 @@ type FanboxCreatorPostsJson struct {
 
 type FanboxPostJson struct {
 	Body struct {
-		Id            string      `json:"id"`
-		Title         string      `json:"title"`
-		Type          string      `json:"type"`
-		CreatorId     string      `json:"creatorId"`
-		CoverImageUrl string      `json:"coverImageUrl"`
-		Body          interface{} `json:"body"`
+		Id            string          `json:"id"`
+		Title         string          `json:"title"`
+		Type          string          `json:"type"`
+		CreatorId     string          `json:"creatorId"`
+		CoverImageUrl string          `json:"coverImageUrl"`
+		Body          json.RawMessage `json:"body"`
 	} `json:"body"`
 }
 
