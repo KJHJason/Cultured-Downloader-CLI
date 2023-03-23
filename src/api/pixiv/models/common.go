@@ -6,7 +6,7 @@ type Ugoira struct {
 	Frames   map[string]int64
 }
 
-type UgoiraFramesJson []*struct {
+type UgoiraFramesJson []struct {
 	File string `json:"file"`
 	Delay float64 `json:"delay"`
 }
