@@ -37,13 +37,12 @@ func AddHeaders(headers map[string]string, defaultUserAgent string, req *http.Re
 		return
 	}
 
+	if userAgent, ok := headers["User-Agent"]; !ok || userAgent == ""{
+		headers["User-Agent"] = defaultUserAgent
+	}
+
 	for key, value := range headers {
 		req.Header.Add(key, value)
-	}
-	if req.Header.Get("User-Agent") == "" {
-		req.Header.Add(
-			"User-Agent", defaultUserAgent,
-		)
 	}
 }
 
@@ -111,6 +110,11 @@ func sendRequest(req *http.Request, reqArgs *RequestArgs) (*http.Response, error
 		err = fmt.Errorf("%s, more info => %v",
 			errMsg,
 			err,
+		)
+	} else if res != nil {
+		err = fmt.Errorf("%s, status code => %s",
+			errMsg,
+			res.Status,
 		)
 	} else {
 		err = errors.New(errMsg)

@@ -36,6 +36,41 @@ func GetCookie(sessionID, website string) *http.Cookie {
 	return &cookie
 }
 
+func getHeaders(website, userAgent string) map[string]string {
+	headers := map[string]string{
+		"User-Agent": userAgent,
+	}
+
+	var referer, origin string
+	switch website {
+	case utils.PIXIV :
+		referer = utils.PIXIV_URL
+		origin = utils.PIXIV_URL
+	case utils.PIXIV_FANBOX :
+		referer = utils.PIXIV_FANBOX_URL
+		origin = utils.PIXIV_FANBOX_URL
+	case utils.FANTIA :
+		referer = utils.FANTIA_URL
+		origin = utils.FANTIA_URL
+	case utils.KEMONO :
+		referer = utils.KEMONO_URL
+		origin = utils.KEMONO_URL
+	default :
+		// Shouldn't happen but could happen during development
+		panic(
+			fmt.Errorf(
+				"error %d, invalid website, %q, in getHeaders",
+				utils.DEV_ERROR,
+				website,
+			),
+		)
+	}
+
+	headers["Referer"] = referer
+	headers["Origin"] = origin
+	return headers
+}
+
 // Verifies the given cookie by making a request to the website
 // and returns true if the cookie is valid
 func VerifyCookie(cookie *http.Cookie, website, userAgent string) (bool, error) {
@@ -47,7 +82,7 @@ func VerifyCookie(cookie *http.Cookie, website, userAgent string) (bool, error) 
 	case utils.PIXIV_FANBOX:
 		websiteUrl = utils.PIXIV_FANBOX_URL + "/creators/supporting"
 	case utils.PIXIV:
-		websiteUrl = utils.PIXIV_URL + "/manage/requests"
+		websiteUrl = utils.PIXIV_URL + "/dashboard"
 	case utils.KEMONO:
 		websiteUrl = utils.KEMONO_URL + "/favorites"
 	default:
@@ -75,7 +110,7 @@ func VerifyCookie(cookie *http.Cookie, website, userAgent string) (bool, error) 
 			CheckStatus: true,
 			Http3:       useHttp3,
 			Http2:       !useHttp3,
-			UserAgent:   userAgent,
+			Headers:     getHeaders(website, userAgent),
 		},
 	)
 	if err != nil {
