@@ -87,33 +87,30 @@ func (f *FantiaDlOptions) GetCsrfToken(userAgent string) error {
 		},
 	)
 	if err != nil {
-		err = fmt.Errorf(
+		return fmt.Errorf(
 			"fantia error %d, failed to get CSRF token from Fantia: %w", 
 			utils.CONNECTION_ERROR, 
 			err,
 		)
-		return err
 	}
 
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		err = fmt.Errorf(
+		return fmt.Errorf(
 			"fantia error %d, failed to get CSRF token from Fantia: %w", 
 			utils.RESPONSE_ERROR, 
 			err,
 		)
-		return err
 	}
 
 	// parse the response
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
-		err = fmt.Errorf(
+		return fmt.Errorf(
 			"fantia error %d, failed to parse response body when getting CSRF token from Fantia: %w", 
 			utils.HTML_ERROR, 
 			err,
 		)
-		return err
 	}
 
 	if csrfToken, ok := doc.Find("meta[name=csrf-token]").Attr("content"); !ok {

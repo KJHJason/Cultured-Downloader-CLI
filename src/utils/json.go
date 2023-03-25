@@ -54,27 +54,25 @@ func LoadJsonFromResponse(res *http.Response, format any) error {
 	}
 
 	if err = json.Unmarshal(body, &format); err != nil {
-		err = fmt.Errorf(
+		return fmt.Errorf(
 			"error %d: failed to unmarshal json response from %s due to %v\nBody: %s",
 			RESPONSE_ERROR,
 			res.Request.URL.String(),
 			err,
 			string(body),
 		)
-		return err
 	}
 	return nil
 }
 
 func LoadJsonFromBytes(body []byte, format any) error {
 	if err := json.Unmarshal(body, &format); err != nil {
-		err = fmt.Errorf(
+		return fmt.Errorf(
 			"error %d: failed to unmarshal json due to %v\nBody: %s",
 			JSON_ERROR,
 			err,
 			string(body),
 		)
-		return err
 	}
 	return nil
 }

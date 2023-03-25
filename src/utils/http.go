@@ -61,13 +61,12 @@ func ReadResBody(res *http.Response) ([]byte, error) {
 	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		err = fmt.Errorf(
+		return nil, fmt.Errorf(
 			"error %d: failed to read response body from %s due to %v",
 			RESPONSE_ERROR,
 			res.Request.URL.String(),
 			err,
 		)
-		return nil, err
 	}
 	return body, nil
 }

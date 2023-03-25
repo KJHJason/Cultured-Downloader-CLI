@@ -56,23 +56,21 @@ func (gdrive *GDrive) GetFolderContents(folderId, logPath string, config *config
 			},
 		)
 		if err != nil {
-			err = fmt.Errorf(
+			return nil, fmt.Errorf(
 				"gdrive error %d: failed to get folder contents with ID of %s, more info => %v",
 				utils.CONNECTION_ERROR,
 				folderId,
 				err,
 			)
-			return nil, err
 		}
 		defer res.Body.Close()
 		if res.StatusCode != 200 {
-			err = fmt.Errorf(
+			return nil, fmt.Errorf(
 				"gdrive error %d: failed to get folder contents with ID of %s, more info => %s",
 				utils.RESPONSE_ERROR,
 				folderId,
 				res.Status,
 			)
-			return nil, err
 		}
 
 		var gdriveFolder models.GDriveFolder
@@ -141,13 +139,12 @@ func (gdrive *GDrive) GetFileDetails(gdriveInfo *models.GDriveToDl, config *conf
 		},
 	)
 	if err != nil {
-		err = fmt.Errorf(
+		return nil, fmt.Errorf(
 			"gdrive error %d: failed to get file details with ID of %s, more info => %v",
 			utils.CONNECTION_ERROR,
 			gdriveInfo.Id,
 			err,
 		)
-		return nil, err
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {

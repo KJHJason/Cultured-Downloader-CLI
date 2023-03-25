@@ -41,25 +41,23 @@ func checkIfCanSkipDl(filePath string, fileInfo *models.GdriveFileToDl) (bool, e
 	// check the md5 checksum and the file size
 	file, err := os.OpenFile(filePath, os.O_RDONLY, 0666)
 	if err != nil {
-		err = fmt.Errorf(
+		return false, fmt.Errorf(
 			"gdrive error %d: failed to open file %q, more info => %v",
 			utils.OS_ERROR,
 			filePath,
 			err,
 		)
-		return false, err
 	}
 	defer file.Close()
 
 	fileStatInfo, err := file.Stat()
 	if err != nil {
-		err = fmt.Errorf(
+		return false, fmt.Errorf(
 			"gdrive error %d: failed to get file stat info of %q, more info => %v",
 			utils.OS_ERROR,
 			filePath,
 			err,
 		)
-		return false, err
 	}
 
 	fileSize := fileStatInfo.Size()

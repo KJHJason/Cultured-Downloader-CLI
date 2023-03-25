@@ -31,13 +31,12 @@ func getFullFilePath(res *http.Response, filePath string) (string, error) {
 	filename, err := url.PathUnescape(res.Request.URL.String())
 	if err != nil {
 		// should never happen but just in case
-		err = fmt.Errorf(
+		return "", fmt.Errorf(
 			"error %d: failed to unescape URL, more info => %v\nurl: %s",
 			utils.UNEXPECTED_ERROR,
 			err,
 			res.Request.URL.String(),
 		)
-		return "", err
 	}
 	filename = utils.GetLastPartOfUrl(filename)
 	filenameWithoutExt := utils.RemoveExtFromFilename(filename)
@@ -79,13 +78,12 @@ func checkIfCanSkipDl(contentLength int64, filePath string, forceOverwrite bool)
 func DlToFile(res *http.Response, url, filePath string) error {
 	file, err := os.Create(filePath) // create the file
 	if err != nil {
-		err = fmt.Errorf(
+		return fmt.Errorf(
 			"error %d: failed to create file, more info => %v\nfile path: %s",
 			utils.OS_ERROR,
 			err,
 			filePath,
 		)
-		return err
 	}
 
 	// write the body to file

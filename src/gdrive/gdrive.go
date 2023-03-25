@@ -77,12 +77,11 @@ func (gdrive *GDrive) GDriveKeyIsValid(userAgent string) (bool, error) {
 		},
 	)
 	if err != nil {
-		err = fmt.Errorf(
+		return false, fmt.Errorf(
 			"gdrive error %d: failed to check if Google Drive API key is valid, more info => %v",
 			utils.CONNECTION_ERROR,
 			err,
 		)
-		return false, err
 	}
 	res.Body.Close()
 	return res.StatusCode != 400, nil

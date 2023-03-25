@@ -61,13 +61,12 @@ func extractFileLogic(ctx context.Context, src, dest string, extractor *archiveE
 			}
 			return err
 		}
-		err = fmt.Errorf(
+		return fmt.Errorf(
 			"error %d: unable to extract zip file %s, more info => %v",
 			OS_ERROR,
 			src,
 			err,
 		)
-		return err
 	}
 	return nil
 }

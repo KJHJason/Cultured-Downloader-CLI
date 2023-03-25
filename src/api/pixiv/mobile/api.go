@@ -76,13 +76,12 @@ func (pixiv *PixivMobile) getArtworkDetails(artworkId, downloadPath string) ([]*
 		},
 	)
 	if err != nil {
-		err = fmt.Errorf(
+		return nil, nil, fmt.Errorf(
 			"pixiv mobile error %d: failed to get artwork details for %s, more info => %v",
 			utils.CONNECTION_ERROR,
 			artworkId,
 			err,
 		)
-		return nil, nil, err
 	}
 
 	var artworkJson models.PixivMobileArtworkJson

@@ -138,12 +138,11 @@ func getFlagsForGif(options *ffmpegOptions, imagesFolderPath string) ([]string, 
 	}
 	err := imagePaletteCmd.Run()
 	if err != nil {
-		err = fmt.Errorf(
+		return nil, fmt.Errorf(
 			"pixiv error %d: failed to generate palette for ugoira gif, more info => %v",
 			utils.CMD_ERROR,
 			err,
 		)
-		return nil, err
 	}
 	return []string{
 		"-loop", "0", // loop the gif

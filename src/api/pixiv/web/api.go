@@ -16,35 +16,32 @@ import (
 func getArtworkDetailsLogic(artworkId string, reqArgs *request.RequestArgs) (*models.ArtworkDetails, error) {
 	artworkDetailsRes, err := request.CallRequest(reqArgs)
 	if err != nil {
-		err = fmt.Errorf(
+		return nil, fmt.Errorf(
 			"pixiv error %d: failed to get artwork details for ID %v from %s",
 			utils.CONNECTION_ERROR,
 			artworkId,
 			reqArgs.Url,
 		)
-		return nil, err
 	}
 
 	if artworkDetailsRes.StatusCode != 200 {
 		artworkDetailsRes.Body.Close()
-		err = fmt.Errorf(
+		return nil, fmt.Errorf(
 			"pixiv error %d: failed to get details for artwork ID %s due to %s response from %s",
 			utils.RESPONSE_ERROR,
 			artworkId,
 			artworkDetailsRes.Status,
 			reqArgs.Url,
 		)
-		return nil, err
 	}
 
 	var artworkDetailsJsonRes models.ArtworkDetails
 	if err := utils.LoadJsonFromResponse(artworkDetailsRes, &artworkDetailsJsonRes); err != nil {
-		err = fmt.Errorf(
+		return nil, fmt.Errorf(
 			"%v\ndetails: failed to read response body for Pixiv artwork ID %s",
 			err,
 			artworkId,
 		)
-		return nil, err
 	}
 	return &artworkDetailsJsonRes, nil
 }
@@ -67,27 +64,25 @@ func getArtworkUrlsToDlLogic(artworkType int64, artworkId string, reqArgs *reque
 
 	reqArgs.Url = url
 	artworkUrlsRes, err := request.CallRequest(reqArgs)
-	if err != nil {
-		err = fmt.Errorf(
+	if err != nil { 
+		return nil, fmt.Errorf(
 			"pixiv error %d: failed to get artwork URLs for ID %s from %s due to %v",
 			utils.CONNECTION_ERROR,
 			artworkId,
 			url,
 			err,
 		)
-		return nil, err
 	}
 
 	if artworkUrlsRes.StatusCode != 200 {
 		artworkUrlsRes.Body.Close()
-		err = fmt.Errorf(
+		return nil,fmt.Errorf(
 			"pixiv error %d: failed to get artwork URLs for ID %s due to %s response from %s",
 			utils.RESPONSE_ERROR,
 			artworkId,
 			artworkUrlsRes.Status,
 			url,
 		)
-		return nil, err
 	}
 	return artworkUrlsRes, nil
 }
@@ -226,23 +221,21 @@ func getIllustratorPosts(illustratorId, pageNum string, dlOptions *PixivWebDlOpt
 		},
 	)
 	if err != nil {
-		err = fmt.Errorf(
+		return nil, fmt.Errorf(
 			"pixiv error %d: failed to get illustrator's posts with an ID of %s due to %v",
 			utils.CONNECTION_ERROR,
 			illustratorId,
 			err,
 		)
-		return nil, err
 	}
 	if res.StatusCode != 200 {
 		res.Body.Close()
-		err = fmt.Errorf(
+		return nil, fmt.Errorf(
 			"pixiv error %d: failed to get illustrator's posts with an ID of %s due to %s response",
 			utils.RESPONSE_ERROR,
 			illustratorId,
 			res.Status,
 		)
-		return nil, err
 	}
 
 	var jsonBody models.PixivWebIllustratorJson

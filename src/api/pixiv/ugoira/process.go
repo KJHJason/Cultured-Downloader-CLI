@@ -71,13 +71,12 @@ func ConvertUgoira(ugoiraInfo *models.Ugoira, imagesFolderPath string, ugoiraFfm
 	err = cmd.Run()
 	if err != nil {
 		os.Remove(ugoiraFfmpeg.outputPath)
-		err = fmt.Errorf(
+		return fmt.Errorf(
 			"pixiv error %d: failed to convert ugoira to %s, more info => %v",
 			utils.CMD_ERROR,
 			ugoiraFfmpeg.outputPath,
 			err,
 		)
-		return err
 	}
 
 	// delete unzipped folder which contains

@@ -35,12 +35,11 @@ func (pixiv *PixivMobile) StartOauthFlow() error {
 	_, err := cryptorand.Read(codeVerifierBytes)
 	if err != nil {
 		// should never happen but just in case
-		err = fmt.Errorf(
+		return fmt.Errorf(
 			"pixiv mobile error %d: failed to generate random bytes, more info => %v",
 			utils.DEV_ERROR,
 			err,
 		)
-		return err
 	}
 	codeVerifier := base64.RawURLEncoding.EncodeToString(codeVerifierBytes)
 	codeChallenge := S256([]byte(codeVerifier))

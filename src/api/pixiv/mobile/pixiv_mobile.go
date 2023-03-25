@@ -131,6 +131,9 @@ func (pixiv *PixivMobile) SendRequest(reqArgs *request.RequestArgs) (*http.Respo
 		}
 		time.Sleep(utils.GetRandomDelay())
 	}
-	err = fmt.Errorf("request to %s failed after %d retries", reqArgs.Url, utils.RETRY_COUNTER)
-	return nil, err
+	return nil, fmt.Errorf(
+		"request to %s failed after %d retries",
+		reqArgs.Url,
+		utils.RETRY_COUNTER,
+	)
 }
