@@ -3,54 +3,39 @@ package pixiv
 import (
 	"fmt"
 
-	"github.com/KJHJason/Cultured-Downloader-CLI/api"
+	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/models"
+	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/ugoira"
+	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/common"
+	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/web"
+	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/mobile"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
 
 // Start the download process for Pixiv
-func PixivDownloadProcess(config *api.Config, pixivDl *PixivDl, pixivDlOptions *PixivDlOptions, pixivUgoiraOptions *UgoiraOptions) {
-	var ugoiraToDownload []Ugoira
-	var artworksToDownload []map[string]string
-	if len(pixivDl.ArtworkIds) > 0 {
-		var artworksSlice []map[string]string
-		var ugoiraSlice []Ugoira
-		if pixivDlOptions.MobileClient == nil {
-			artworksSlice, ugoiraSlice = getMultipleArtworkDetails(
-				&pixivDl.ArtworkIds,
-				utils.DOWNLOAD_PATH,
-				pixivDlOptions.SessionCookies,
-			)
-		} else {
-			artworksSlice, ugoiraSlice = pixivDlOptions.MobileClient.getMultipleArtworkDetails(
-				&pixivDl.ArtworkIds,
-				utils.DOWNLOAD_PATH,
-			)
-		}
-		artworksToDownload = append(artworksToDownload, artworksSlice...)
-		ugoiraToDownload = append(ugoiraToDownload, ugoiraSlice...)
+func PixivWebDownloadProcess(pixivDl *PixivDl, pixivDlOptions *pixivweb.PixivWebDlOptions, pixivUgoiraOptions *ugoira.UgoiraOptions) {
+	var ugoiraToDl []*models.Ugoira
+	var artworksToDl []*request.ToDownload
+	if len(pixivDl.IllustratorIds) > 0 {
+		artworkIdsSlice := pixivweb.GetMultipleIllustratorPosts(
+			pixivDl.IllustratorIds,
+			pixivDl.IllustratorPageNums,
+			utils.DOWNLOAD_PATH,
+			pixivDlOptions,
+		)
+		pixivDl.ArtworkIds = append(pixivDl.ArtworkIds, artworkIdsSlice...)
+		pixivDl.ArtworkIds = utils.RemoveSliceDuplicates(pixivDl.ArtworkIds)
 	}
 
-	if len(pixivDl.IllustratorIds) > 0 {
-		var artworksSlice []map[string]string
-		var ugoiraSlice []Ugoira
-		if pixivDlOptions.MobileClient == nil {
-			artworksSlice, ugoiraSlice = getMultipleIllustratorPosts(
-				&pixivDl.IllustratorIds,
-				utils.DOWNLOAD_PATH,
-				pixivDlOptions.ArtworkType,
-				pixivDlOptions.SessionCookies,
-			)
-		} else {
-			artworksSlice, ugoiraSlice = pixivDlOptions.MobileClient.getMultipleIllustratorPosts(
-				&pixivDl.IllustratorIds,
-				utils.DOWNLOAD_PATH,
-				pixivDlOptions.ArtworkType,
-			)
-		}
-		artworksToDownload = append(artworksToDownload, artworksSlice...)
-		ugoiraToDownload = append(ugoiraToDownload, ugoiraSlice...)
+	if len(pixivDl.ArtworkIds) > 0 {
+		artworkSlice, ugoiraSlice := pixivweb.GetMultipleArtworkDetails(
+			pixivDl.ArtworkIds,
+			utils.DOWNLOAD_PATH,
+			pixivDlOptions,
+		)
+		artworksToDl = append(artworksToDl, artworkSlice...)
+		ugoiraToDl = append(ugoiraToDl, ugoiraSlice...)
 	}
 
 	if len(pixivDl.TagNames) > 0 {
@@ -76,59 +61,130 @@ func PixivDownloadProcess(config *api.Config, pixivDl *PixivDl, pixivDlOptions *
 		progress.Start()
 		hasErr := false
 		for idx, tagName := range pixivDl.TagNames {
-			var err error
-			var minPage, maxPage int
-			pageNum := pixivDl.TagNamesPageNums[idx]
-
-			minPage, maxPage, _, err = utils.GetMinMaxFromStr(pageNum)
-			if err != nil {
-				progress.Stop(true)
-				utils.LogError(err, "", true)
-			}
-
-			var artworksSlice []map[string]string
-			var ugoiraSlice []Ugoira
-			if pixivDlOptions.MobileClient == nil {
-				artworksSlice, ugoiraSlice, hasErr = tagSearch(
-					tagName,
-					utils.DOWNLOAD_PATH,
-					pixivDlOptions,
-					minPage,
-					maxPage,
-					pixivDlOptions.SessionCookies,
-				)
-			} else {
-				artworksSlice, ugoiraSlice, hasErr = pixivDlOptions.MobileClient.tagSearch(
-					tagName,
-					utils.DOWNLOAD_PATH,
-					pixivDlOptions,
-					minPage,
-					maxPage,
-				)
-			}
-			artworksToDownload = append(artworksToDownload, artworksSlice...)
-			ugoiraToDownload = append(ugoiraToDownload, ugoiraSlice...)
+			var artworksSlice []*request.ToDownload
+			var ugoiraSlice []*models.Ugoira
+			artworksSlice, ugoiraSlice, hasErr = pixivweb.TagSearch(
+				tagName,
+				utils.DOWNLOAD_PATH,
+				pixivDl.TagNamesPageNums[idx],
+				pixivDlOptions,
+			)
+			artworksToDl = append(artworksToDl, artworksSlice...)
+			ugoiraToDl = append(ugoiraToDl, ugoiraSlice...)
 			progress.MsgIncrement(baseMsg)
 		}
 		progress.Stop(hasErr)
 	}
 
-	if len(artworksToDownload) > 0 {
-		request.DownloadURLsParallel(
-			&artworksToDownload,
-			utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
-			pixivDlOptions.SessionCookies,
-			GetPixivRequestHeaders(),
-			nil,
-			config.OverwriteFiles,
+	if len(artworksToDl) > 0 {
+		request.DownloadUrls(
+			artworksToDl,
+			&request.DlOptions{
+				MaxConcurrency: utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
+				Headers:        pixivcommon.GetPixivRequestHeaders(),
+				Cookies:        pixivDlOptions.SessionCookies,
+				UseHttp3:       false,
+			},
+			pixivDlOptions.Configs,
 		)
 	}
-	if len(ugoiraToDownload) > 0 {
-		downloadMultipleUgoira(
-			&ugoiraToDownload,
-			config,
+	if len(ugoiraToDl) > 0 {
+		ugoira.DownloadMultipleUgoira(
+			&ugoira.UgoiraArgs{
+				UseMobileApi: false,
+				ToDownload:   ugoiraToDl,
+				Cookies:      pixivDlOptions.SessionCookies,
+			},
 			pixivUgoiraOptions,
-			pixivDlOptions.SessionCookies,
+			pixivDlOptions.Configs,
+			request.CallRequest,
+		)
+	}
+}
+
+// Start the download process for Pixiv
+func PixivMobileDownloadProcess(pixivDl *PixivDl, pixivDlOptions *pixivmobile.PixivMobileDlOptions, pixivUgoiraOptions *ugoira.UgoiraOptions) {
+	var ugoiraToDl []*models.Ugoira
+	var artworksToDl []*request.ToDownload
+	if len(pixivDl.IllustratorIds) > 0 {
+		artworkSlice, ugoiraSlice := pixivDlOptions.MobileClient.GetMultipleIllustratorPosts(
+			pixivDl.IllustratorIds,
+			pixivDl.IllustratorPageNums,
+			utils.DOWNLOAD_PATH,
+			pixivDlOptions.ArtworkType,
+		)
+		artworksToDl = artworkSlice
+		ugoiraToDl = ugoiraSlice
+	}
+
+	if len(pixivDl.ArtworkIds) > 0 {
+		artworkSlice, ugoiraSlice := pixivDlOptions.MobileClient.GetMultipleArtworkDetails(
+			pixivDl.ArtworkIds,
+			utils.DOWNLOAD_PATH,
+		)
+		artworksToDl = append(artworksToDl, artworkSlice...)
+		ugoiraToDl = append(ugoiraToDl, ugoiraSlice...)
+	}
+
+	if len(pixivDl.TagNames) > 0 {
+		// loop through each tag and page number
+		baseMsg := "Searching for artworks based on tag names on Pixiv [%d/" + fmt.Sprintf("%d]...", len(pixivDl.TagNames))
+		progress := spinner.New(
+			"pong",
+			"fgHiYellow",
+			fmt.Sprintf(
+				baseMsg,
+				0,
+			),
+			fmt.Sprintf(
+				"Finished searching for artworks based on %d tag names on Pixiv!",
+				len(pixivDl.TagNames),
+			),
+			fmt.Sprintf(
+				"Finished with some errors while searching for artworks based on %d tag names on Pixiv!\nPlease refer to the logs for more details...",
+				len(pixivDl.TagNames),
+			),
+			len(pixivDl.TagNames),
+		)
+		progress.Start()
+		hasErr := false
+		for idx, tagName := range pixivDl.TagNames {
+			var artworksSlice []*request.ToDownload
+			var ugoiraSlice []*models.Ugoira
+			artworksSlice, ugoiraSlice, hasErr = pixivDlOptions.MobileClient.TagSearch(
+				tagName,
+				utils.DOWNLOAD_PATH,
+				pixivDl.TagNamesPageNums[idx],
+				pixivDlOptions,
+			)
+			artworksToDl = append(artworksToDl, artworksSlice...)
+			ugoiraToDl = append(ugoiraToDl, ugoiraSlice...)
+			progress.MsgIncrement(baseMsg)
+		}
+		progress.Stop(hasErr)
+	}
+
+	if len(artworksToDl) > 0 {
+		request.DownloadUrls(
+			artworksToDl,
+			&request.DlOptions{
+				MaxConcurrency: utils.PIXIV_MAX_CONCURRENT_DOWNLOADS,
+				Headers:        pixivcommon.GetPixivRequestHeaders(),
+				UseHttp3:       false,
+			},
+			pixivDlOptions.Configs,
+		)
+	}
+	if len(ugoiraToDl) > 0 {
+		ugoira.DownloadMultipleUgoira(
+			&ugoira.UgoiraArgs{
+				UseMobileApi: true,
+				ToDownload:   ugoiraToDl,
+				Cookies:      nil,
+			},
+			pixivUgoiraOptions,
+			pixivDlOptions.Configs,
+			pixivDlOptions.MobileClient.SendRequest,
 		)
 	}
 }

@@ -3,32 +3,25 @@ package api
 import (
 	"fmt"
 	"net/http"
-	"time"
 	"os"
+	"strings"
+	"time"
 
-	"github.com/fatih/color"
-	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
+	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/fatih/color"
 )
 
 // Returns a cookie with given value and website to be used in requests
-func GetCookie(sessionID, website string) http.Cookie {
+func GetCookie(sessionID, website string) *http.Cookie {
 	if sessionID == "" {
-		return http.Cookie{}
+		return &http.Cookie{}
 	}
 
-	var domain, cookieName string
-	var sameSite http.SameSite
-	if sessionCookieInfo, ok := utils.SESSION_COOKIE_MAP[website]; !ok {
-		// Shouldn't happen but could happen during development
-		panic(
-			fmt.Errorf("error %d, invalid website, \"%s\", in GetCookie", utils.DEV_ERROR, website),
-		)
-	} else {
-		domain = sessionCookieInfo.Domain
-		cookieName = sessionCookieInfo.Name
-		sameSite = sessionCookieInfo.SameSite
-	}
+	sessionCookieInfo := utils.GetSessionCookieInfo(website)
+	domain := sessionCookieInfo.Domain
+	cookieName := sessionCookieInfo.Name
+	sameSite := sessionCookieInfo.SameSite
 
 	cookie := http.Cookie{
 		Name:     cookieName,
@@ -40,25 +33,66 @@ func GetCookie(sessionID, website string) http.Cookie {
 		Secure:   true,
 		HttpOnly: true,
 	}
-	return cookie
+	return &cookie
+}
+
+func getHeaders(website, userAgent string) map[string]string {
+	headers := map[string]string{
+		"User-Agent": userAgent,
+	}
+
+	var referer, origin string
+	switch website {
+	case utils.PIXIV :
+		referer = utils.PIXIV_URL
+		origin = utils.PIXIV_URL
+	case utils.PIXIV_FANBOX :
+		referer = utils.PIXIV_FANBOX_URL
+		origin = utils.PIXIV_FANBOX_URL
+	case utils.FANTIA :
+		referer = utils.FANTIA_URL
+		origin = utils.FANTIA_URL
+	case utils.KEMONO :
+		referer = utils.KEMONO_URL
+		origin = utils.KEMONO_URL
+	default :
+		// Shouldn't happen but could happen during development
+		panic(
+			fmt.Errorf(
+				"error %d, invalid website, %q, in getHeaders",
+				utils.DEV_ERROR,
+				website,
+			),
+		)
+	}
+
+	headers["Referer"] = referer
+	headers["Origin"] = origin
+	return headers
 }
 
 // Verifies the given cookie by making a request to the website
 // and returns true if the cookie is valid
-func VerifyCookie(cookie http.Cookie, website string) (bool, error) {
+func VerifyCookie(cookie *http.Cookie, website, userAgent string) (bool, error) {
 	// sends a request to the website to verify the cookie
-	var websiteURL string
+	var websiteUrl string
 	switch website {
 	case utils.FANTIA:
-		websiteURL = utils.FANTIA_URL + "/mypage/users/plans"
+		websiteUrl = utils.FANTIA_URL + "/mypage/users/plans"
 	case utils.PIXIV_FANBOX:
-		websiteURL = utils.PIXIV_FANBOX_URL + "/creators/supporting"
+		websiteUrl = utils.PIXIV_FANBOX_URL + "/creators/supporting"
 	case utils.PIXIV:
-		websiteURL = utils.PIXIV_URL + "/manage/requests"
+		websiteUrl = utils.PIXIV_URL + "/dashboard"
+	case utils.KEMONO:
+		websiteUrl = utils.KEMONO_URL + "/favorites"
 	default:
 		// Shouldn't happen but could happen during development
 		panic(
-			fmt.Errorf("error %d, invalid website, \"%s\", in VerifyCookie", utils.DEV_ERROR, website),
+			fmt.Errorf(
+				"error %d, invalid website, %q, in VerifyCookie",
+				utils.DEV_ERROR,
+				website,
+			),
 		)
 	}
 
@@ -66,44 +100,62 @@ func VerifyCookie(cookie http.Cookie, website string) (bool, error) {
 		return false, nil
 	}
 
-	cookies := []http.Cookie{cookie}
-	resp, err := request.CallRequest("HEAD", websiteURL, 5, cookies, nil, nil, true)
+	useHttp3 := utils.IsHttp3Supported(website, false)
+	cookies := []*http.Cookie{cookie}
+	resp, err := request.CallRequest(
+		&request.RequestArgs{
+			Method:      "HEAD",
+			Url:         websiteUrl,
+			Cookies:     cookies,
+			CheckStatus: true,
+			Http3:       useHttp3,
+			Http2:       !useHttp3,
+			Headers:     getHeaders(website, userAgent),
+		},
+	)
 	if err != nil {
 		return false, err
 	}
 	resp.Body.Close()
 
 	// check if the cookie is valid
-	return resp.Request.URL.String() == websiteURL, nil
+	resUrl := resp.Request.URL.String()
+	if website == utils.FANTIA && strings.HasSuffix(resUrl, "/recaptcha") {
+		// This would still mean that the cookie is still valid.
+		return true, nil
+	}
+	return resUrl == websiteUrl, nil
 }
 
 // Verifies the given cookie by making a request to the website and checks if the cookie is valid
 // If the cookie is valid, the cookie will be returned
 //
 // However, if the cookie is invalid, an error message will be printed out and the program will shutdown
-func VerifyAndGetCookie(website, cookieValue string) http.Cookie {
-	if _, ok := utils.API_TITLE_MAP[website]; !ok {
-		// Shouldn't happen but could happen during development
-		panic(
-			fmt.Errorf(
-				"error %d, invalid website, \"%s\", in VerifyAndGetCookie", 
-				utils.DEV_ERROR, 
-				website,
+func VerifyAndGetCookie(website, cookieValue, userAgent string) *http.Cookie {
+	cookie := GetCookie(cookieValue, website)
+	cookieIsValid, err := VerifyCookie(cookie, website, userAgent)
+	if err != nil {
+		utils.LogError(
+			err,
+			"error occurred when trying to verify cookie.",
+			true,
+			utils.ERROR,
+		)
+		color.Red(
+			fmt.Sprintf(
+				"error %d: could not verify %s cookie.\nPlease refer to the log file for more details.",
+				utils.INPUT_ERROR,
+				utils.GetReadableSiteStr(website),
 			),
 		)
-	}
-
-	cookie := GetCookie(cookieValue, website)
-	cookieIsValid, err := VerifyCookie(cookie, website)
-	if err != nil {
-		utils.LogError(err, "Error occurred when trying to verify cookie.", true)
+		os.Exit(1)
 	}
 	if cookieValue != "" && !cookieIsValid {
 		color.Red(
 			fmt.Sprintf(
-				"error %d: %s cookie is invalid", 
-				utils.INPUT_ERROR, 
-				utils.API_TITLE_MAP[website],
+				"error %d: %s cookie is invalid",
+				utils.INPUT_ERROR,
+				utils.GetReadableSiteStr(website),
 			),
 		)
 		os.Exit(1)

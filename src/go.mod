@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.1
-	github.com/fatih/color v1.14.1
+	github.com/fatih/color v1.15.0
 	github.com/mholt/archiver/v4 v4.0.0-alpha.7
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/quic-go/quic-go v0.33.0
@@ -37,7 +37,7 @@ require (
 	golang.org/x/exp v0.0.0-20221205204356-47842c84f3db // indirect
 	golang.org/x/mod v0.6.0 // indirect
 	golang.org/x/net v0.7.0 // indirect
-	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/text v0.7.0 // indirect
 	golang.org/x/tools v0.2.0 // indirect
 )

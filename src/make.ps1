@@ -36,31 +36,16 @@ go build -o $binaryPath
 GetHash $binaryPath "windows" "amd64"
 Remove-Item -Path $verInfoName -Force -ErrorAction SilentlyContinue
 
-$env:GOARCH = "386"
-$binaryPath = "bin/cultured-downloader-cli-386.exe"
-windres -i $verInfoRc -O coff --target="pe-i386" -o $verInfoName
-go build -o $binaryPath
-GetHash $binaryPath "windows" "386"
-Remove-Item -Path $verInfoName -Force -ErrorAction SilentlyContinue
-
-$env:GOARCH = "amd64"
 $env:GOOS = "linux"
-$binaryPath = "bin/cultured-downloader-cli-linux-amd64"
+$binaryPath = "bin/cultured-downloader-cli-linux"
 go build -o $binaryPath
 GetHash $binaryPath "linux" "amd64"
 
-$env:GOARCH = "386"
-$binaryPath = "bin/cultured-downloader-cli-linux-386"
-go build -o $binaryPath
-GetHash $binaryPath "linux" "386"
-
-$env:GOARCH = "amd64"
 $env:GOOS = "darwin"
-$binaryPath = "bin/cultured-downloader-cli-darwin-amd64"
+$binaryPath = "bin/cultured-downloader-cli-darwin"
 go build -o $binaryPath
 GetHash $binaryPath "darwin" "amd64"
 
 # reset the environment variables
 $env:GOOS = "windows"
-$env:GOARCH = "amd64"
 Write-Output "Finished building Cultured Downloader CLI for Windows, Linux, and macOS."

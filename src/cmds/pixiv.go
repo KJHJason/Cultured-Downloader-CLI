@@ -2,111 +2,152 @@ package cmds
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
-	"github.com/spf13/cobra"
-	"github.com/KJHJason/Cultured-Downloader-CLI/api"
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv"
+	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/web"
+	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/mobile"
+	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixiv/ugoira"
+	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/KJHJason/Cultured-Downloader-CLI/cmds/textparser"
+	"github.com/spf13/cobra"
+	"github.com/fatih/color"
 )
 
 var (
-	pixivCookieFile     string
-	pixivFfmpegPath     string
-	pixivStartOauth     bool
-	pixivRefreshToken   string
-	pixivSession        string
-	deleteUgoiraZip     bool
-	ugoiraQuality       int
-	ugoiraOutputFormat  string
-	pixivArtworkIds     []string
-	pixivIllustratorIds []string
-	pixivTagNames       []string
-	pixivPageNums       []string
-	pixivSortOrder      string
-	pixivSearchMode     string
-	pixivRatingMode     string
-	pixivArtworkType    string
-	pixivOverwrite      bool
-	pixivCmd            = &cobra.Command{
+	pixivDlTextFile          string
+	pixivCookieFile          string
+	pixivFfmpegPath          string
+	pixivStartOauth          bool
+	pixivRefreshToken        string
+	pixivSession             string
+	deleteUgoiraZip          bool
+	ugoiraQuality            int
+	ugoiraOutputFormat       string
+	pixivArtworkIds          []string
+	pixivIllustratorIds      []string
+	pixivIllustratorPageNums []string
+	pixivTagNames            []string
+	pixivPageNums            []string
+	pixivSortOrder           string
+	pixivSearchMode          string
+	pixivRatingMode          string
+	pixivArtworkType         string
+	pixivOverwrite           bool
+	pixivUserAgent           string
+	pixivCmd                 = &cobra.Command{
 		Use:   "pixiv",
 		Short: "Download from Pixiv",
-		Long:  "Supports downloading from Pixiv by artwork ID, illustrator ID, tag name, and more.",
+		Long:  "Supports downloads from Pixiv by artwork ID, illustrator ID, tag name, and more.",
 		Run: func(cmd *cobra.Command, args []string) {
 			request.CheckInternetConnection()
 
 			if pixivStartOauth {
-				err := pixiv.NewPixivMobile("", 10).StartOauthFlow()
+				err := pixivmobile.NewPixivMobile("", 10).StartOauthFlow()
 				if err != nil {
 					utils.LogError(
 						err,
 						"",
 						true,
+						utils.ERROR,
 					)
 				}
 				return
 			}
 
-			pixivConfig := api.Config{
+			pixivConfig := &configs.Config{
 				FfmpegPath:     pixivFfmpegPath,
 				OverwriteFiles: pixivOverwrite,
+				UserAgent:      pixivUserAgent,
 			}
 			pixivConfig.ValidateFfmpeg()
 
-			utils.ValidatePageNumInput(
-				len(pixivTagNames),
-				&pixivPageNums,
-				[]string{
-					"Number of tag names and page numbers must be equal.",
-				},
-			)
-			pixivDl := pixiv.PixivDl{
-				ArtworkIds:       pixivArtworkIds,
-				IllustratorIds:   pixivIllustratorIds,
-				TagNames:         pixivTagNames,
-				TagNamesPageNums: pixivPageNums,
+			if pixivDlTextFile != "" {
+				artworkIds, illustratorInfoSlice, tagInfoSlice := textparser.ParsePixivTextFile(pixivDlTextFile)
+				pixivArtworkIds = append(pixivArtworkIds, artworkIds...)
+
+				for _, illustratorInfo := range illustratorInfoSlice {
+					pixivIllustratorIds = append(pixivIllustratorIds, illustratorInfo.ArtistId)
+					pixivIllustratorPageNums = append(pixivIllustratorPageNums, illustratorInfo.PageNum)
+				}
+
+				for _, tagInfo := range tagInfoSlice {
+					pixivTagNames = append(pixivTagNames, tagInfo.Tag)
+					pixivPageNums = append(pixivPageNums, tagInfo.PageNum)
+				}
+			}
+			pixivDl := &pixiv.PixivDl{
+				ArtworkIds:          pixivArtworkIds,
+				IllustratorIds:      pixivIllustratorIds,
+				IllustratorPageNums: pixivIllustratorPageNums,
+				TagNames:            pixivTagNames,
+				TagNamesPageNums:    pixivPageNums,
 			}
 			pixivDl.ValidateArgs()
 
-			pixivUgoiraOptions := pixiv.UgoiraOptions{
+			pixivUgoiraOptions := &ugoira.UgoiraOptions{
 				DeleteZip:    deleteUgoiraZip,
 				Quality:      ugoiraQuality,
 				OutputFormat: ugoiraOutputFormat,
 			}
 			pixivUgoiraOptions.ValidateArgs()
 
-			pixivDlOptions := pixiv.PixivDlOptions{
-				SortOrder:       pixivSortOrder,
-				SearchMode:      pixivSearchMode,
-				RatingMode:      pixivRatingMode,
-				ArtworkType:     pixivArtworkType,
-				RefreshToken:    pixivRefreshToken,
-				SessionCookieId: pixivSession,
+			if pixivRefreshToken == "" && pixivSession == "" {
+				color.Red("You must provide a refresh token or session cookie ID to download from Pixiv.")
+				os.Exit(1)
 			}
-			if pixivCookieFile != "" {
-				cookies, err := utils.ParseNetscapeCookieFile(
-					pixivCookieFile, 
-					pixivSession, 
-					utils.PIXIV,
-				)
-				if err != nil {
-					utils.LogError(
-						err,
-						"",
-						true,
-					)
-				}
-				pixivDlOptions.SessionCookies = cookies
-			}
-			pixivDlOptions.ValidateArgs()
 
-			pixiv.PixivDownloadProcess(
-				&pixivConfig,
-				&pixivDl,
-				&pixivDlOptions,
-				&pixivUgoiraOptions,
-			)
+			utils.PrintWarningMsg()
+			if pixivRefreshToken != "" {
+				pixivDlOptions := &pixivmobile.PixivMobileDlOptions{
+					SortOrder:       pixivSortOrder,
+					SearchMode:      pixivSearchMode,
+					RatingMode:      pixivRatingMode,
+					ArtworkType:     pixivArtworkType,
+					Configs:         pixivConfig,
+					RefreshToken:    pixivRefreshToken,
+				}
+				pixivDlOptions.ValidateArgs(pixivUserAgent)
+				pixiv.PixivMobileDownloadProcess(
+					pixivDl,
+					pixivDlOptions,
+					pixivUgoiraOptions,
+				)
+			} else {
+				pixivDlOptions := &pixivweb.PixivWebDlOptions{
+					SortOrder:       pixivSortOrder,
+					SearchMode:      pixivSearchMode,
+					RatingMode:      pixivRatingMode,
+					ArtworkType:     pixivArtworkType,
+					Configs:         pixivConfig,
+					SessionCookieId: pixivSession,
+				}
+				if pixivCookieFile != "" {
+					cookies, err := utils.ParseNetscapeCookieFile(
+						pixivCookieFile,
+						pixivSession,
+						utils.PIXIV,
+					)
+					if err != nil {
+						utils.LogError(
+							err,
+							"",
+							true,
+							utils.ERROR,
+						)
+					}
+					pixivDlOptions.SessionCookies = cookies
+				}
+				pixivDlOptions.ValidateArgs(pixivUserAgent)
+				pixiv.PixivWebDownloadProcess(
+					pixivDl,
+					pixivDlOptions,
+					pixivUgoiraOptions,
+				)
+			}
 		},
 	}
 )
@@ -145,11 +186,12 @@ func init() {
 			},
 		),
 	)
-	pixivCmd.Flags().StringVar(
+	pixivCmd.Flags().StringVarP(
 		&pixivSession,
 		"session",
+		"s",
 		"",
-		"Your PHPSESSID cookie value to use for the requests to Pixiv.",
+		"Your \"PHPSESSID\" cookie value to use for the requests to Pixiv.",
 	)
 	pixivCmd.Flags().BoolVar(
 		&deleteUgoiraZip,
@@ -184,7 +226,7 @@ func init() {
 				"Output format for the ugoira conversion using FFmpeg.",
 				fmt.Sprintf(
 					"Accepted Extensions: %s\n",
-					strings.TrimSpace(strings.Join(pixiv.UGOIRA_ACCEPTED_EXT, ", ")),
+					strings.TrimSpace(strings.Join(ugoira.UGOIRA_ACCEPTED_EXT, ", ")),
 				),
 			},
 		),
@@ -212,6 +254,18 @@ func init() {
 		),
 	)
 	pixivCmd.Flags().StringSliceVar(
+		&pixivIllustratorPageNums,
+		"illustrator_page_num",
+		[]string{},
+		utils.CombineStringsWithNewline(
+			[]string{
+				"Min and max page numbers to search for corresponding to the order of the supplied illustrator ID(s).",
+				"Format: \"num\", \"minNum-maxNum\", or \"\" to download all pages",
+				"Leave blank to download all pages from each illustrator.",
+			},
+		),
+	)
+	pixivCmd.Flags().StringSliceVar(
 		&pixivTagNames,
 		"tag_name",
 		[]string{},
@@ -229,9 +283,9 @@ func init() {
 		[]string{},
 		utils.CombineStringsWithNewline(
 			[]string{
-				"Min and max page numbers to search for corresponding to the order of the supplied tag names.",
-				"Format: \"num\" or \"minNum-maxNum\"",
-				"Example: \"1\" or \"1-10\"",
+				"Min and max page numbers to search for corresponding to the order of the supplied tag name(s).",
+				"Format: \"num\", \"minNum-maxNum\", or \"\" to download all pages",
+				"Leave blank to search all pages for each tag name.",
 			},
 		),
 	)
