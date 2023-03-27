@@ -28,7 +28,7 @@ var (
 	pixivFanboxCmd       = &cobra.Command{
 		Use:   "pixiv_fanbox",
 		Short: "Download from Pixiv Fanbox",
-		Long:  "Supports downloading from Pixiv by artwork ID, illustrator ID, tag name, and more.",
+		Long:  "Supports downloads from Pixiv Fanbox creators and individual posts.",
 		Run: func(cmd *cobra.Command, args []string) {
 			request.CheckInternetConnection()
 

@@ -27,7 +27,7 @@ var (
 	kemonoCmd           = &cobra.Command{
 		Use:   "kemono",
 		Short: "Download from Kemono Party",
-		Long:  "Supports downloading from creators and posts on Kemono Party.",
+		Long:  "Supports downloads from creators and posts on Kemono Party.",
 		Run: func(cmd *cobra.Command, args []string) {
 			request.CheckInternetConnection()
 

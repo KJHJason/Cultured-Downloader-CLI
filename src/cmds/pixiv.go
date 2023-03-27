@@ -41,7 +41,7 @@ var (
 	pixivCmd                 = &cobra.Command{
 		Use:   "pixiv",
 		Short: "Download from Pixiv",
-		Long:  "Supports downloading from Pixiv by artwork ID, illustrator ID, tag name, and more.",
+		Long:  "Supports downloads from Pixiv by artwork ID, illustrator ID, tag name, and more.",
 		Run: func(cmd *cobra.Command, args []string) {
 			request.CheckInternetConnection()
 

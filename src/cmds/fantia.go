@@ -28,7 +28,7 @@ var (
 	fantiaCmd           = &cobra.Command{
 		Use:   "fantia",
 		Short: "Download from Fantia",
-		Long:  "Supports downloading from Fantia Fanclubs and individual posts.",
+		Long:  "Supports downloads from Fantia Fanclubs and individual posts.",
 		Run: func(cmd *cobra.Command, args []string) {
 			request.CheckInternetConnection()
 

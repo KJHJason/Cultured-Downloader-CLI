@@ -18,7 +18,7 @@ var (
 			"GitHub Repo: https://github.com/KJHJason/Cultured-Downloader-CLI",
 		),
 		Short:   "Download images, videos, etc. from various websites like Fantia.",
-		Long:    "Cultured Downloader CLI is a command-line tool for downloading images, videos, etc. from various websites like Pixiv, Pixiv Fanbox, and Fantia.",
+		Long:    "Cultured Downloader CLI is a command-line tool for downloading images, videos, etc. from various websites like Pixiv, Pixiv Fanbox, Fantia, and more.",
 		Run: func(cmd *cobra.Command, args []string) {
 			if downloadPath != "" {
 				err := utils.SetDefaultDownloadPath(downloadPath)
