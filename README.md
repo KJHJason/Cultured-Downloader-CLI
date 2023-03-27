@@ -91,6 +91,7 @@ Note:
     - Pixiv Fanbox Creator URLs
     - Pixiv Illustrator URLs
     - Pixiv Tag URLs
+    - Kemono Party Creator URLs
 
 Help:
 ```
