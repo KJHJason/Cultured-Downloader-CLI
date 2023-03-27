@@ -146,6 +146,5 @@ func (f *FantiaDlOptions) ValidateArgs(userAgent string) error {
 		f.GdriveClient = nil
 	}
 
-	f.csrfMu = sync.Mutex{}
 	return f.GetCsrfToken(userAgent)
 }

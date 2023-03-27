@@ -41,7 +41,6 @@ func NewPixivMobile(refreshToken string, timeout int) *PixivMobile {
 		authTokenUrl:  "https://oauth.secure.pixiv.net/auth/token",
 		loginUrl:      utils.PIXIV_MOBILE_URL + "/web/v1/login",
 		redirectUri:   utils.PIXIV_MOBILE_URL + "/web/v1/users/auth/pixiv/callback",
-		accessTokenMu: sync.Mutex{},
 		refreshToken:  refreshToken,
 		apiTimeout:    timeout,
 	}

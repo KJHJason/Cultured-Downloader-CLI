@@ -2,12 +2,13 @@ package utils
 
 import (
 	"context"
-	"os"
 	"fmt"
 	"log"
-	"time"
-	"strings"
+	"os"
 	"path/filepath"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/fatih/color"
 )
@@ -138,8 +139,13 @@ func LogErrors(exit bool, errChan chan error, level int, errs ...error) bool {
 	return hasCanceled
 }
 
+var logToPathMux sync.Mutex
+
 // Thread-safe logging function that logs to the provided file path
 func LogMessageToPath(message, filePath string, level int) {
+	logToPathMux.Lock()
+	defer logToPathMux.Unlock()
+
 	os.MkdirAll(filepath.Dir(filePath), 0666)
 	if PathExists(filePath) {
 		logFileContents, err := os.ReadFile(filePath)
