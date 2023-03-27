@@ -130,8 +130,12 @@ func (pixiv *PixivMobile) GetMultipleArtworkDetails(artworkIds []string, downloa
 			continue
 		}
 
-		artworksToDownload = append(artworksToDownload, artworkDetails...)
-		ugoiraSlice = append(ugoiraSlice, ugoiraInfo)
+		if ugoiraInfo != nil {
+			ugoiraSlice = append(ugoiraSlice, ugoiraInfo)
+		} else {
+			artworksToDownload = append(artworksToDownload, artworkDetails...)
+		}
+
 		if idx != lastIdx {
 			pixiv.Sleep()
 		}
