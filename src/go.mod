@@ -8,7 +8,7 @@ require (
 	github.com/mholt/archiver/v4 v4.0.0-alpha.7
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/quic-go/quic-go v0.33.0
-	github.com/spf13/cobra v1.6.1
+	github.com/spf13/cobra v1.7.0
 )
 
 require (
