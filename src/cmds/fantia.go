@@ -152,27 +152,31 @@ func init() {
 			},
 		),
 	)
-	fantiaCmd.Flags().BoolVar(
+	fantiaCmd.Flags().BoolVarP(
 		&fantiaDlGdrive,
 		"dl_gdrive",
+		"g",
 		true,
 		"Whether to download the Google Drive links of a post on Fantia.",
 	)
-	fantiaCmd.Flags().BoolVar(
+	fantiaCmd.Flags().BoolVarP(
 		&fantiaDlThumbnails,
 		"dl_thumbnails",
+		"t",
 		true,
 		"Whether to download the thumbnail of a post on Fantia.",
 	)
-	fantiaCmd.Flags().BoolVar(
+	fantiaCmd.Flags().BoolVarP(
 		&fantiaDlImages,
 		"dl_images",
+		"i",
 		true,
 		"Whether to download the images of a post on Fantia.",
 	)
-	fantiaCmd.Flags().BoolVar(
+	fantiaCmd.Flags().BoolVarP(
 		&fantiaDlAttachments,
 		"dl_attachments",
+		"a",
 		true,
 		"Whether to download the attachments of a post on Fantia.",
 	)

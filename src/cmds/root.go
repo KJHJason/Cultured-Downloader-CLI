@@ -33,9 +33,10 @@ var (
 )
 
 func init() {
-	RootCmd.Flags().StringVar(
+	RootCmd.Flags().StringVarP(
 		&downloadPath,
-		"download_path",
+		"dl_path",
+		"p",
 		"",
 		utils.CombineStringsWithNewline(
 			[]string{

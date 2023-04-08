@@ -171,9 +171,10 @@ func init() {
 		false,
 		"Whether to start the Pixiv OAuth process to get one's refresh token.",
 	)
-	pixivCmd.Flags().StringVar(
+	pixivCmd.Flags().StringVarP(
 		&pixivRefreshToken,
 		"refresh_token",
+		"t",
 		"",
 		utils.CombineStringsWithNewline(
 			[]string{
@@ -193,15 +194,17 @@ func init() {
 		"",
 		"Your \"PHPSESSID\" cookie value to use for the requests to Pixiv.",
 	)
-	pixivCmd.Flags().BoolVar(
+	pixivCmd.Flags().BoolVarP(
 		&deleteUgoiraZip,
 		"delete_ugoira_zip",
+		"d",
 		true,
 		"Whether to delete the downloaded ugoira zip file after conversion.",
 	)
-	pixivCmd.Flags().IntVar(
+	pixivCmd.Flags().IntVarP(
 		&ugoiraQuality,
 		"ugoira_quality",
+		"q",
 		10,
 		utils.CombineStringsWithNewline(
 			[]string{
@@ -217,9 +220,10 @@ func init() {
 			},
 		),
 	)
-	pixivCmd.Flags().StringVar(
+	pixivCmd.Flags().StringVarP(
 		&ugoiraOutputFormat,
 		"ugoira_output_format",
+		"f",
 		".gif",
 		utils.CombineStringsWithNewline(
 			[]string{

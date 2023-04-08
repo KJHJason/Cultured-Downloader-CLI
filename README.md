@@ -51,7 +51,7 @@ This program has only been tested on Windows 10. Hence, if you encounter any iss
     - In the event that the Content-Length is not in the response header, it will re-download the file if the overwrite flag is set to true.
     - Usually, this is not a problem for Fantia and Pixiv, but for Pixiv Fanbox, it will not return the Content-Length in the response header, which is why the program will try to re-download all the files and overwrite any existing files. Hence, the antivirus program will flag the program as a ransomware and stop it from executing normally.
 - Solutions:
-  - Avoid using the `--overwrite=true` flag and let the program do its clean up when you forcefully terminate the program by pressing Ctrl+C.
+  - Avoid using the `--overwrite=true`/`-o=true` flag and let the program do its clean up when you forcefully terminate the program by pressing Ctrl+C.
     - Files that failed to be deleted will be logged so you can manually delete them.
   - If you still need to use this flag, please exclude `cultured-downloader-cli.exe` or the compiled version of the program from your antivirus software as it can be flagged as a ransomware as previously explained above in the Causes.
     - `go run .` will also NOT work as it will still be blocked by the antivirus program. Hence, you will need to build the program first and then run it.
@@ -62,7 +62,7 @@ This program has only been tested on Windows 10. Hence, if you encounter any iss
 - Cultured Downloader is not liable for any damages caused.
 - Pixiv:
   - Pixiv API calls are throttled to avoid being rate limited.
-    - You can try using the `--refresh_token` flag instead of the `--session` flag if you prefer faster downloads as it generally has lesser API calls but at the expense of a less flexible download options.
+    - You can try using the `--refresh_token`/`-t` flag instead of the `--session`/`-s` flag if you prefer faster downloads as it generally has lesser API calls but at the expense of a less flexible download options.
   - Try not to overuse the program when downloading from Pixiv as it can cause your IP to be flagged by Cloudflare.
 
 ## Usage Example
@@ -77,7 +77,7 @@ Note:
 - For flags that require a value, you can either use the `--flag_name value` format or the `--flag_name=value` format.
 - For flags that allows multiple values, you can either use the `--flag_name value1,value2` format or the `--flag_name=value1,value2` format.
 - Quotations like `--flag_name="value1,value2"` are not required but it is recommended to use them.
-- For `--text_file="<path>"`, the contents of the text file should be separated by a new line as seen below,
+- For `--txt_filepath="<path>"`/`-p="<path>"`, the contents of the text file should be separated by a new line as seen below,
 ```
   https://fantia.jp/posts/123123
   https://fantia.jp/fanclubs/1234
@@ -163,17 +163,17 @@ Flags:
   -c, --cookie_file string      Pass in a file path to your saved Netscape/Mozilla generated cookie file to use when downloading.
                                 You can generate a cookie file by using the "Get cookies.txt LOCALLY" extension for your browser.
                                 Chrome Extension URL: https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc
-      --dl_attachments          Whether to download the attachments of a post on Fantia. (default true)
-      --dl_gdrive               Whether to download the Google Drive links of a post on Fantia. (default true)
-      --dl_images               Whether to download the images of a post on Fantia. (default true)
-      --dl_thumbnails           Whether to download the thumbnail of a post on Fantia. (default true)
+  -a, --dl_attachments          Whether to download the attachments of a post on Fantia. (default true)
+  -g, --dl_gdrive               Whether to download the Google Drive links of a post on Fantia. (default true)
+  -i, --dl_images               Whether to download the images of a post on Fantia. (default true)
+  -t, --dl_thumbnails           Whether to download the thumbnail of a post on Fantia. (default true)
       --fanclub_id strings      Fantia Fanclub ID(s) to download from.
                                 For multiple IDs, separate them with a comma.
                                 Example: "12345,67891" (without the quotes)
       --gdrive_api_key string   Google Drive API key to use for downloading gdrive files.
                                 Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_key_guide.md
   -h, --help                    help for fantia
-      --log_urls                Log any detected URLs of the files that are being downloaded.
+  -l, --log_urls                Log any detected URLs of the files that are being downloaded.
                                 Note that not all URLs are logged, only URLs to external file hosting providers like MEGA, Google Drive, etc. are logged.
   -o, --overwrite               Overwrite any existing files if there is no Content-Length header in the response.
                                 Usually used for Pixiv Fanbox when there are incomplete downloads.
@@ -184,8 +184,8 @@ Flags:
                                 For multiple IDs, separate them with a comma.
                                 Example: "12345,67891" (without the quotes)
   -s, --session string          Your "_session_id" cookie value to use for the requests to Fantia.
-      --text_file string        Path to a text file containing Fanclub and/or post URL(s) to download from Fantia.
-      --user_agent string       Set a custom User-Agent header to use when communicating with the API(s) or when downloading.
+  -p, --txt_filepath string     Path to a text file containing Fanclub and/or post URL(s) to download from Fantia.
+  -u, --user_agent string       Set a custom User-Agent header to use when communicating with the API(s) or when downloading.
 ```
 
 ## Pixiv Fanbox Flags
@@ -203,14 +203,14 @@ Flags:
       --creator_id strings      Pixiv Fanbox Creator ID(s) to download from.
                                 For multiple IDs, separate them with a comma.
                                 Example: "12345,67891" (without the quotes)
-      --dl_attachments          Whether to download the attachments of a Pixiv Fanbox post. (default true)
-      --dl_gdrive               Whether to download the Google Drive links of a Pixiv Fanbox post. (default true)
-      --dl_images               Whether to download the images of a Pixiv Fanbox post. (default true)
-      --dl_thumbnails           Whether to download the thumbnail of a Pixiv Fanbox post. (default true)
+  -a, --dl_attachments          Whether to download the attachments of a Pixiv Fanbox post. (default true)
+  -g, --dl_gdrive               Whether to download the Google Drive links of a Pixiv Fanbox post. (default true)
+  -i, --dl_images               Whether to download the images of a Pixiv Fanbox post. (default true)
+  -t, --dl_thumbnails           Whether to download the thumbnail of a Pixiv Fanbox post. (default true)
       --gdrive_api_key string   Google Drive API key to use for downloading gdrive files.
                                 Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_key_guide.md
   -h, --help                    help for pixiv_fanbox
-      --log_urls                Log any detected URLs of the files that are being downloaded.
+  -l, --log_urls                Log any detected URLs of the files that are being downloaded.
                                 Note that not all URLs are logged, only URLs to external file hosting providers like MEGA, Google Drive, etc. are logged.
   -o, --overwrite               Overwrite any existing files if there is no Content-Length header in the response.
                                 Usually used for Pixiv Fanbox when there are incomplete downloads.
@@ -221,8 +221,8 @@ Flags:
                                 For multiple IDs, separate them with a comma.
                                 Example: "12345,67891" (without the quotes)
   -s, --session string          Your "FANBOXSESSID" cookie value to use for the requests to Pixiv Fanbox.
-      --text_file string        Path to a text file containing creator and/or post URL(s) to download from Pixiv Fanbox.
-      --user_agent string       Set a custom User-Agent header to use when communicating with the API(s) or when downloading.
+  -p, --txt_filepath string     Path to a text file containing creator and/or post URL(s) to download from Pixiv Fanbox.
+  -u, --user_agent string       Set a custom User-Agent header to use when communicating with the API(s) or when downloading.
 ```
 
 
@@ -246,8 +246,8 @@ Flags:
                                        - If you're using the "-pixiv_refresh_token" flag and are downloading by tag names, only "all" is supported. (default "all")
   -c, --cookie_file string             Pass in a file path to your saved Netscape/Mozilla generated cookie file to use when downloading.
                                        You can generate a cookie file by using the "Get cookies.txt LOCALLY" extension for your browser.
-                                       Chrome Extension URL: https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc
-      --delete_ugoira_zip              Whether to delete the downloaded ugoira zip file after conversion. (default true)
+                                       Chrome Extension URL: https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc     
+  -d, --delete_ugoira_zip              Whether to delete the downloaded ugoira zip file after conversion. (default true)
       --ffmpeg_path string             Configure the path to the FFmpeg executable.
                                        Download Link: https://ffmpeg.org/download.html (default "ffmpeg")
   -h, --help                           help for pixiv
@@ -265,7 +265,7 @@ Flags:
                                        - all: Include both R-18 and all ages artworks
                                        Notes:
                                        - If you're using the "--refresh_token" flag, only "all" is supported. (default "all")
-      --refresh_token string           Your Pixiv refresh token to use for the requests to Pixiv.
+  -t, --refresh_token string           Your Pixiv refresh token to use for the requests to Pixiv.
                                        If you're downloading from Pixiv, it is recommended to use this flag
                                        instead of the "--session" flag as there will be significantly lesser API calls to Pixiv.
                                        However, if you prefer more flexibility with your Pixiv downloads, you can use
@@ -289,11 +289,11 @@ Flags:
       --tag_page_num strings           Min and max page numbers to search for corresponding to the order of the supplied tag name(s).
                                        Format: "num", "minNum-maxNum", or "" to download all pages
                                        Leave blank to search all pages for each tag name.
-      --text_file string               Path to a text file containing artwork, illustrator, and tag name URL(s) to download from Pixiv.
-      --ugoira_output_format string    Output format for the ugoira conversion using FFmpeg.
+  -p, --txt_filepath string            Path to a text file containing artwork, illustrator, and tag name URL(s) to download from Pixiv.
+  -f, --ugoira_output_format string    Output format for the ugoira conversion using FFmpeg.
                                        Accepted Extensions: .gif, .apng, .webp, .webm, .mp4
                                         (default ".gif")
-      --ugoira_quality int             Configure the quality of the converted ugoira (Only for .mp4 and .webm).
+  -q, --ugoira_quality int             Configure the quality of the converted ugoira (Only for .mp4 and .webm).
                                        This argument will be used as the crf value for FFmpeg.
                                        The lower the value, the higher the quality.
                                        Accepted values:
@@ -302,7 +302,7 @@ Flags:
                                        For more information, see:
                                        - mp4: https://trac.ffmpeg.org/wiki/Encode/H.264#crf
                                        - webm: https://trac.ffmpeg.org/wiki/Encode/VP9#constantq (default 10)
-      --user_agent string              Set a custom User-Agent header to use when communicating with the API(s) or when downloading.
+  -u, --user_agent string              Set a custom User-Agent header to use when communicating with the API(s) or when downloading.
 ```
 
 ## Kemono Party Flags
@@ -320,12 +320,12 @@ Flags:
       --creator_url strings     Kemono Party creator URL(s) to download from.
                                 Multiple URLs can be supplied by separating them with a comma.
                                 Example: "https://kemono.party/service/user/123,https://kemono.party/service/user/456" (without the quotes)
-      --dl_attachments          Whether to download the attachments (images, zipped files, etc.) of a post on Kemono Party. (default true)
-      --dl_gdrive               Whether to download the Google Drive links of a post on Kemono Party. (default true)
+  -a, --dl_attachments          Whether to download the attachments (images, zipped files, etc.) of a post on Kemono Party. (default true)
+  -g, --dl_gdrive               Whether to download the Google Drive links of a post on Kemono Party. (default true)
       --gdrive_api_key string   Google Drive API key to use for downloading gdrive files.
                                 Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_key_guide.md
   -h, --help                    help for kemono
-      --log_urls                Log any detected URLs of the files that are being downloaded.
+  -l, --log_urls                Log any detected URLs of the files that are being downloaded.
                                 Note that not all URLs are logged, only URLs to external file hosting providers like MEGA, Google Drive, etc. are logged.
   -o, --overwrite               Overwrite any existing files if there is no Content-Length header in the response.
                                 Usually used for Pixiv Fanbox when there are incomplete downloads.
@@ -337,6 +337,6 @@ Flags:
                                 Example: "https://kemono.party/service/user/123,https://kemono.party/service/user/456" (without the quotes)
   -s, --session string          Your Kemono Party "session" cookie value to use for the requests to Kemono Party.
                                 Required to get pass Kemono Party's DDOS protection and to download from your favourites.
-      --text_file string        Path to a text file containing creator and/or post URL(s) to download from Kemono Party.
-      --user_agent string       Set a custom User-Agent header to use when communicating with the API(s) or when downloading.
+  -p, --txt_filepath string     Path to a text file containing creator and/or post URL(s) to download from Kemono Party.
+  -u, --user_agent string       Set a custom User-Agent header to use when communicating with the API(s) or when downloading.
 ```
