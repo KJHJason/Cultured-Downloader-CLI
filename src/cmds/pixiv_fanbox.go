@@ -141,27 +141,31 @@ func init() {
 			},
 		),
 	)
-	pixivFanboxCmd.Flags().BoolVar(
+	pixivFanboxCmd.Flags().BoolVarP(
 		&fanboxDlThumbnails,
 		"dl_thumbnails",
+		"t",
 		true,
 		"Whether to download the thumbnail of a Pixiv Fanbox post.",
 	)
-	pixivFanboxCmd.Flags().BoolVar(
+	pixivFanboxCmd.Flags().BoolVarP(
 		&fanboxDlImages,
 		"dl_images",
+		"i",
 		true,
 		"Whether to download the images of a Pixiv Fanbox post.",
 	)
-	pixivFanboxCmd.Flags().BoolVar(
+	pixivFanboxCmd.Flags().BoolVarP(
 		&fanboxDlAttachments,
 		"dl_attachments",
+		"a",
 		true,
 		"Whether to download the attachments of a Pixiv Fanbox post.",
 	)
-	pixivFanboxCmd.Flags().BoolVar(
+	pixivFanboxCmd.Flags().BoolVarP(
 		&fanboxDlGdrive,
 		"dl_gdrive",
+		"g",
 		true,
 		"Whether to download the Google Drive links of a Pixiv Fanbox post.",
 	)

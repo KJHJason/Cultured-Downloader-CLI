@@ -144,15 +144,17 @@ func init() {
 			},
 		),
 	)
-	kemonoCmd.Flags().BoolVar(
+	kemonoCmd.Flags().BoolVarP(
 		&kemonoDlGdrive,
 		"dl_gdrive",
+		"g",
 		true,
 		"Whether to download the Google Drive links of a post on Kemono Party.",
 	)
-	kemonoCmd.Flags().BoolVar(
+	kemonoCmd.Flags().BoolVarP(
 		&kemonoDlAttachments,
 		"dl_attachments",
+		"a",
 		true,
 		"Whether to download the attachments (images, zipped files, etc.) of a post on Kemono Party.",
 	)

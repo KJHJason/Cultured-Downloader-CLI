@@ -86,15 +86,17 @@ func init() {
 				},
 			),
 		)
-		cmd.Flags().StringVar(
+		cmd.Flags().StringVarP(
 			cmdInfo.userAgentVar,
 			"user_agent",
+			"u",
 			"",
 			"Set a custom User-Agent header to use when communicating with the API(s) or when downloading.",
 		)
-		cmd.Flags().StringVar(
+		cmd.Flags().StringVarP(
 			cmdInfo.textFile.variable,
-			"text_file",
+			"txt_filepath",
+			"p",
 			"",
 			cmdInfo.textFile.desc,
 		)
@@ -125,9 +127,10 @@ func init() {
 			)
 		}
 		if cmdInfo.logUrlsVar != nil {
-			cmd.Flags().BoolVar(
+			cmd.Flags().BoolVarP(
 				cmdInfo.logUrlsVar,
 				"log_urls",
+				"l",
 				false,
 				utils.CombineStringsWithNewline(
 					[]string{
