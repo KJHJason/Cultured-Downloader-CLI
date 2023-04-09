@@ -1,16 +1,21 @@
 package fantia
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"sync"
-	"strconv"
 	"net/http"
+	"strconv"
+	"sync"
+	"time"
+	"os"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/PuerkitoBio/goquery"
+	"github.com/chromedp/chromedp"
+	"github.com/fatih/color"
 )
 
 type fantiaPostArgs struct {
@@ -91,6 +96,24 @@ func getFantiaPostDetails(postArg *fantiaPostArgs, dlOptionss *FantiaDlOptions) 
 	return res, nil
 }
 
+// Automatically try to solve the captcha for Fantia.
+func SolveCaptcha(cookies []*http.Cookie, userAgent string) error {
+	cookieActions := utils.SetAllocCookies(cookies)
+
+	actions := append(cookieActions,
+		chromedp.Navigate(utils.FANTIA_URL + "/recaptcha"),
+		chromedp.WaitVisible(`//input[@name='commit']`, chromedp.BySearch),
+		chromedp.Click(`//input[@name='commit']`, chromedp.BySearch),
+		chromedp.WaitVisible(`//h3[@class='mb-15'][contains(text(), 'ファンティアでクリエイターを応援しよう！')]`, chromedp.BySearch),
+	)
+
+	allocCtx, cancel := utils.GetDefaultChromedpAlloc(userAgent)
+	defer cancel()
+
+	allocCtx, cancel = context.WithTimeout(allocCtx, 25 * time.Second)
+	return utils.ExecuteChromedpActions(allocCtx, cancel, actions...)
+}
+
 // Query Fantia's API based on the slice of post IDs and get a map of urls to download from.
 //
 // Note that only the downloading of the URL(s) is/are executed concurrently
@@ -109,6 +132,7 @@ func (f *FantiaDl) dlFantiaPosts(dlOptionss *FantiaDlOptions) []*request.ToDownl
 			postIdsLen,
 		)
 
+	dlStart:
 		res, err := getFantiaPostDetails(
 			&fantiaPostArgs{
 				msgSuffix:  msgSuffix,
@@ -132,7 +156,25 @@ func (f *FantiaDl) dlFantiaPosts(dlOptionss *FantiaDlOptions) []*request.ToDownl
 			},
 			dlOptionss,
 		)
-		if err != nil {
+		if err == errRecaptcha {
+			err = SolveCaptcha(dlOptionss.SessionCookies, dlOptionss.Configs.UserAgent)
+			if err != nil {
+				var errMsg string
+				if errors.Is(err, context.DeadlineExceeded) {
+					errMsg = fmt.Sprintf(
+						"Failed to solve captcha for Fantia, please visit %s/recaptcha to solve it manually and try again.", 
+						utils.FANTIA_URL,
+					)
+				} else {
+					errMsg = fmt.Sprintf("failed to solve captcha for Fantia, more info => %v", err)
+				}
+
+				color.Red(errMsg)
+				os.Exit(1)
+			}
+
+			goto dlStart
+		} else if err != nil {
 			errSlice = append(errSlice, err)
 			continue
 		}

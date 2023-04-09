@@ -14,14 +14,22 @@ require (
 require (
 	github.com/andybalholm/brotli v1.0.5 // indirect
 	github.com/andybalholm/cascadia v1.3.1 // indirect
+	github.com/chromedp/cdproto v0.0.0-20230408222125-26b95782d8e2 // indirect
+	github.com/chromedp/chromedp v0.9.1 // indirect
+	github.com/chromedp/sysutil v1.0.0 // indirect
 	github.com/dsnet/compress v0.0.1 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
+	github.com/gobwas/httphead v0.1.0 // indirect
+	github.com/gobwas/pool v0.2.1 // indirect
+	github.com/gobwas/ws v1.1.0 // indirect
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/pprof v0.0.0-20230406165453-00490a63f317 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/josharian/intern v1.0.0 // indirect
 	github.com/klauspost/compress v1.16.4 // indirect
 	github.com/klauspost/pgzip v1.2.5 // indirect
+	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.18 // indirect
 	github.com/nwaples/rardecode/v2 v2.0.0-beta.2 // indirect

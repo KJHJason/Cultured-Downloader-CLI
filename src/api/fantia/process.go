@@ -63,6 +63,8 @@ func dlAttachmentsFromPost(content *models.FantiaContent, postFolderPath string)
 	return urlsSlice
 }
 
+var errRecaptcha = fmt.Errorf("recaptcha detected for the current session")
+
 // Process the JSON response from Fantia's API and
 // returns a slice of urls and a slice of gdrive urls to download from
 func processFantiaPost(res *http.Response, downloadPath string, dlOptions *FantiaDlOptions) ([]*request.ToDownload, []*request.ToDownload, error) {
@@ -71,6 +73,17 @@ func processFantiaPost(res *http.Response, downloadPath string, dlOptions *Fanti
 	var postJson models.FantiaPost
 	if err := utils.LoadJsonFromResponse(res, &postJson); err != nil {
 		return nil, nil, err
+	}
+
+	if postJson.Redirect != "" {
+		if postJson.Redirect != "/recaptcha" {
+			return nil, nil, fmt.Errorf(
+				"fantia error %d: unknown redirect url, %q", 
+				utils.UNEXPECTED_ERROR, 
+				postJson.Redirect,
+			)
+		}
+		return nil, nil, errRecaptcha
 	}
 
 	post := postJson.Post
