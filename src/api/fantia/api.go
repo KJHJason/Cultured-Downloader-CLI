@@ -98,14 +98,13 @@ func getFantiaPostDetails(postArg *fantiaPostArgs, dlOptionss *FantiaDlOptions) 
 
 // Automatically try to solve the captcha for Fantia.
 func SolveCaptcha(cookies []*http.Cookie, userAgent string) error {
-	cookieActions := utils.SetAllocCookies(cookies)
-
-	actions := append(cookieActions,
+	actions := []chromedp.Action{
+		utils.SetChromedpAllocCookies(cookies),
 		chromedp.Navigate(utils.FANTIA_URL + "/recaptcha"),
 		chromedp.WaitVisible(`//input[@name='commit']`, chromedp.BySearch),
 		chromedp.Click(`//input[@name='commit']`, chromedp.BySearch),
 		chromedp.WaitVisible(`//h3[@class='mb-15'][contains(text(), 'ファンティアでクリエイターを応援しよう！')]`, chromedp.BySearch),
-	)
+	}
 
 	allocCtx, cancel := utils.GetDefaultChromedpAlloc(userAgent)
 	defer cancel()
