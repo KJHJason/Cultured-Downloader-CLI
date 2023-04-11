@@ -225,6 +225,8 @@ func CheckVer() error {
 		"Failed to check for the latest version, please refer to the logs for more details...",
 		0,
 	)
+	progress.Start()
+
 	url := "https://api.github.com/repos/KJHJason/Cultured-Downloader-CLI/releases/latest"
 	res, err := CallRequest(
 		&RequestArgs{
@@ -236,7 +238,6 @@ func CheckVer() error {
 			Http2:       true,
 		},
 	)
-	progress.Start()
 	if err != nil || res.StatusCode != 200 {
 		errMsg := fmt.Sprintf(
 			"github error %d: unable to check for the latest version",

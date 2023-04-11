@@ -100,6 +100,16 @@ const captchaBtnSelector = `//input[@name='commit']`
 
 // Automatically try to solve the reCAPTCHA for Fantia.
 func autoSolveCaptcha(dlOptions *FantiaDlOptions) error {
+	progress := spinner.New(
+		spinner.REQ_SPINNER,
+		"fgHiYellow",
+		"Solving reCAPTCHA for Fantia...",
+		"Successfully solved reCAPTCHA for Fantia!",
+		"",
+		0,
+	)
+	progress.Start()
+
 	actions := []chromedp.Action{
 		utils.SetChromedpAllocCookies(dlOptions.SessionCookies),
 		chromedp.Navigate(utils.FANTIA_RECAPTCHA_URL),
@@ -112,15 +122,6 @@ func autoSolveCaptcha(dlOptions *FantiaDlOptions) error {
 	defer cancel()
 
 	allocCtx, cancel = context.WithTimeout(allocCtx, 45 * time.Second)
-	progress := spinner.New(
-		spinner.REQ_SPINNER,
-		"fgHiYellow",
-		"Solving reCAPTCHA for Fantia...",
-		"Successfully solved reCAPTCHA for Fantia!",
-		"",
-		0,
-	)
-	progress.Start()
 	if err := utils.ExecuteChromedpActions(allocCtx, cancel, actions...); err != nil {
 		var fmtErr error
 		if errors.Is(err, context.DeadlineExceeded) {
