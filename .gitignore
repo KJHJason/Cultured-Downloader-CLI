@@ -1,5 +1,6 @@
 *test*.*
 *.json
+!spinners.json
 *.log
 *.syso
 *.exe

@@ -24,7 +24,9 @@ func PixivFanboxDownloadProcess(pixivFanboxDl *PixivFanboxDl, pixivFanboxDlOptio
 		)
 	}
 
+	var downloadedPosts bool
 	if len(urlsToDownload) > 0 {
+		downloadedPosts = true
 		request.DownloadUrls(
 			urlsToDownload,
 			&request.DlOptions{
@@ -37,6 +39,13 @@ func PixivFanboxDownloadProcess(pixivFanboxDl *PixivFanboxDl, pixivFanboxDlOptio
 		)
 	}
 	if pixivFanboxDlOptions.GdriveClient != nil && len(gdriveUrlsToDownload) > 0 {
+		downloadedPosts = true
 		pixivFanboxDlOptions.GdriveClient.DownloadGdriveUrls(gdriveUrlsToDownload, pixivFanboxDlOptions.Configs)
+	}
+
+	if downloadedPosts {
+		utils.AlertWithoutErr(utils.Title, "Downloaded all posts from Pixiv Fanbox!")
+	} else {
+		utils.AlertWithoutErr(utils.Title, "No posts to download from Pixiv Fanbox!")
 	}
 }

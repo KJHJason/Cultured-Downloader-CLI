@@ -151,6 +151,8 @@ func manualSolveCaptcha(dlOptions *FantiaDlOptions) error {
 		"Please solve the reCAPTCHA on Fantia at %s with the SAME session to continue.",
 		utils.FANTIA_RECAPTCHA_URL,
 	)
+	utils.AlertWithoutErr(utils.Title, instructions)
+
 	for {
 		color.Yellow(instructions)
 		color.Yellow("Please press ENTER when you're done.")

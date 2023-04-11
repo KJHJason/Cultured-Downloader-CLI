@@ -13,6 +13,14 @@ import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 )
 
+func alertUser(artworksToDl []*request.ToDownload, ugoiraToDl []*models.Ugoira) {
+	if len(artworksToDl) > 0 || len(ugoiraToDl) > 0 {
+		utils.AlertWithoutErr(utils.Title, "Finished downloading artworks from Pixiv!")
+	} else {
+		utils.AlertWithoutErr(utils.Title, "No artworks to download from Pixiv!")
+	}
+}
+
 // Start the download process for Pixiv
 func PixivWebDownloadProcess(pixivDl *PixivDl, pixivDlOptions *pixivweb.PixivWebDlOptions, pixivUgoiraOptions *ugoira.UgoiraOptions) {
 	var ugoiraToDl []*models.Ugoira
@@ -100,6 +108,8 @@ func PixivWebDownloadProcess(pixivDl *PixivDl, pixivDlOptions *pixivweb.PixivWeb
 			request.CallRequest,
 		)
 	}
+
+	alertUser(artworksToDl, ugoiraToDl)
 }
 
 // Start the download process for Pixiv
@@ -187,4 +197,6 @@ func PixivMobileDownloadProcess(pixivDl *PixivDl, pixivDlOptions *pixivmobile.Pi
 			pixivDlOptions.MobileClient.SendRequest,
 		)
 	}
+
+	alertUser(artworksToDl, ugoiraToDl)
 }

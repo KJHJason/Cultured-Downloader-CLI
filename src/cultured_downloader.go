@@ -8,7 +8,6 @@ import (
 
 func main() {
 	request.CheckInternetConnection()
-
 	if err := request.CheckVer(); err != nil {
 		utils.LogError(err, "", false, utils.ERROR)
 	}
@@ -16,5 +15,6 @@ func main() {
 	if err := utils.DeleteEmptyAndOldLogs(); err != nil {
 		utils.LogError(err, "", false, utils.ERROR)
 	}
+
 	cmds.RootCmd.Execute()
 }

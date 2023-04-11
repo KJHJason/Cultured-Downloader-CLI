@@ -20,8 +20,8 @@ const (
 )
 
 var (
-	spinnerTypes = GetSpinnerTypes()
-	colourMap = map[string]color.Attribute{
+	spinnerTypes map[string]SpinnerInfo
+	colourMap  = map[string]color.Attribute{
 		"black":   color.FgBlack,
 		"red":     color.FgRed,
 		"green":   color.FgGreen,
@@ -41,6 +41,11 @@ var (
 		"fgHiWhite":   color.FgHiWhite,
 	}
 )
+
+func init() {
+	spinnerTypes = GetSpinnerTypes()
+	spinnersJson = nil // free up memory since it is no longer needed
+}
 
 // ListSpinnerTypes lists all the supported spinner types
 func ListSpinnerTypes() {

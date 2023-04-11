@@ -56,7 +56,9 @@ func KemonoDownloadProcess(config *configs.Config, kemonoDl *KemonoDl, dlOptions
 		gdriveLinks = append(gdriveLinks, gdriveLinksToDl...)
 	}
 
+	var downloadedPosts bool
 	if len(toDownload) > 0 {
+		downloadedPosts = true
 		request.DownloadUrls(
 			toDownload,
 			&request.DlOptions{
@@ -68,6 +70,13 @@ func KemonoDownloadProcess(config *configs.Config, kemonoDl *KemonoDl, dlOptions
 		)
 	}
 	if dlOptions.GdriveClient != nil && len(gdriveLinks) > 0 {
+		downloadedPosts = true
 		dlOptions.GdriveClient.DownloadGdriveUrls(gdriveLinks, config)
+	}
+
+	if downloadedPosts {
+		utils.AlertWithoutErr(utils.Title, "Downloaded all posts from Kemono Party!")
+	} else {
+		utils.AlertWithoutErr(utils.Title, "No posts to download from Kemono Party!")
 	}
 }
