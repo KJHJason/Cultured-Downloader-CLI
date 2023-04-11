@@ -16,10 +16,9 @@ import (
 // FantiaDl is the struct that contains the
 // IDs of the Fantia fanclubs and posts to download.
 type FantiaDl struct {
-	FanclubIds []string
+	FanclubIds      []string
 	FanclubPageNums []string
-
-	PostIds    []string
+	PostIds         []string
 }
 
 // ValidateArgs validates the IDs of the Fantia fanclubs and posts to download.
@@ -52,10 +51,11 @@ func (f *FantiaDl) ValidateArgs() {
 
 // FantiaDlOptions is the struct that contains the options for downloading from Fantia.
 type FantiaDlOptions struct {
-	DlThumbnails    bool
-	DlImages        bool
-	DlAttachments   bool
-	DlGdrive        bool
+	DlThumbnails     bool
+	DlImages         bool
+	DlAttachments    bool
+	DlGdrive         bool
+	AutoSolveCaptcha bool // whether to use chromedp to solve reCAPTCHA automatically
 
 	GdriveClient    *gdrive.GDrive
 

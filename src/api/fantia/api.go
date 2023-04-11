@@ -25,7 +25,7 @@ type fantiaPostArgs struct {
 	postIdsLen int
 }
 
-func getFantiaPostDetails(postArg *fantiaPostArgs, dlOptionss *FantiaDlOptions) (*http.Response, error) {
+func getFantiaPostDetails(postArg *fantiaPostArgs, dlOptions *FantiaDlOptions) (*http.Response, error) {
 	// Now that we have the post ID, we can query Fantia's API
 	// to get the post's contents from the JSON response.
 	progress := spinner.New(
@@ -53,18 +53,18 @@ func getFantiaPostDetails(postArg *fantiaPostArgs, dlOptionss *FantiaDlOptions) 
 	postApiUrl := postArg.url + postArg.postId
 	header := map[string]string{
 		"Referer":      fmt.Sprintf("%s/posts/%s", utils.FANTIA_URL, postArg.postId),
-		"x-csrf-token": dlOptionss.CsrfToken,
+		"x-csrf-token": dlOptions.CsrfToken,
 	}
 	useHttp3 := utils.IsHttp3Supported(utils.FANTIA, true)
 	res, err := request.CallRequest(
 		&request.RequestArgs{
 			Method:    "GET",
 			Url:       postApiUrl,
-			Cookies:   dlOptionss.SessionCookies,
+			Cookies:   dlOptions.SessionCookies,
 			Headers:   header,
 			Http2:     !useHttp3,
 			Http3:     useHttp3,
-			UserAgent: dlOptionss.Configs.UserAgent,
+			UserAgent: dlOptions.Configs.UserAgent,
 		},
 	)
 	if err != nil || res.StatusCode != 200 {
@@ -96,21 +96,178 @@ func getFantiaPostDetails(postArg *fantiaPostArgs, dlOptionss *FantiaDlOptions) 
 	return res, nil
 }
 
-// Automatically try to solve the captcha for Fantia.
-func SolveCaptcha(cookies []*http.Cookie, userAgent string) error {
+const captchaBtnSelector = `//input[@name='commit']`
+
+// Automatically try to solve the reCAPTCHA for Fantia.
+func autoSolveCaptcha(dlOptions *FantiaDlOptions) error {
 	actions := []chromedp.Action{
-		utils.SetChromedpAllocCookies(cookies),
-		chromedp.Navigate(utils.FANTIA_URL + "/recaptcha"),
-		chromedp.WaitVisible(`//input[@name='commit']`, chromedp.BySearch),
-		chromedp.Click(`//input[@name='commit']`, chromedp.BySearch),
+		utils.SetChromedpAllocCookies(dlOptions.SessionCookies),
+		chromedp.Navigate(utils.FANTIA_RECAPTCHA_URL),
+		chromedp.WaitVisible(captchaBtnSelector, chromedp.BySearch),
+		chromedp.Click(captchaBtnSelector, chromedp.BySearch),
 		chromedp.WaitVisible(`//h3[@class='mb-15'][contains(text(), 'ファンティアでクリエイターを応援しよう！')]`, chromedp.BySearch),
 	}
 
-	allocCtx, cancel := utils.GetDefaultChromedpAlloc(userAgent)
+	allocCtx, cancel := utils.GetDefaultChromedpAlloc(dlOptions.Configs.UserAgent)
 	defer cancel()
 
-	allocCtx, cancel = context.WithTimeout(allocCtx, 25 * time.Second)
-	return utils.ExecuteChromedpActions(allocCtx, cancel, actions...)
+	allocCtx, cancel = context.WithTimeout(allocCtx, 45 * time.Second)
+	progress := spinner.New(
+		spinner.REQ_SPINNER,
+		"fgHiYellow",
+		"Solving reCAPTCHA for Fantia...",
+		"Successfully solved reCAPTCHA for Fantia!",
+		"",
+		0,
+	)
+	progress.Start()
+	if err := utils.ExecuteChromedpActions(allocCtx, cancel, actions...); err != nil {
+		var fmtErr error
+		if errors.Is(err, context.DeadlineExceeded) {
+			fmtErr = fmt.Errorf(
+				"fantia error %d: failed to solve reCAPTCHA for Fantia due to timeout, please visit %s to solve it manually and try again", 
+				utils.CAPTCHA_ERROR,
+				utils.FANTIA_RECAPTCHA_URL,
+			)
+		} else {
+			fullErr := fmt.Errorf("fantia error %d: failed to solve reCAPTCHA for Fantia, more info => %v", utils.CAPTCHA_ERROR, err)
+			utils.LogError(fullErr, "", false, utils.ERROR)
+		}
+
+		progress.ErrMsg = fmtErr.Error() + "\n"
+		progress.Stop(true)
+		return fmtErr
+	}
+	progress.Stop(false)
+	return nil
+}
+
+// Manually ask the user to solve the reCAPTCHA on Fantia for the current session.
+func manualSolveCaptcha(dlOptions *FantiaDlOptions) error {
+	// Check if the reCAPTCHA has been solved.
+	// If it has, we can continue with the download.
+	useHttp3 := utils.IsHttp3Supported(utils.FANTIA, true)
+	instructions := fmt.Sprintf(
+		"Please solve the reCAPTCHA on Fantia at %s with the SAME session to continue.",
+		utils.FANTIA_RECAPTCHA_URL,
+	)
+	for {
+		color.Yellow(instructions)
+		color.Yellow("Please press ENTER when you're done.")
+		fmt.Scanln()
+
+		_, err := request.CallRequest(
+			&request.RequestArgs{
+				Method:      "GET",
+				Url:         utils.FANTIA_URL + "/mypage/users/plans",
+				Cookies:     dlOptions.SessionCookies,
+				Http2:       !useHttp3,
+				Http3:       useHttp3,
+				UserAgent:   dlOptions.Configs.UserAgent,
+				CheckStatus: true,
+			},
+		)
+		if err != nil {
+			color.Red("failed to check if reCAPTCHA has been solved\n%v", err)
+			continue
+		}
+		return nil
+	}
+}
+
+func SolveCaptcha(dlOptions *FantiaDlOptions, alertUser bool) error {
+	if alertUser {
+		color.Yellow("\nWarning: reCAPTCHA detected for the current Fantia session...")
+	}
+
+	if len(dlOptions.SessionCookies) == 0 {
+		// Since reCAPTCHA is per session, the program shall avoid 
+		// trying to solve it and alert the user to login or create a Fantia account.
+		// It is possible that the reCAPTCHA is per IP address for guests, but I'm not sure.
+		color.Red(
+			fmt.Sprintf(
+				"fantia error %d: reCAPTCHA detected but you are not logged in. Please login to Fantia and try again.",
+				utils.CAPTCHA_ERROR,
+			),
+		)
+		os.Exit(1)
+	}
+
+	if dlOptions.AutoSolveCaptcha {
+		return autoSolveCaptcha(dlOptions)
+	}
+	return manualSolveCaptcha(dlOptions)
+}
+
+// try the alternative method if the first one fails.
+//
+// E.g. User preferred to solve the reCAPTCHA automatically, but the program failed to do so,
+//      The program will then ask the user to solve the reCAPTCHA manually on their browser with the SAME session.
+func handleCaptchaErr(err error, dlOptions *FantiaDlOptions, alertUser bool) error {
+	if err == nil {
+		return nil
+	}
+
+	dlOptions.AutoSolveCaptcha = !dlOptions.AutoSolveCaptcha
+	return SolveCaptcha(dlOptions, alertUser)
+}
+
+const fantiaPostUrl = utils.FANTIA_URL + "/api/v1/posts/"
+func dlFantiaPost(count, maxCount int, postId string, dlOptions *FantiaDlOptions) ([]*request.ToDownload, error) {
+	msgSuffix := fmt.Sprintf(
+		"[%d/%d]",
+		count,
+		maxCount,
+	)
+
+	res, err := getFantiaPostDetails(
+		&fantiaPostArgs{
+			msgSuffix:  msgSuffix,
+			postId:     postId,
+			url:        fantiaPostUrl,
+			postIdsLen: maxCount,
+		},
+		dlOptions,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	urlsToDownload, postGdriveUrls, err := processIllustDetailApiRes(
+		&processIllustArgs{
+			res:          res,
+			postId:       postId,
+			postIdsLen:   maxCount,
+			msgSuffix:    msgSuffix,
+		},
+		dlOptions,
+	)
+	if err == errRecaptcha {
+		err = SolveCaptcha(dlOptions, true)
+		if err != nil {
+			if err := handleCaptchaErr(err, dlOptions, true); err != nil {
+				os.Exit(1)
+			}
+		}
+
+		return dlFantiaPost(count, maxCount, postId, dlOptions)
+	} else if err != nil {
+		return nil, err
+	}
+
+	// Download the urls
+	request.DownloadUrls(
+		urlsToDownload,
+		&request.DlOptions{
+			MaxConcurrency: utils.MAX_CONCURRENT_DOWNLOADS,
+			Headers:        nil,
+			Cookies:        dlOptions.SessionCookies,
+			UseHttp3:       false,
+		},
+		dlOptions.Configs,
+	)
+	fmt.Println()
+	return postGdriveUrls, nil
 }
 
 // Query Fantia's API based on the slice of post IDs and get a map of urls to download from.
@@ -118,79 +275,20 @@ func SolveCaptcha(cookies []*http.Cookie, userAgent string) error {
 // Note that only the downloading of the URL(s) is/are executed concurrently
 // to reduce the chance of the signed AWS S3 URL(s) from expiring before the download is
 // executed or completed due to a download queue to avoid resource exhaustion of the user's system.
-func (f *FantiaDl) dlFantiaPosts(dlOptionss *FantiaDlOptions) []*request.ToDownload {
+func (f *FantiaDl) dlFantiaPosts(dlOptions *FantiaDlOptions) []*request.ToDownload {
 	var errSlice []error
 	var gdriveLinks []*request.ToDownload
 	postIdsLen := len(f.PostIds)
-	url := utils.FANTIA_URL + "/api/v1/posts/"
 	for i, postId := range f.PostIds {
-		count := i + 1
-		msgSuffix := fmt.Sprintf(
-			"[%d/%d]",
-			count,
-			postIdsLen,
-		)
+		postGdriveLinks, err := dlFantiaPost(i+1, postIdsLen, postId, dlOptions)
 
-	dlStart:
-		res, err := getFantiaPostDetails(
-			&fantiaPostArgs{
-				msgSuffix:  msgSuffix,
-				postId:     postId,
-				url:        url,
-				postIdsLen: postIdsLen,
-			},
-			dlOptionss,
-		)
 		if err != nil {
 			errSlice = append(errSlice, err)
 			continue
 		}
-
-		urlsToDownload, postGdriveUrls, err := processIllustDetailApiRes(
-			&processIllustArgs{
-				res:          res,
-				postId:       postId,
-				postIdsLen:  postIdsLen,
-				msgSuffix:   msgSuffix,
-			},
-			dlOptionss,
-		)
-		if err == errRecaptcha {
-			err = SolveCaptcha(dlOptionss.SessionCookies, dlOptionss.Configs.UserAgent)
-			if err != nil {
-				var errMsg string
-				if errors.Is(err, context.DeadlineExceeded) {
-					errMsg = fmt.Sprintf(
-						"Failed to solve captcha for Fantia, please visit %s/recaptcha to solve it manually and try again.", 
-						utils.FANTIA_URL,
-					)
-				} else {
-					errMsg = fmt.Sprintf("failed to solve captcha for Fantia, more info => %v", err)
-				}
-
-				color.Red(errMsg)
-				os.Exit(1)
-			}
-
-			goto dlStart
-		} else if err != nil {
-			errSlice = append(errSlice, err)
-			continue
+		if len(postGdriveLinks) > 0 {
+			gdriveLinks = append(gdriveLinks, postGdriveLinks...)
 		}
-		gdriveLinks = append(gdriveLinks, postGdriveUrls...)
-
-		// Download the urls
-		request.DownloadUrls(
-			urlsToDownload,
-			&request.DlOptions{
-				MaxConcurrency: utils.MAX_CONCURRENT_DOWNLOADS,
-				Headers:        nil,
-				Cookies:        dlOptionss.SessionCookies,
-				UseHttp3:       false,
-			},
-			dlOptionss.Configs,
-		)
-		fmt.Println()
 	}
 
 	if len(errSlice) > 0 {

@@ -140,13 +140,13 @@ Available Commands:
   pixiv_fanbox Download from Pixiv Fanbox
 
 Flags:
-      --download_path string   Configure the path to download the files to and save it for future runs.
-                               Otherwise, the program will use the current working directory.
-                               Note:
-                               If you had used the "-download_path" flag before or
-                               had used the Cultured Downloader Python program, the program will automatically use the path you had set.
-  -h, --help                   help for cultured-downloader-cli
-  -v, --version                version for cultured-downloader-cli
+  -p, --dl_path string   Configure the path to download the files to and save it for future runs.
+                         Otherwise, the program will use the current working directory.
+                         Note:
+                         If you had used the "-download_path" flag before or
+                         had used the Cultured Downloader Python program, the program will automatically use the path you had set.
+  -h, --help             help for cultured-downloader-cli
+  -v, --version          version for cultured-downloader-cli
 
 Use "cultured-downloader-cli [command] --help" for more information about a command.
 ```
@@ -160,6 +160,9 @@ Usage:
   cultured-downloader-cli fantia [flags]
 
 Flags:
+  -r, --auto_solve_recaptcha    Whether to automatically solve the reCAPTCHA when it appears. If failed, the program will solve it automatically if this flag is false.
+                                Otherwise, if this flag is true and it fails to solve the reCAPTCHA, the program will ask you to solve it manually on your browser with
+                                the SAME supplied session by visiting https://fantia.jp/recaptcha (default true)
   -c, --cookie_file string      Pass in a file path to your saved Netscape/Mozilla generated cookie file to use when downloading.
                                 You can generate a cookie file by using the "Get cookies.txt LOCALLY" extension for your browser.
                                 Chrome Extension URL: https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc
@@ -246,7 +249,7 @@ Flags:
                                        - If you're using the "-pixiv_refresh_token" flag and are downloading by tag names, only "all" is supported. (default "all")
   -c, --cookie_file string             Pass in a file path to your saved Netscape/Mozilla generated cookie file to use when downloading.
                                        You can generate a cookie file by using the "Get cookies.txt LOCALLY" extension for your browser.
-                                       Chrome Extension URL: https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc     
+                                       Chrome Extension URL: https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc
   -d, --delete_ugoira_zip              Whether to delete the downloaded ugoira zip file after conversion. (default true)
       --ffmpeg_path string             Configure the path to the FFmpeg executable.
                                        Download Link: https://ffmpeg.org/download.html (default "ffmpeg")

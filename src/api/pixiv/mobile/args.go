@@ -108,16 +108,14 @@ func (p *PixivMobileDlOptions) ValidateArgs(userAgent string) {
 		if p.RatingMode != "all" {
 			color.Red(
 				utils.CombineStringsWithNewline(
-					[]string{
-						fmt.Sprintf(
-							"pixiv error %d: when using the refresh token, only \"all\" is supported for the --rating_mode flag.",
-							utils.INPUT_ERROR,
-						),
-						fmt.Sprintf(
-							"hence, the rating mode will be updated from %q to \"all\"...\n",
-							p.RatingMode,
-						),
-					},
+					fmt.Sprintf(
+						"pixiv error %d: when using the refresh token, only \"all\" is supported for the --rating_mode flag.",
+						utils.INPUT_ERROR,
+					),
+					fmt.Sprintf(
+						"hence, the rating mode will be updated from %q to \"all\"...\n",
+						p.RatingMode,
+					),
 				),
 			)
 			p.RatingMode = "all"
@@ -181,17 +179,15 @@ func (p *PixivMobileDlOptions) ValidateArgs(userAgent string) {
 
 			color.Red(
 				utils.CombineStringsWithNewline(
-					[]string{
-						fmt.Sprintf(
-							"pixiv error %d: when using the refresh token, only \"date\", \"date_d\", \"popular_d\" are supported for the --sort_order flag.",
-							utils.INPUT_ERROR,
-						),
-						fmt.Sprintf(
-							"hence, the sort order will be updated from %q to %q...\n",
-							p.SortOrder,
-							ajaxEquivalent,
-						),
-					},
+					fmt.Sprintf(
+						"pixiv error %d: when using the refresh token, only \"date\", \"date_d\", \"popular_d\" are supported for the --sort_order flag.",
+						utils.INPUT_ERROR,
+					),
+					fmt.Sprintf(
+						"hence, the sort order will be updated from %q to %q...\n",
+						p.SortOrder,
+						ajaxEquivalent,
+					),
 				),
 			)
 		}

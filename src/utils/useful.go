@@ -170,7 +170,7 @@ func SliceContains(arr []string, str string) bool {
 }
 
 type SliceTypes interface {
-	~string | ~*string
+	~string | ~int
 }
 
 // Removes duplicates from the given slice.
@@ -242,7 +242,7 @@ func ValidateIds(args []string) {
 }
 
 // Same as strings.Join([]string, "\n")
-func CombineStringsWithNewline(strs []string) string {
+func CombineStringsWithNewline(strs ...string) string {
 	return strings.Join(strs, "\n")
 }
 

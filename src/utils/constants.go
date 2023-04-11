@@ -21,6 +21,7 @@ const (
 	DOWNLOAD_ERROR
 	JSON_ERROR
 	HTML_ERROR
+	CAPTCHA_ERROR
 )
 
 // Returns the path to the application's config directory
@@ -40,7 +41,7 @@ func getAppPath() string {
 
 const (
 	DEBUG_MODE                     = false // Will save a copy of all JSON response from the API
-	VERSION                        = "1.2.1"
+	VERSION                        = "1.3.0"
 	MAX_RETRY_DELAY                = 3
 	MIN_RETRY_DELAY                = 1
 	RETRY_COUNTER                  = 4
@@ -54,9 +55,10 @@ const (
 	// However, the average max file size on these platforms is around 300MB.
 	// Note: Fantia do have a max file size per post of 3GB if one paid extra for it.
 
-	FANTIA       = "fantia"
-	FANTIA_TITLE = "Fantia"
-	FANTIA_URL   = "https://fantia.jp"
+	FANTIA               = "fantia"
+	FANTIA_TITLE         = "Fantia"
+	FANTIA_URL           = "https://fantia.jp"
+	FANTIA_RECAPTCHA_URL = "https://fantia.jp/recaptcha"
 
 	PIXIV            = "pixiv"
 	PIXIV_MOBILE     = "pixiv_mobile"

@@ -80,10 +80,8 @@ func init() {
 			"o",
 			false,
 			utils.CombineStringsWithNewline(
-				[]string{
-					"Overwrite any existing files if there is no Content-Length header in the response.",
-					"Usually used for Pixiv Fanbox when there are incomplete downloads.",
-				},
+				"Overwrite any existing files if there is no Content-Length header in the response.",
+				"Usually used for Pixiv Fanbox when there are incomplete downloads.",
 			),
 		)
 		cmd.Flags().StringVarP(
@@ -106,11 +104,9 @@ func init() {
 			"c",
 			"",
 			utils.CombineStringsWithNewline(
-				[]string{
-					"Pass in a file path to your saved Netscape/Mozilla generated cookie file to use when downloading.",
-					"You can generate a cookie file by using the \"Get cookies.txt LOCALLY\" extension for your browser.",
-					"Chrome Extension URL: https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc",
-				},
+				"Pass in a file path to your saved Netscape/Mozilla generated cookie file to use when downloading.",
+				"You can generate a cookie file by using the \"Get cookies.txt LOCALLY\" extension for your browser.",
+				"Chrome Extension URL: https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc",
 			),
 		)
 		if cmdInfo.gdriveApiKeyVar != nil {
@@ -119,10 +115,8 @@ func init() {
 				"gdrive_api_key",
 				"",
 				utils.CombineStringsWithNewline(
-					[]string{
-						"Google Drive API key to use for downloading gdrive files.",
-						"Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_key_guide.md",
-					},
+					"Google Drive API key to use for downloading gdrive files.",
+					"Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_key_guide.md",
 				),
 			)
 		}
@@ -133,10 +127,8 @@ func init() {
 				"l",
 				false,
 				utils.CombineStringsWithNewline(
-					[]string{
-						"Log any detected URLs of the files that are being downloaded.",
-						"Note that not all URLs are logged, only URLs to external file hosting providers like MEGA, Google Drive, etc. are logged.",
-					},
+					"Log any detected URLs of the files that are being downloaded.",
+					"Note that not all URLs are logged, only URLs to external file hosting providers like MEGA, Google Drive, etc. are logged.",
 				),
 			)
 		}

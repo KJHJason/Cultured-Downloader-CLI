@@ -4,7 +4,6 @@ import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/pixivfanbox"
 	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
-	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/KJHJason/Cultured-Downloader-CLI/cmds/textparser"
 	"github.com/spf13/cobra"
@@ -30,8 +29,6 @@ var (
 		Short: "Download from Pixiv Fanbox",
 		Long:  "Supports downloads from Pixiv Fanbox creators and individual posts.",
 		Run: func(cmd *cobra.Command, args []string) {
-			request.CheckInternetConnection()
-
 			pixivFanboxConfig := &configs.Config{
 				OverwriteFiles: fanboxOverwriteFiles,
 				UserAgent:      fanboxUserAgent,
@@ -112,10 +109,8 @@ func init() {
 		"creator_id",
 		[]string{},
 		utils.CombineStringsWithNewline(
-			[]string{
-				"Pixiv Fanbox Creator ID(s) to download from.",
-				mutlipleIdsMsg,
-			},
+			"Pixiv Fanbox Creator ID(s) to download from.",
+			mutlipleIdsMsg,
 		),
 	)
 	pixivFanboxCmd.Flags().StringSliceVar(
@@ -123,11 +118,9 @@ func init() {
 		"page_num",
 		[]string{},
 		utils.CombineStringsWithNewline(
-			[]string{
-				"Min and max page numbers to search for corresponding to the order of the supplied Pixiv Fanbox creator ID(s).",
-				"Format: \"num\", \"minNum-maxNum\", or \"\" to download all pages",
-				"Leave blank to download all pages from each creator.",
-			},
+			"Min and max page numbers to search for corresponding to the order of the supplied Pixiv Fanbox creator ID(s).",
+			"Format: \"num\", \"minNum-maxNum\", or \"\" to download all pages",
+			"Leave blank to download all pages from each creator.",
 		),
 	)
 	pixivFanboxCmd.Flags().StringSliceVar(
@@ -135,10 +128,8 @@ func init() {
 		"post_id",
 		[]string{},
 		utils.CombineStringsWithNewline(
-			[]string{
-				"Pixiv Fanbox post ID(s) to download.",
-				mutlipleIdsMsg,
-			},
+			"Pixiv Fanbox post ID(s) to download.",
+			mutlipleIdsMsg,
 		),
 	)
 	pixivFanboxCmd.Flags().BoolVarP(

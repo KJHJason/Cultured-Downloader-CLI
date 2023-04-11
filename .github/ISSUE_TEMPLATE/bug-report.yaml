@@ -71,6 +71,7 @@ body:
         - "1007 (Download Error)"
         - "1008 (JSON Error)"
         - "1009 (HTML Error)"
+        - "1010 (Captcha Error)"
     validations:
       required: true
 

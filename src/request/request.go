@@ -8,9 +8,11 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"strconv"
 	"time"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/fatih/color"
 	"github.com/quic-go/quic-go/http3"
 )
@@ -94,6 +96,8 @@ func sendRequest(req *http.Request, reqArgs *RequestArgs) (*http.Response, error
 			res.Body.Close()
 		} else if errors.Is(err, context.Canceled) {
 			return nil, context.Canceled
+		} else {
+			break
 		}
 
 		if i < utils.RETRY_COUNTER {
@@ -166,6 +170,141 @@ func CheckInternetConnection() {
 		)
 		os.Exit(1)
 	}
+}
+
+type versionInfo struct {
+	Major int
+	Minor int
+	Patch int
+}
+
+func processVer(apiResVer string) (*versionInfo, error) {
+	// split the version string by "."
+	ver := strings.Split(apiResVer, ".")
+	if len(ver) != 3 {
+		return nil, fmt.Errorf(
+			"github error %d: unable to process the latest version, %q",
+			utils.DEV_ERROR,
+			apiResVer,
+		)
+	}
+
+	// convert the version string to int
+	verSlice := make([]int, 3)
+	for i, v := range ver {
+		verInt, err := strconv.Atoi(v)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"github error %d: unable to process the latest version, %q",
+				utils.DEV_ERROR,
+				apiResVer,
+			)
+		}
+		verSlice[i] = verInt
+	}
+
+	return &versionInfo{
+		Major: verSlice[0],
+		Minor: verSlice[1],
+		Patch: verSlice[2],
+	}, nil
+}
+
+type GithubApiRes struct {
+	TagName string `json:"tag_name"`
+	HtmlUrl string `json:"html_url"`
+}
+
+// check for the latest version of the program
+func CheckVer() error {
+	progress := spinner.New(
+		spinner.REQ_SPINNER,
+		"fgHiYellow",
+		"Checking for the latest version...",
+		"",
+		"Failed to check for the latest version, please refer to the logs for more details...",
+		0,
+	)
+	url := "https://api.github.com/repos/KJHJason/Cultured-Downloader-CLI/releases/latest"
+	res, err := CallRequest(
+		&RequestArgs{
+			Url:         url,
+			Method:      "GET",
+			Timeout:     5,
+			CheckStatus: false,
+			Http3:       false,
+			Http2:       true,
+		},
+	)
+	progress.Start()
+	if err != nil || res.StatusCode != 200 {
+		errMsg := fmt.Sprintf(
+			"github error %d: unable to check for the latest version",
+			utils.CONNECTION_ERROR,
+		)
+		if err != nil {
+			errMsg += fmt.Sprintf(", more info => %v", err)
+		}
+
+		progress.Stop(true)
+		return errors.New(errMsg)
+	}
+
+	var apiRes GithubApiRes
+	if err := utils.LoadJsonFromResponse(res, &apiRes); err != nil {
+		errMsg := fmt.Sprintf(
+			"github error %d: unable to marshal the response from the API into an interface",
+			utils.UNEXPECTED_ERROR,
+		)
+		progress.Stop(true)
+		return errors.New(errMsg)
+	}
+
+	latestVer, err := processVer(apiRes.TagName)
+	if err != nil {
+		errMsg := fmt.Sprintf(
+			"github error %d: unable to process the latest version",
+			utils.UNEXPECTED_ERROR,
+		)
+		progress.Stop(true)
+		return errors.New(errMsg)
+	}
+
+	programVer, err := processVer(utils.VERSION)
+	if err != nil {
+		errMsg := fmt.Sprintf(
+			"error %d: unable to process the program version",
+			utils.DEV_ERROR,
+		)
+		panic(errMsg)
+	}
+
+	// check if the latest version is greater than the current version
+	// well, I do hate nested if statements, but if it works, it works.
+	var outdated bool
+	if latestVer.Major > programVer.Major {
+		outdated = true
+	} else if latestVer.Major == programVer.Major {
+		if latestVer.Minor > programVer.Minor {
+			outdated = true
+		} else if latestVer.Minor == programVer.Minor {
+			if latestVer.Patch > programVer.Patch {
+				outdated = true
+			}
+		}
+	}
+
+	if outdated {
+		progress.ErrMsg = fmt.Sprintf(
+			"Warning: this program is outdated, the latest version %q is available at %s",
+			apiRes.TagName,
+			apiRes.HtmlUrl,
+		)
+	} else {
+		progress.SuccessMsg = "This program is up to date!"
+	}
+	progress.Stop(outdated)
+	return nil
 }
 
 // Sends a request with the given data

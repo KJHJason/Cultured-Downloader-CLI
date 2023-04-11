@@ -4,7 +4,6 @@ import (
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/kemono"
 	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
 	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive"
-	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
 	"github.com/KJHJason/Cultured-Downloader-CLI/cmds/textparser"
 	"github.com/spf13/cobra"
@@ -29,8 +28,6 @@ var (
 		Short: "Download from Kemono Party",
 		Long:  "Supports downloads from creators and posts on Kemono Party.",
 		Run: func(cmd *cobra.Command, args []string) {
-			request.CheckInternetConnection()
-
 			kemonoConfig := &configs.Config{
 				OverwriteFiles: kemonoOverwrite,
 				UserAgent:      kemonoUserAgent,
@@ -103,10 +100,8 @@ func init() {
 		"s",
 		"",
 		utils.CombineStringsWithNewline(
-			[]string{
-				"Your Kemono Party \"session\" cookie value to use for the requests to Kemono Party.",
-				"Required to get pass Kemono Party's DDOS protection and to download from your favourites.",
-			},
+			"Your Kemono Party \"session\" cookie value to use for the requests to Kemono Party.",
+			"Required to get pass Kemono Party's DDOS protection and to download from your favourites.",
 		),
 	)
 	kemonoCmd.MarkFlagRequired("session")
@@ -115,10 +110,8 @@ func init() {
 		"creator_url",
 		[]string{},
 		utils.CombineStringsWithNewline(
-			[]string{
-				"Kemono Party creator URL(s) to download from.",
-				mutlipleUrlsMsg,
-			},
+			"Kemono Party creator URL(s) to download from.",
+			mutlipleUrlsMsg,
 		),
 	)
 	kemonoCmd.Flags().StringSliceVar(
@@ -126,11 +119,9 @@ func init() {
 		"page_num",
 		[]string{},
 		utils.CombineStringsWithNewline(
-			[]string{
-				"Min and max page numbers to search for corresponding to the order of the supplied Kemono Party creator URL(s).",
-				"Format: \"num\", \"minNum-maxNum\", or \"\" to download all pages",
-				"Leave blank to download all pages from each creator on Kemono Party.",
-			},
+			"Min and max page numbers to search for corresponding to the order of the supplied Kemono Party creator URL(s).",
+			"Format: \"num\", \"minNum-maxNum\", or \"\" to download all pages",
+			"Leave blank to download all pages from each creator on Kemono Party.",
 		),
 	)
 	kemonoCmd.Flags().StringSliceVar(
@@ -138,10 +129,8 @@ func init() {
 		"post_url",
 		[]string{},
 		utils.CombineStringsWithNewline(
-			[]string{
-				"Kemono Party post URL(s) to download.",
-				mutlipleUrlsMsg,
-			},
+			"Kemono Party post URL(s) to download.",
+			mutlipleUrlsMsg,
 		),
 	)
 	kemonoCmd.Flags().BoolVarP(

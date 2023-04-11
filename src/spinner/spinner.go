@@ -89,7 +89,7 @@ type Spinner struct {
 	Colour     *color.Color
 	Msg        string
 	SuccessMsg string
-	ErrMSg     string
+	ErrMsg     string
 
 	count    int
 	maxCount int
@@ -121,7 +121,7 @@ func New(spinnerType, colour, message, successMsg, errMsg string, maxCount int) 
 		Colour:     color.New(colourAttribute),
 		Msg:        message,
 		SuccessMsg: successMsg,
-		ErrMSg:     errMsg,
+		ErrMsg:     errMsg,
 
 		count:    0,
 		maxCount: maxCount,
@@ -224,13 +224,13 @@ func (s *Spinner) Stop(hasErr bool) {
 	}
 
 	s.stopSpinner()
-	if hasErr {
+	if hasErr && s.ErrMsg != "" {
 		color.Red(
 			"\r✗ %s%s\n",
-			s.ErrMSg,
+			s.ErrMsg,
 			CLEAR_LINE,
 		)
-	} else {
+	} else if s.SuccessMsg != "" {
 		color.Green(
 			"\r✓ %s%s", 
 			s.SuccessMsg,
