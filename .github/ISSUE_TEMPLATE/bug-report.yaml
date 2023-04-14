@@ -27,7 +27,7 @@ body:
     id: program_version
     attributes:
       label: Program Version
-      description: What version of the program are you using? (Can be found when running the program or from the exe file name)
+      description: What version of the program are you using? (Can be found when running the program with the -v/--version flag)
     validations:
       required: true
 
