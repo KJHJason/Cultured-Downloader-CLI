@@ -10,7 +10,7 @@ require (
 	github.com/gen2brain/beeep v0.0.0-20230307103607-6e717729cb4f
 	github.com/mholt/archiver/v4 v4.0.0-alpha.8
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
-	github.com/quic-go/quic-go v0.35.1
+	github.com/quic-go/quic-go v0.37.1
 	github.com/spf13/cobra v1.7.0
 )
 
@@ -43,11 +43,10 @@ require (
 	github.com/mattn/go-isatty v0.0.18 // indirect
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d // indirect
 	github.com/nwaples/rardecode/v2 v2.0.0-beta.2 // indirect
-	github.com/onsi/ginkgo/v2 v2.9.2 // indirect
+	github.com/onsi/ginkgo/v2 v2.9.5 // indirect
 	github.com/pierrec/lz4/v4 v4.1.17 // indirect
 	github.com/quic-go/qpack v0.4.0 // indirect
-	github.com/quic-go/qtls-go1-19 v0.3.2 // indirect
-	github.com/quic-go/qtls-go1-20 v0.2.2 // indirect
+	github.com/quic-go/qtls-go1-20 v0.3.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af // indirect
 	github.com/therootcompany/xz v1.0.1 // indirect
@@ -56,8 +55,8 @@ require (
 	golang.org/x/crypto v0.8.0 // indirect
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29 // indirect
 	golang.org/x/mod v0.10.0 // indirect
-	golang.org/x/net v0.9.0 // indirect
-	golang.org/x/sys v0.7.0 // indirect
+	golang.org/x/net v0.10.0 // indirect
+	golang.org/x/sys v0.8.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
-	golang.org/x/tools v0.8.0 // indirect
+	golang.org/x/tools v0.9.1 // indirect
 )
