@@ -13,12 +13,12 @@ BEGIN
         BEGIN
 		    VALUE "CompanyName", ""
             VALUE "FileDescription", "CLI tool of Cultured Downloader"
-            VALUE "FileVersion", "1.2.1"
+            VALUE "FileVersion", "1.2.2"
             VALUE "InternalName", "Cultured Downloader CLI"
             VALUE "LegalCopyright", "KJHJason. GPL-3.0 license"
             VALUE "OriginalFilename", "cultured-downloader-cli.exe"
             VALUE "ProductName", "Cultured Downloader CLI"
-			VALUE "ProductVersion", "1.2.1"
+			VALUE "ProductVersion", "1.2.2"
         END
     END
     BLOCK "VarFileInfo"

@@ -222,6 +222,25 @@ func (s *Spinner) stopSpinner() {
 
 // Stop stops the spinner and prints an outcome message
 func (s *Spinner) Stop(hasErr bool) {
+	s.StopWithFn(func () {
+		if hasErr && s.ErrMsg != "" {
+			color.Red(
+				"\r✗ %s%s\n",
+				s.ErrMsg,
+				CLEAR_LINE,
+			)
+		} else if s.SuccessMsg != "" {
+			color.Green(
+				"\r✓ %s%s", 
+				s.SuccessMsg,
+				CLEAR_LINE,
+			)
+		}
+	})
+}
+
+// Stop spinner with the given action function that will be called
+func (s *Spinner) StopWithFn(action func()) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !s.active {
@@ -229,19 +248,7 @@ func (s *Spinner) Stop(hasErr bool) {
 	}
 
 	s.stopSpinner()
-	if hasErr && s.ErrMsg != "" {
-		color.Red(
-			"\r✗ %s%s\n",
-			s.ErrMsg,
-			CLEAR_LINE,
-		)
-	} else if s.SuccessMsg != "" {
-		color.Green(
-			"\r✓ %s%s", 
-			s.SuccessMsg,
-			CLEAR_LINE,
-		)
-	}
+	action()
 }
 
 // KillProgram stops the spinner, 
