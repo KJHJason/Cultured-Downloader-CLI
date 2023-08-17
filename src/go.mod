@@ -10,7 +10,7 @@ require (
 	github.com/gen2brain/beeep v0.0.0-20230812223410-3e1549ef0811
 	github.com/mholt/archiver/v4 v4.0.0-alpha.8
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
-	github.com/quic-go/quic-go v0.37.4
+	github.com/quic-go/quic-go v0.37.5
 	github.com/spf13/cobra v1.7.0
 )
 
