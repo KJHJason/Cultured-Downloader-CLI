@@ -73,11 +73,15 @@ const (
 	PIXIV_FANBOX_URL     = "https://www.fanbox.cc"
 	PIXIV_FANBOX_API_URL = "https://api.fanbox.cc"
 
-	KEMONO          = "kemono"
-	KEMONO_TITLE    = "Kemono Party"
-	KEMONO_PER_PAGE = 50
-	KEMONO_URL      = "https://kemono.party"
-	KEMONO_API_URL  = "https://kemono.party/api"
+	KEMONO                = "kemono"
+	KEMONO_TITLE          = "Kemono Party"
+	KEMONO_PER_PAGE       = 50
+	KEMONO_TLD            = "party"
+	KEMONO_BACKUP_TLD     = "su"
+	KEMONO_URL            = "https://kemono.party"
+	KEMONO_API_URL        = "https://kemono.party/api"
+	BACKUP_KEMONO_URL     = "https://kemono.su"
+	BACKUP_KEMONO_API_URL = "https://kemono.su/api"
 
 	PASSWORD_FILENAME = "detected_passwords.txt"
 	ATTACHMENT_FOLDER = "attachments"

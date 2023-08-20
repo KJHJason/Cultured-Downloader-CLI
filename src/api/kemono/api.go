@@ -17,10 +17,24 @@ type kemonoChanRes struct {
 	err            error
 }
 
-func getKemonoPartyHeaders() map[string]string {
+func getKemonoPartyHeaders(tld string) map[string]string {
 	return map[string]string{
-		"Host": utils.KEMONO_URL,
+		"Host": getKemonoUrl(tld),
 	}
+}
+
+func getKemonoUrl(tld string) string {
+	if tld == utils.KEMONO_TLD {
+		return utils.KEMONO_URL
+	}
+	return utils.BACKUP_KEMONO_URL
+}
+
+func getKemonoApiUrl(tld string) string {
+	if tld == utils.KEMONO_TLD {
+		return utils.KEMONO_API_URL
+	}
+	return utils.BACKUP_KEMONO_API_URL
 }
 
 func getPostDetails(post *models.KemonoPostToDl, downloadPath string, dlOptions *KemonoDlOptions) ([]*request.ToDownload, []*request.ToDownload, error) {
@@ -29,13 +43,13 @@ func getPostDetails(post *models.KemonoPostToDl, downloadPath string, dlOptions 
 		&request.RequestArgs{
 			Url: fmt.Sprintf(
 				"%s/%s/user/%s/post/%s",
-				utils.KEMONO_API_URL,
+				getKemonoApiUrl(post.Tld),
 				post.Service,
 				post.CreatorId,
 				post.PostId,
 			),
 			Method:      "GET",
-			Headers:     getKemonoPartyHeaders(),
+			Headers:     getKemonoPartyHeaders(post.Tld),
 			UserAgent:   dlOptions.Configs.UserAgent,
 			Cookies:     dlOptions.SessionCookies,
 			Http2:       !useHttp3,
@@ -52,7 +66,7 @@ func getPostDetails(post *models.KemonoPostToDl, downloadPath string, dlOptions 
 		return nil, nil, err
 	}
 
-	postsToDl, gdriveLinks := processMultipleJson(resJson, downloadPath, dlOptions)
+	postsToDl, gdriveLinks := processMultipleJson(resJson, post.Tld, downloadPath, dlOptions)
 	return postsToDl, gdriveLinks, nil
 }
 
@@ -148,13 +162,13 @@ func getCreatorPosts(creator *models.KemonoCreatorToDl, downloadPath string, dlO
 			&request.RequestArgs{
 				Url: fmt.Sprintf(
 					"%s/%s/user/%s",
-					utils.KEMONO_API_URL,
+					getKemonoApiUrl(creator.Tld),
 					creator.Service,
 					creator.CreatorId,
 				),
 				Method:      "GET",
 				UserAgent:   dlOptions.Configs.UserAgent,
-				Headers:     getKemonoPartyHeaders(),
+				Headers:     getKemonoPartyHeaders(creator.Tld),
 				Cookies:     dlOptions.SessionCookies,
 				Params:      params,
 				Http2:       !useHttp3,
@@ -175,7 +189,7 @@ func getCreatorPosts(creator *models.KemonoCreatorToDl, downloadPath string, dlO
 			break
 		}
 
-		posts, gdriveLinks := processMultipleJson(resJson, downloadPath, dlOptions)
+		posts, gdriveLinks := processMultipleJson(resJson, creator.Tld, downloadPath, dlOptions)
 		postsToDl = append(postsToDl, posts...)
 		gdriveLinksToDl = append(gdriveLinksToDl, gdriveLinks...)
 
@@ -231,29 +245,30 @@ func getMultipleCreators(creators []*models.KemonoCreatorToDl, downloadPath stri
 	return urlsToDownload, gdriveLinks
 }
 
-func processFavCreator(resJson models.KemonoFavCreatorJson) []*models.KemonoCreatorToDl {
+func processFavCreator(resJson models.KemonoFavCreatorJson, tld string) []*models.KemonoCreatorToDl {
 	var creators []*models.KemonoCreatorToDl
 	for _, creator := range resJson {
 		creators = append(creators, &models.KemonoCreatorToDl{
 			CreatorId: creator.Id,
 			Service:   creator.Service,
 			PageNum:   "", // download all pages
+			Tld:       tld,
 		})
 	}
 	return creators
 }
 
-func getFavourites(downloadPath string, dlOptions *KemonoDlOptions) ([]*request.ToDownload, []*request.ToDownload, error) {
+func getFavouritesLogic(downloadPath string, dlOptions *KemonoDlOptions, tld string) ([]*request.ToDownload, []*request.ToDownload, error) {
 	useHttp3 := utils.IsHttp3Supported(utils.KEMONO, true)
 	params := map[string]string{
 		"type": "artist",
 	}
 	reqArgs := &request.RequestArgs{
-		Url:         fmt.Sprintf("%s/v1/account/favorites", utils.KEMONO_API_URL),
+		Url:         fmt.Sprintf("%s/v1/account/favorites", getKemonoApiUrl(tld)),
 		Method:      "GET",
 		Cookies:     dlOptions.SessionCookies,
 		Params:      params,
-		Headers:     getKemonoPartyHeaders(),
+		Headers:     getKemonoPartyHeaders(tld),
 		UserAgent:   dlOptions.Configs.UserAgent,
 		Http2:       !useHttp3,
 		Http3:       useHttp3,
@@ -261,6 +276,10 @@ func getFavourites(downloadPath string, dlOptions *KemonoDlOptions) ([]*request.
 	}
 	res, err := request.CallRequest(reqArgs)
 	if err != nil {
+		if tld == utils.KEMONO_TLD {
+			// fallback to backup domain
+			return getFavouritesLogic(downloadPath, dlOptions, utils.KEMONO_BACKUP_TLD)
+		}
 		return nil, nil, err
 	}
 
@@ -268,7 +287,7 @@ func getFavourites(downloadPath string, dlOptions *KemonoDlOptions) ([]*request.
 	if err := utils.LoadJsonFromResponse(res, &creatorResJson); err != nil {
 		return nil, nil, err
 	}
-	artistToDl := processFavCreator(creatorResJson)
+	artistToDl := processFavCreator(creatorResJson, tld)
 
 	reqArgs.Params = map[string]string{
 		"type": "post",
@@ -282,11 +301,15 @@ func getFavourites(downloadPath string, dlOptions *KemonoDlOptions) ([]*request.
 	if err := utils.LoadJsonFromResponse(res, &postResJson); err != nil {
 		return nil, nil, err
 	}
-	urlsToDownload, gdriveLinks := processMultipleJson(postResJson, downloadPath, dlOptions)
+	urlsToDownload, gdriveLinks := processMultipleJson(postResJson, tld, downloadPath, dlOptions)
 
 	creatorsPost, creatorsGdrive := getMultipleCreators(artistToDl, downloadPath, dlOptions)
 	urlsToDownload = append(urlsToDownload, creatorsPost...)
 	gdriveLinks = append(gdriveLinks, creatorsGdrive...)
 
 	return urlsToDownload, gdriveLinks, nil
+}
+
+func getFavourites(downloadPath string, dlOptions *KemonoDlOptions) ([]*request.ToDownload, []*request.ToDownload, error) {
+	return getFavouritesLogic(downloadPath, dlOptions, utils.KEMONO_TLD)
 }

@@ -16,7 +16,7 @@ var (
 	imgSrcTagRegexIdx = imgSrcTagRegex.SubexpIndex("imgSrc")
 )
 
-func getInlineImages(content, postFolderPath string) []*request.ToDownload {
+func getInlineImages(content, postFolderPath, tld string) []*request.ToDownload {
 	var toDownload []*request.ToDownload
 	for _, match := range imgSrcTagRegex.FindAllStringSubmatch(content, -1) {
 		imgSrc := match[imgSrcTagRegexIdx]
@@ -24,7 +24,7 @@ func getInlineImages(content, postFolderPath string) []*request.ToDownload {
 			continue
 		}
 		toDownload = append(toDownload, &request.ToDownload{
-			Url:      utils.KEMONO_URL + imgSrc,
+			Url:      getKemonoUrl(tld) + imgSrc,
 			FilePath: filepath.Join(postFolderPath, utils.IMAGES_FOLDER, utils.GetLastPartOfUrl(imgSrc)),
 		})
 	}
@@ -40,7 +40,7 @@ func getKemonoFilePath(postFolderPath, childDir, fileName string) string {
 	return filepath.Join(postFolderPath, childDir, fileName)
 }
 
-func processJson(resJson *models.MainKemonoJson, downloadPath string, dlOptions *KemonoDlOptions) ([]*request.ToDownload, []*request.ToDownload) {
+func processJson(resJson *models.MainKemonoJson, tld, downloadPath string, dlOptions *KemonoDlOptions) ([]*request.ToDownload, []*request.ToDownload) {
 	postFolderPath := utils.GetPostFolder(
 		filepath.Join(downloadPath, "Kemono-Party", resJson.Service),
 		resJson.User,
@@ -51,10 +51,10 @@ func processJson(resJson *models.MainKemonoJson, downloadPath string, dlOptions 
 	var gdriveLinks []*request.ToDownload
 	var toDownload []*request.ToDownload
 	if dlOptions.DlAttachments {
-		toDownload = getInlineImages(resJson.Content, postFolderPath)
+		toDownload = getInlineImages(resJson.Content, postFolderPath, tld)
 		for _, attachment := range resJson.Attachments {
 			toDownload = append(toDownload, &request.ToDownload{
-				Url:      utils.KEMONO_URL + attachment.Path,
+				Url:      getKemonoUrl(tld) + attachment.Path,
 				FilePath: getKemonoFilePath(postFolderPath, utils.KEMONO_CONTENT_FOLDER, attachment.Name),
 			})
 		}
@@ -75,7 +75,7 @@ func processJson(resJson *models.MainKemonoJson, downloadPath string, dlOptions 
 		if resJson.File.Path != "" { 
 			// usually is the thumbnail of the post
 			toDownload = append(toDownload, &request.ToDownload{
-				Url:      utils.KEMONO_URL + resJson.File.Path,
+				Url:      getKemonoUrl(tld) + resJson.File.Path,
 				FilePath: getKemonoFilePath(postFolderPath, "", resJson.File.Name),
 			})
 		}
@@ -91,10 +91,10 @@ func processJson(resJson *models.MainKemonoJson, downloadPath string, dlOptions 
 	return toDownload, gdriveLinks
 }
 
-func processMultipleJson(resJson models.KemonoJson, downloadPath string, dlOptions *KemonoDlOptions) ([]*request.ToDownload, []*request.ToDownload) {
+func processMultipleJson(resJson models.KemonoJson, tld, downloadPath string, dlOptions *KemonoDlOptions) ([]*request.ToDownload, []*request.ToDownload) {
 	var urlsToDownload, gdriveLinks []*request.ToDownload
 	for _, post := range resJson {
-		toDownload, foundGdriveLinks := processJson(post, downloadPath, dlOptions)
+		toDownload, foundGdriveLinks := processJson(post, tld, downloadPath, dlOptions)
 		urlsToDownload = append(urlsToDownload, toDownload...)
 		gdriveLinks = append(gdriveLinks, foundGdriveLinks...)
 	}

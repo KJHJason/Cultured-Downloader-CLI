@@ -41,10 +41,12 @@ type KemonoPostToDl struct {
 	Service   string
 	CreatorId string
 	PostId    string
+	Tld       string
 }
 
 type KemonoCreatorToDl struct {
 	Service   string
 	CreatorId string
 	PageNum   string
+	Tld       string
 }
