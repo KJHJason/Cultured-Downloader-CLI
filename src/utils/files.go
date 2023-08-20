@@ -56,6 +56,8 @@ func ReadLine(reader *bufio.Reader) ([]byte, error) {
 func removeIllegalRuneInPath(r rune) rune {
 	if strings.ContainsRune("<>:\"/\\|?*\n\r\t", r) {
 		return '-'
+	} else if r == '.' {
+		return ','
 	}
 	return r
 }
