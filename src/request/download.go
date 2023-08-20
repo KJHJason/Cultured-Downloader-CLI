@@ -22,12 +22,12 @@ func getFullFilePath(res *http.Response, filePath string) (string, error) {
 	// check if filepath already have a filename attached
 	if filepath.Ext(filePath) != "" {
 		filePathDir := filepath.Dir(filePath)
-		os.MkdirAll(filePathDir, 0666)
+		os.MkdirAll(filePathDir, 0755)
 		filePathWithoutExt := utils.RemoveExtFromFilename(filePath)
 		return filePathWithoutExt + strings.ToLower(filepath.Ext(filePath)), nil
 	}
 
-	os.MkdirAll(filePath, 0666)
+	os.MkdirAll(filePath, 0755)
 	filename, err := url.PathUnescape(res.Request.URL.String())
 	if err != nil {
 		// should never happen but just in case

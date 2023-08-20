@@ -195,7 +195,7 @@ func SetDefaultDownloadPath(newDownloadPath string) error {
 		return fmt.Errorf("error %d: download path does not exist, please create the directory and try again", INPUT_ERROR)
 	}
 
-	os.MkdirAll(APP_PATH, 0666)
+	os.MkdirAll(APP_PATH, 0755)
 	configFilePath := filepath.Join(APP_PATH, "config.json")
 	if !PathExists(configFilePath) {
 		return saveConfig(newDownloadPath, configFilePath)

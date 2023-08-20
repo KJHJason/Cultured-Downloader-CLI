@@ -5,19 +5,20 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
-	"strconv"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
+	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive/models"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
-	"github.com/KJHJason/Cultured-Downloader-CLI/gdrive/models"
 )
 
 func md5HashFile(file *os.File) (string, error) {
@@ -95,24 +96,30 @@ func (gdrive *GDrive) DownloadFile(fileInfo *models.GdriveFileToDl, filePath str
 	defer signal.Stop(sigs)
 
 	queue <- struct{}{}
-	params := map[string]string{
-		"key":              gdrive.apiKey,
-		"alt":              "media", // to tell Google that we are downloading the file
-		"acknowledgeAbuse": "true",  // If the files are marked as abusive, download them anyway
-	}
+
+	var res *http.Response
 	url := fmt.Sprintf("%s/%s", gdrive.apiUrl, fileInfo.Id)
-	res, err := request.CallRequest(
-		&request.RequestArgs{
-			Url:       url,
-			Method:    "GET",
-			Timeout:   gdrive.downloadTimeout,
-			Params:    params,
-			Context:   ctx,
-			UserAgent: config.UserAgent,
-			Http2:     !HTTP3_SUPPORTED,
-			Http3:     HTTP3_SUPPORTED,
-		},
-	)
+	if gdrive.client != nil {
+		res, err = gdrive.client.Files.Get(fileInfo.Id).AcknowledgeAbuse(true).Context(ctx).Download()
+	} else {
+		params := map[string]string{
+			"key":              gdrive.apiKey,
+			"alt":              "media", // to tell Google that we are downloading the file
+			"acknowledgeAbuse": "true",  // If the files are marked as abusive, download them anyway
+		}
+		res, err = request.CallRequest(
+			&request.RequestArgs{
+				Url:       url,
+				Method:    "GET",
+				Timeout:   gdrive.downloadTimeout,
+				Params:    params,
+				Context:   ctx,
+				UserAgent: config.UserAgent,
+				Http2:     !HTTP3_SUPPORTED,
+				Http3:     HTTP3_SUPPORTED,
+			},
+		)
+	}
 	if err != nil {
 		return err
 	}
@@ -214,7 +221,7 @@ func (gdrive *GDrive) DownloadMultipleFiles(files []*models.GdriveFileToDl, conf
 				<-queue
 			}()
 
-			os.MkdirAll(file.FilePath, 0666)
+			os.MkdirAll(file.FilePath, 0755)
 			filePath := filepath.Join(file.FilePath, file.Name)
 
 			err := gdrive.DownloadFile(file, filePath, config, queue)

@@ -28,7 +28,7 @@ func logJsonResponse(body []byte) {
 
 	filename := fmt.Sprintf("saved_%s.json", time.Now().Format("2006-01-02_15-04-05"))
 	filePath := filepath.Join("json", filename)
-	os.MkdirAll(filepath.Dir(filePath), 0666)
+	os.MkdirAll(filepath.Dir(filePath), 0755)
 	err = os.WriteFile(filePath, prettyJson.Bytes(), 0666)
 	if err != nil {
 		color.Red(

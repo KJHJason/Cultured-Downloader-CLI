@@ -2,6 +2,7 @@ package gdrive
 
 import (
 	"fmt"
+	"strconv"
 	"net/http"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/configs"
@@ -29,12 +30,51 @@ func getFailedApiCallErr(res *http.Response) error {
 	)
 }
 
-// Returns the contents of the given GDrive folder
-func (gdrive *GDrive) GetFolderContents(folderId, logPath string, config *configs.Config) ([]*models.GdriveFileToDl, error) {
+// Returns the contents of the given GDrive folder using Google's GDrive package
+func (gdrive *GDrive) getFolderContentsWithClient(folderId, logPath string, config *configs.Config) ([]*models.GdriveFileToDl, error) {
+	var pageToken string
+	var gdriveFiles []*models.GdriveFileToDl
+	for {
+		action := gdrive.client.Files.List().Q(fmt.Sprintf("'%s' in parents", folderId)).Fields(GDRIVE_FOLDER_FIELDS)
+		if pageToken != "" {
+			action = action.PageToken(pageToken)
+		}
+		files, err := action.Do()
+		if err != nil {
+			return nil, fmt.Errorf(
+				"gdrive error %d: failed to get folder contents with ID of %s, more info => %v",
+				utils.CONNECTION_ERROR,
+				folderId,
+				err,
+			)
+		}
+
+		for _, file := range files.Files {
+			gdriveFiles = append(gdriveFiles, &models.GdriveFileToDl{
+				Id:          file.Id,
+				Name:        file.Name,
+				Size:        strconv.FormatInt(file.Size, 10),
+				MimeType:    file.MimeType,
+				Md5Checksum: file.Md5Checksum,
+				FilePath:    "",
+			})
+		}
+
+		if files.NextPageToken == "" {
+			break
+		} else {
+			pageToken = files.NextPageToken
+		}
+	}
+	return gdriveFiles, nil
+}
+
+// Returns the contents of the given GDrive folder using API calls to GDrive API v3
+func (gdrive *GDrive) getFolderContentsWithApi(folderId, logPath string, config *configs.Config) ([]*models.GdriveFileToDl, error) {
 	params := map[string]string{
 		"key":    gdrive.apiKey,
 		"q":      fmt.Sprintf("'%s' in parents", folderId),
-		"fields": fmt.Sprintf("nextPageToken,files(%s)", GDRIVE_FILE_FIELDS),
+		"fields": GDRIVE_FOLDER_FIELDS,
 	}
 	var files []*models.GdriveFileToDl
 	pageToken := ""
@@ -98,6 +138,14 @@ func (gdrive *GDrive) GetFolderContents(folderId, logPath string, config *config
 	return files, nil
 }
 
+// Returns the contents of the given GDrive folder
+func (gdrive *GDrive) GetFolderContents(folderId, logPath string, config *configs.Config) ([]*models.GdriveFileToDl, error) {
+	if gdrive.client != nil {
+		return gdrive.getFolderContentsWithClient(folderId, logPath, config)
+	}
+	return gdrive.getFolderContentsWithApi(folderId, logPath, config)
+}
+
 // Retrieves the content of a GDrive folder and its subfolders recursively using GDrive API v3
 func (gdrive *GDrive) GetNestedFolderContents(folderId, logPath string, config *configs.Config) ([]*models.GdriveFileToDl, error) {
 	var files []*models.GdriveFileToDl
@@ -120,8 +168,8 @@ func (gdrive *GDrive) GetNestedFolderContents(folderId, logPath string, config *
 	return files, nil
 }
 
-// Retrieves the file details of the given GDrive file using GDrive API v3
-func (gdrive *GDrive) GetFileDetails(gdriveInfo *models.GDriveToDl, config *configs.Config) (*models.GdriveFileToDl, error) {
+// Retrieves the file details of the given GDrive file by making a HTTP request to GDrive API v3
+func (gdrive *GDrive) getFileDetailsWithAPI(gdriveInfo *models.GDriveToDl, config *configs.Config) (*models.GdriveFileToDl, error) {
 	params := map[string]string{
 		"key":    gdrive.apiKey,
 		"fields": GDRIVE_FILE_FIELDS,
@@ -155,7 +203,6 @@ func (gdrive *GDrive) GetFileDetails(gdriveInfo *models.GDriveToDl, config *conf
 	if err := utils.LoadJsonFromResponse(res, &gdriveFile); err != nil {
 		return nil, err
 	}
-
 	return &models.GdriveFileToDl{
 		Id:          gdriveFile.Id,
 		Name:        gdriveFile.Name,
@@ -164,4 +211,33 @@ func (gdrive *GDrive) GetFileDetails(gdriveInfo *models.GDriveToDl, config *conf
 		Md5Checksum: gdriveFile.Md5Checksum,
 		FilePath:    gdriveInfo.FilePath,
 	}, nil
+}
+
+// Retrieves the file details of the given GDrive file using Google's GDrive package
+func (gdrive *GDrive) getFileDetailsWithClient(gdriveInfo *models.GDriveToDl, config *configs.Config) (*models.GdriveFileToDl, error) {
+	file, err := gdrive.client.Files.Get(gdriveInfo.Id).Fields(GDRIVE_FILE_FIELDS).Do()
+	if err != nil {
+		return nil, fmt.Errorf(
+			"gdrive error %d: failed to get file details with ID of %s, more info => %v",
+			utils.CONNECTION_ERROR,
+			gdriveInfo.Id,
+			err,
+		)
+	}
+	return &models.GdriveFileToDl{
+		Id:          file.Id,
+		Name:        file.Name,
+		Size:        strconv.FormatInt(file.Size, 10),
+		MimeType:    file.MimeType,
+		Md5Checksum: file.Md5Checksum,
+		FilePath:    gdriveInfo.FilePath,
+	}, nil
+}
+
+// Retrieves the file details of the given GDrive file using GDrive API v3
+func (gdrive *GDrive) GetFileDetails(gdriveInfo *models.GDriveToDl, config *configs.Config) (*models.GdriveFileToDl, error) {
+	if gdrive.client != nil {
+		return gdrive.getFileDetailsWithClient(gdriveInfo, config)
+	} 
+	return gdrive.getFileDetailsWithAPI(gdriveInfo, config)
 }

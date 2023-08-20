@@ -19,7 +19,7 @@ type archiveExtractor struct {
 func extractFileLogic(ctx context.Context, src, dest string, extractor *archiveExtractor) error {
 	handler := func(ctx context.Context, file archiver.File) error {
 		extractedFilePath := filepath.Join(dest, file.NameInArchive)
-		os.MkdirAll(filepath.Dir(extractedFilePath), 0666)
+		os.MkdirAll(filepath.Dir(extractedFilePath), 0755)
 
 		af, err := file.Open()
 		if err != nil {

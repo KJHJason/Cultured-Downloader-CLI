@@ -10,7 +10,7 @@ import (
 
 var (
 	downloadPath string
-	RootCmd      = &cobra.Command{
+	RootCmd = &cobra.Command{
 		Use:     "cultured-downloader-cli",
 		Version: fmt.Sprintf(
 			"%s by KJHJason\n%s", 

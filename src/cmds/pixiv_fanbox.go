@@ -10,21 +10,22 @@ import (
 )
 
 var (
-	fanboxDlTextFile     string
-	fanboxCookieFile     string
-	fanboxSession        string
-	fanboxCreatorIds     []string
-	fanboxPageNums       []string
-	fanboxPostIds        []string
-	fanboxDlThumbnails   bool
-	fanboxDlImages       bool
-	fanboxDlAttachments  bool
-	fanboxDlGdrive       bool
-	fanboxGdriveApiKey   string
-	fanboxOverwriteFiles bool
-	fanboxLogUrls        bool
-	fanboxUserAgent      string
-	pixivFanboxCmd       = &cobra.Command{
+	fanboxDlTextFile           string
+	fanboxCookieFile           string
+	fanboxSession              string
+	fanboxCreatorIds           []string
+	fanboxPageNums             []string
+	fanboxPostIds              []string
+	fanboxDlThumbnails         bool
+	fanboxDlImages             bool
+	fanboxDlAttachments        bool
+	fanboxDlGdrive             bool
+	fanboxGdriveApiKey         string
+	fanboxGdriveServiceAccPath string
+	fanboxOverwriteFiles       bool
+	fanboxLogUrls              bool
+	fanboxUserAgent            string
+	pixivFanboxCmd = &cobra.Command{
 		Use:   "pixiv_fanbox",
 		Short: "Download from Pixiv Fanbox",
 		Long:  "Supports downloads from Pixiv Fanbox creators and individual posts.",
@@ -38,6 +39,7 @@ var (
 			if fanboxGdriveApiKey != "" {
 				gdriveClient = gdrive.GetNewGDrive(
 					fanboxGdriveApiKey,
+					fanboxGdriveServiceAccPath,
 					pixivFanboxConfig,
 					utils.MAX_CONCURRENT_DOWNLOADS,
 				)

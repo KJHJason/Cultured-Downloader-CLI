@@ -37,7 +37,7 @@ var (
 	pixivArtworkType         string
 	pixivOverwrite           bool
 	pixivUserAgent           string
-	pixivCmd                 = &cobra.Command{
+	pixivCmd = &cobra.Command{
 		Use:   "pixiv",
 		Short: "Download from Pixiv",
 		Long:  "Supports downloads from Pixiv by artwork ID, illustrator ID, tag name, and more.",

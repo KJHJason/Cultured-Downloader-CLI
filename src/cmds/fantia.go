@@ -10,22 +10,23 @@ import (
 )
 
 var (
-	fantiaDlTextFile       string
-	fantiaCookieFile       string
-	fantiaSession          string
-	fantiaFanclubIds       []string
-	fantiaPageNums         []string
-	fantiaPostIds          []string
-	fantiaDlGdrive         bool
-	fantiaGdriveApiKey     string
-	fantiaDlThumbnails     bool
-	fantiaDlImages         bool
-	fantiaDlAttachments    bool
-	fantiaOverwrite        bool
-	fantiaAutoSolveCaptcha bool
-	fantiaLogUrls          bool
-	fantiaUserAgent        string
-	fantiaCmd              = &cobra.Command{
+	fantiaDlTextFile           string
+	fantiaCookieFile           string
+	fantiaSession              string
+	fantiaFanclubIds           []string
+	fantiaPageNums             []string
+	fantiaPostIds              []string
+	fantiaDlGdrive             bool
+	fantiaGdriveApiKey         string
+	fantiaGdriveServiceAccPath string
+	fantiaDlThumbnails         bool
+	fantiaDlImages             bool
+	fantiaDlAttachments        bool
+	fantiaOverwrite            bool
+	fantiaAutoSolveCaptcha     bool
+	fantiaLogUrls              bool
+	fantiaUserAgent            string
+	fantiaCmd = &cobra.Command{
 		Use:   "fantia",
 		Short: "Download from Fantia",
 		Long:  "Supports downloads from Fantia Fanclubs and individual posts.",
@@ -50,6 +51,7 @@ var (
 			if fantiaGdriveApiKey != "" {
 				gdriveClient = gdrive.GetNewGDrive(
 					fantiaGdriveApiKey,
+					fantiaGdriveServiceAccPath,
 					fantiaConfig,
 					utils.MAX_CONCURRENT_DOWNLOADS,
 				)

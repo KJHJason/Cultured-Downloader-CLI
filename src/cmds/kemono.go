@@ -10,20 +10,21 @@ import (
 )
 
 var (
-	kemonoDlTextFile    string
-	kemonoCookieFile    string
-	kemonoSession       string
-	kemonoCreatorUrls   []string
-	kemonoPageNums      []string
-	kemonoPostUrls      []string
-	kemonoDlGdrive      bool
-	kemonoGdriveApiKey  string
-	kemonoDlAttachments bool
-	kemonoOverwrite     bool
-	kemonoLogUrls       bool
-	kemonoDlFav         bool
-	kemonoUserAgent     string
-	kemonoCmd           = &cobra.Command{
+	kemonoDlTextFile           string
+	kemonoCookieFile           string
+	kemonoSession              string
+	kemonoCreatorUrls          []string
+	kemonoPageNums             []string
+	kemonoPostUrls             []string
+	kemonoDlGdrive             bool
+	kemonoGdriveApiKey         string
+	kemonoGdriveServiceAccPath string
+	kemonoDlAttachments        bool
+	kemonoOverwrite            bool
+	kemonoLogUrls              bool
+	kemonoDlFav                bool
+	kemonoUserAgent            string
+	kemonoCmd = &cobra.Command{
 		Use:   "kemono",
 		Short: "Download from Kemono Party",
 		Long:  "Supports downloads from creators and posts on Kemono Party.",
@@ -37,6 +38,7 @@ var (
 			if kemonoGdriveApiKey != "" {
 				gdriveClient = gdrive.GetNewGDrive(
 					kemonoGdriveApiKey,
+					kemonoGdriveServiceAccPath,
 					kemonoConfig,
 					utils.MAX_CONCURRENT_DOWNLOADS,
 				)

@@ -14,24 +14,26 @@ type textFilePath struct {
 	desc     string
 }
 type commonFlags struct {
-	cmd             *cobra.Command
-	overwriteVar    *bool
-	cookieFileVar   *string
-	userAgentVar    *string
-	gdriveApiKeyVar *string  
-	logUrlsVar      *bool
-	textFile        textFilePath
+	cmd                     *cobra.Command
+	overwriteVar            *bool
+	cookieFileVar           *string
+	userAgentVar            *string
+	gdriveApiKeyVar         *string 
+	gdriveServiceAccPathVar *string
+	logUrlsVar              *bool
+	textFile                textFilePath
 }
 
 func init() {
 	commonCmdFlags := [...]commonFlags{
 		{
 			cmd: fantiaCmd,
-			overwriteVar:    &fantiaOverwrite,
-			cookieFileVar:   &fantiaCookieFile,
-			userAgentVar:    &fantiaUserAgent,
-			gdriveApiKeyVar: &fantiaGdriveApiKey,
-			logUrlsVar:      &fantiaLogUrls,
+			overwriteVar:            &fantiaOverwrite,
+			cookieFileVar:           &fantiaCookieFile,
+			userAgentVar:            &fantiaUserAgent,
+			gdriveApiKeyVar:         &fantiaGdriveApiKey,
+			gdriveServiceAccPathVar: &fantiaGdriveServiceAccPath,
+			logUrlsVar:              &fantiaLogUrls,
 			textFile: textFilePath {
 				variable: &fantiaDlTextFile,
 				desc:     "Path to a text file containing Fanclub and/or post URL(s) to download from Fantia.",
@@ -39,11 +41,12 @@ func init() {
 		},
 		{
 			cmd: pixivFanboxCmd,
-			overwriteVar:    &fanboxOverwriteFiles,
-			cookieFileVar:   &fanboxCookieFile,
-			userAgentVar:    &fanboxUserAgent,
-			gdriveApiKeyVar: &fanboxGdriveApiKey,
-			logUrlsVar:      &fanboxLogUrls,
+			overwriteVar:            &fanboxOverwriteFiles,
+			cookieFileVar:           &fanboxCookieFile,
+			userAgentVar:            &fanboxUserAgent,
+			gdriveApiKeyVar:         &fanboxGdriveApiKey,
+			gdriveServiceAccPathVar: &fanboxGdriveApiKey,
+			logUrlsVar:              &fanboxLogUrls,
 			textFile: textFilePath {
 				variable: &fanboxDlTextFile,
 				desc:     "Path to a text file containing creator and/or post URL(s) to download from Pixiv Fanbox.",
@@ -61,11 +64,12 @@ func init() {
 		},
 		{
 			cmd: kemonoCmd,
-			overwriteVar:    &kemonoOverwrite,
-			cookieFileVar:   &kemonoCookieFile,
-			userAgentVar:    &kemonoUserAgent,
-			gdriveApiKeyVar: &kemonoGdriveApiKey,
-			logUrlsVar:      &kemonoLogUrls,
+			overwriteVar:            &kemonoOverwrite,
+			cookieFileVar:           &kemonoCookieFile,
+			userAgentVar:            &kemonoUserAgent,
+			gdriveApiKeyVar:         &kemonoGdriveApiKey,
+			gdriveServiceAccPathVar: &kemonoGdriveServiceAccPath,
+			logUrlsVar:              &kemonoLogUrls,
 			textFile: textFilePath {
 				variable: &kemonoDlTextFile,
 				desc: "Path to a text file containing creator and/or post URL(s) to download from Kemono Party.",
@@ -117,6 +121,18 @@ func init() {
 				utils.CombineStringsWithNewline(
 					"Google Drive API key to use for downloading gdrive files.",
 					"Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_key_guide.md",
+				),
+			)
+		}
+		if cmdInfo.gdriveServiceAccPathVar != nil {
+			cmd.Flags().StringVar(
+				cmdInfo.gdriveServiceAccPathVar,
+				"gdrive_service_acc_path",
+				"",
+				utils.CombineStringsWithNewline(
+					"Path to the Google Drive service account JSON file to use for downloading gdrive files.",
+					"Generally, this is preferred over the API key as it is less likely to be flagged as bot traffic.",
+					"Guide: WIP",
 				),
 			)
 		}
