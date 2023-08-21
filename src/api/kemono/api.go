@@ -57,7 +57,6 @@ func getKemonoUrlFromConditions(isBackup, isApi bool) string {
 var errSessionCookieNotFound = errors.New("could not find session cookie")
 func getKemonoUrlFromCookie(cookie []*http.Cookie, isApi bool) (string, string, error) {
 	for _, c := range cookie {
-		fmt.Println(c.Name)
 		if c.Name == utils.KEMONO_SESSION_COOKIE_NAME {
 			if c.Domain == utils.KEMONO_COOKIE_DOMAIN {
 				return getKemonoUrlFromConditions(false, isApi), utils.KEMONO_TLD ,nil
@@ -141,7 +140,6 @@ func getCreatorName(service, userId string, dlOptions *KemonoDlOptions) (string,
 	}
 
 	creatorNameCache[cacheKey] = creatorName
-	fmt.Println(creatorName)
 	return creatorName, nil
 }
 
