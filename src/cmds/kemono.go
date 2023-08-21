@@ -35,7 +35,7 @@ var (
 				LogUrls:        kemonoLogUrls,
 			}
 			var gdriveClient *gdrive.GDrive
-			if kemonoGdriveApiKey != "" {
+			if kemonoGdriveApiKey != "" || kemonoGdriveServiceAccPath != "" {
 				gdriveClient = gdrive.GetNewGDrive(
 					kemonoGdriveApiKey,
 					kemonoGdriveServiceAccPath,

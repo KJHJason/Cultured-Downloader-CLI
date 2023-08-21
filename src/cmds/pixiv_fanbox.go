@@ -36,7 +36,7 @@ var (
 				LogUrls:        fanboxLogUrls,
 			}
 			var gdriveClient *gdrive.GDrive
-			if fanboxGdriveApiKey != "" {
+			if fanboxGdriveApiKey != "" || fanboxGdriveServiceAccPath != "" {
 				gdriveClient = gdrive.GetNewGDrive(
 					fanboxGdriveApiKey,
 					fanboxGdriveServiceAccPath,

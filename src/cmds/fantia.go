@@ -48,7 +48,7 @@ var (
 			}
 
 			var gdriveClient *gdrive.GDrive
-			if fantiaGdriveApiKey != "" {
+			if fantiaGdriveApiKey != "" || fantiaGdriveServiceAccPath != "" {
 				gdriveClient = gdrive.GetNewGDrive(
 					fantiaGdriveApiKey,
 					fantiaGdriveServiceAccPath,

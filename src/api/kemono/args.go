@@ -177,7 +177,7 @@ type KemonoDlOptions struct {
 	Configs       *configs.Config
 
 	// GdriveClient is the Google Drive client to be
-	// used in the download process for Pixiv Fanbox posts
+	// used in the download process if GDrive links are detected.
 	GdriveClient *gdrive.GDrive
 
 	SessionCookieId string
