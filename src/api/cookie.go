@@ -85,6 +85,8 @@ func VerifyCookie(cookie *http.Cookie, website, userAgent string) (bool, error) 
 		websiteUrl = utils.PIXIV_URL + "/dashboard"
 	case utils.KEMONO:
 		websiteUrl = utils.KEMONO_URL + "/favorites"
+	case utils.KEMONO_BACKUP:
+		websiteUrl = utils.BACKUP_KEMONO_URL + "/favorites"
 	default:
 		// Shouldn't happen but could happen during development
 		panic(
@@ -127,13 +129,8 @@ func VerifyCookie(cookie *http.Cookie, website, userAgent string) (bool, error) 
 	return resUrl == websiteUrl, nil
 }
 
-// Verifies the given cookie by making a request to the website and checks if the cookie is valid
-// If the cookie is valid, the cookie will be returned
-//
-// However, if the cookie is invalid, an error message will be printed out and the program will shutdown
-func VerifyAndGetCookie(website, cookieValue, userAgent string) *http.Cookie {
-	cookie := GetCookie(cookieValue, website)
-	cookieIsValid, err := VerifyCookie(cookie, website, userAgent)
+// Prints out the error message and exits the program if the cookie verification fails
+func processCookieVerification(website string, err error) {
 	if err != nil {
 		utils.LogError(
 			err,
@@ -150,15 +147,65 @@ func VerifyAndGetCookie(website, cookieValue, userAgent string) *http.Cookie {
 		)
 		os.Exit(1)
 	}
-	if cookieValue != "" && !cookieIsValid {
+}
+
+// Verifies the given cookie by making a request to the backup domain and checks if the cookie is valid
+func backupVerifyCookie(website, cookieValue, userAgent string) *http.Cookie {
+	var backupWebsite string
+	switch website {
+	case utils.KEMONO:
+		backupWebsite = utils.KEMONO_BACKUP
+	default:
+		// Shouldn't happen but could happen during development
 		color.Red(
 			fmt.Sprintf(
-				"error %d: %s cookie is invalid",
-				utils.INPUT_ERROR,
+				"error %d: %s is not supported for cookie verification on a backup domain.",
+				utils.DEV_ERROR,
 				utils.GetReadableSiteStr(website),
 			),
 		)
 		os.Exit(1)
+	}
+
+	cookie := GetCookie(cookieValue, backupWebsite)
+	cookieIsValid, err := VerifyCookie(cookie, backupWebsite, userAgent)
+	processCookieVerification(backupWebsite, err)
+	if !cookieIsValid {
+		color.Red(
+			fmt.Sprintf(
+				"error %d: %s cookie is invalid",
+				utils.INPUT_ERROR,
+				utils.GetReadableSiteStr(backupWebsite),
+			),
+		)
+		os.Exit(1)
+	}
+	return cookie
+}
+
+// Verifies the given cookie by making a request to the website and checks if the cookie is valid
+// If the cookie is valid, the cookie will be returned
+//
+// However, if the cookie is invalid, an error message will be printed out and the program will shutdown
+func VerifyAndGetCookie(website, cookieValue, userAgent string) *http.Cookie {
+	cookie := GetCookie(cookieValue, website)
+	cookieIsValid, err := VerifyCookie(cookie, website, userAgent)
+	processCookieVerification(website, err)
+
+	if !cookieIsValid {
+		if website != utils.KEMONO {
+			color.Red(
+				fmt.Sprintf(
+					"error %d: %s cookie is invalid",
+					utils.INPUT_ERROR,
+					utils.GetReadableSiteStr(website),
+				),
+			)
+			os.Exit(1)
+		} else {
+			// try to verify the cookie on the backup domain
+			cookie = backupVerifyCookie(website, cookieValue, userAgent)
+		}
 	}
 	return cookie
 }

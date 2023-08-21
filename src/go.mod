@@ -10,7 +10,7 @@ require (
 	github.com/gen2brain/beeep v0.0.0-20230812223410-3e1549ef0811
 	github.com/mholt/archiver/v4 v4.0.0-alpha.8
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
-	github.com/quic-go/quic-go v0.37.6
+	github.com/quic-go/quic-go v0.38.0
 	github.com/spf13/cobra v1.7.0
 	google.golang.org/api v0.138.0
 )
@@ -35,7 +35,7 @@ require (
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/google/pprof v0.0.0-20230817174616-7a8ec2ada47b // indirect
+	github.com/google/pprof v0.0.0-20230821062121-407c9e7a662f // indirect
 	github.com/google/s2a-go v0.1.5 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.5 // indirect

@@ -1,14 +1,17 @@
 package kemono
 
 import (
+	"errors"
 	"fmt"
-	"sync"
+	"net/http"
 	"strconv"
+	"sync"
 
 	"github.com/KJHJason/Cultured-Downloader-CLI/api/kemono/models"
 	"github.com/KJHJason/Cultured-Downloader-CLI/request"
 	"github.com/KJHJason/Cultured-Downloader-CLI/spinner"
 	"github.com/KJHJason/Cultured-Downloader-CLI/utils"
+	"github.com/PuerkitoBio/goquery"
 )
 
 type kemonoChanRes struct {
@@ -35,6 +38,111 @@ func getKemonoApiUrl(tld string) string {
 		return utils.KEMONO_API_URL
 	}
 	return utils.BACKUP_KEMONO_API_URL
+}
+
+func getKemonoUrlFromConditions(isBackup, isApi bool) string {
+	if isApi {
+		if isBackup {
+			return utils.BACKUP_KEMONO_API_URL
+		}
+		return utils.KEMONO_API_URL
+	}
+
+	if isBackup {
+		return utils.BACKUP_KEMONO_URL
+	}
+	return utils.KEMONO_URL
+}
+
+var errSessionCookieNotFound = errors.New("could not find session cookie")
+func getKemonoUrlFromCookie(cookie []*http.Cookie, isApi bool) (string, string, error) {
+	for _, c := range cookie {
+		fmt.Println(c.Name)
+		if c.Name == utils.KEMONO_SESSION_COOKIE_NAME {
+			if c.Domain == utils.KEMONO_COOKIE_DOMAIN {
+				return getKemonoUrlFromConditions(false, isApi), utils.KEMONO_TLD ,nil
+			} else {
+				return getKemonoUrlFromConditions(true, isApi), utils.KEMONO_BACKUP_TLD, nil
+			}
+		}
+	}
+	return "", "", errSessionCookieNotFound
+}
+
+// To obtain the creator's username
+func parseCreatorHtml(res *http.Response, url string) (string, error) {
+	// parse the response
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	res.Body.Close()
+	if err != nil {
+		err = fmt.Errorf(
+			"kemono error %d, failed to parse response body when getting creator name from Kemono Party at %s\nmore info => %v",
+			utils.HTML_ERROR,
+			url,
+			err,
+		)
+		return "", err
+	}
+
+	// <span itemprop="name">creator-name</span> => creator-name
+	creatorName := doc.Find("span[itemprop=name]").Text()
+	if creatorName == "" {
+		return "", fmt.Errorf(
+			"kemono error %d, failed to get creator name from Kemono Party at %s\nplease report this issue",
+			utils.HTML_ERROR,
+			url,
+		)
+	}
+
+	return creatorName, nil
+}
+
+var creatorNameCacheLock sync.Mutex
+var creatorNameCache = make(map[string]string)
+func getCreatorName(service, userId string, dlOptions *KemonoDlOptions) (string, error) {
+	creatorNameCacheLock.Lock()
+	defer creatorNameCacheLock.Unlock()
+	cacheKey := fmt.Sprintf("%s/%s", service, userId)
+	if name, ok := creatorNameCache[cacheKey]; ok {
+		return name, nil
+	}
+
+	apiUrl, tld, err := getKemonoUrlFromCookie(dlOptions.SessionCookies, false)
+	if err != nil {
+		return userId, err
+	}
+
+	useHttp3 := utils.IsHttp3Supported(utils.KEMONO, true)
+	url := fmt.Sprintf(
+		"%s/%s/user/%s",
+		apiUrl,
+		service,
+		userId,
+	)
+	res, err := request.CallRequest(
+		&request.RequestArgs{
+			Url:         url,
+			Method:      "GET",
+			Headers:     getKemonoPartyHeaders(tld),
+			UserAgent:   dlOptions.Configs.UserAgent,
+			Cookies:     dlOptions.SessionCookies,
+			Http2:       !useHttp3,
+			Http3:       useHttp3,
+			CheckStatus: true,
+		},
+	)
+	if err != nil {
+		return userId, err
+	}
+
+	creatorName, err := parseCreatorHtml(res, url)
+	if err != nil {
+		return userId, err
+	}
+
+	creatorNameCache[cacheKey] = creatorName
+	fmt.Println(creatorName)
+	return creatorName, nil
 }
 
 func getPostDetails(post *models.KemonoPostToDl, downloadPath string, dlOptions *KemonoDlOptions) ([]*request.ToDownload, []*request.ToDownload, error) {
@@ -258,13 +366,18 @@ func processFavCreator(resJson models.KemonoFavCreatorJson, tld string) []*model
 	return creators
 }
 
-func getFavouritesLogic(downloadPath string, dlOptions *KemonoDlOptions, tld string) ([]*request.ToDownload, []*request.ToDownload, error) {
+func getFavourites(downloadPath string, dlOptions *KemonoDlOptions) ([]*request.ToDownload, []*request.ToDownload, error) {
+	apiUrl, tld, err := getKemonoUrlFromCookie(dlOptions.SessionCookies, true)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	useHttp3 := utils.IsHttp3Supported(utils.KEMONO, true)
 	params := map[string]string{
 		"type": "artist",
 	}
 	reqArgs := &request.RequestArgs{
-		Url:         fmt.Sprintf("%s/v1/account/favorites", getKemonoApiUrl(tld)),
+		Url:         fmt.Sprintf("%s/v1/account/favorites", apiUrl),
 		Method:      "GET",
 		Cookies:     dlOptions.SessionCookies,
 		Params:      params,
@@ -276,10 +389,6 @@ func getFavouritesLogic(downloadPath string, dlOptions *KemonoDlOptions, tld str
 	}
 	res, err := request.CallRequest(reqArgs)
 	if err != nil {
-		if tld == utils.KEMONO_TLD {
-			// fallback to backup domain
-			return getFavouritesLogic(downloadPath, dlOptions, utils.KEMONO_BACKUP_TLD)
-		}
 		return nil, nil, err
 	}
 
@@ -308,8 +417,4 @@ func getFavouritesLogic(downloadPath string, dlOptions *KemonoDlOptions, tld str
 	gdriveLinks = append(gdriveLinks, creatorsGdrive...)
 
 	return urlsToDownload, gdriveLinks, nil
-}
-
-func getFavourites(downloadPath string, dlOptions *KemonoDlOptions) ([]*request.ToDownload, []*request.ToDownload, error) {
-	return getFavouritesLogic(downloadPath, dlOptions, utils.KEMONO_TLD)
 }

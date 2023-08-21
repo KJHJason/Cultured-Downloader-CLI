@@ -1,6 +1,7 @@
 package kemono
 
 import (
+	"fmt"
 	"strings"
 	"regexp"
 	"path/filepath"
@@ -41,9 +42,23 @@ func getKemonoFilePath(postFolderPath, childDir, fileName string) string {
 }
 
 func processJson(resJson *models.MainKemonoJson, tld, downloadPath string, dlOptions *KemonoDlOptions) ([]*request.ToDownload, []*request.ToDownload) {
+	var creatorNamePath string
+	if creatorName, err := getCreatorName(resJson.Service, resJson.User, dlOptions); err != nil {
+		err = fmt.Errorf(
+			"error getting creator name for %q (%s)... falling back to creator ID! (Details below)\n%v",
+			resJson.User,
+			resJson.Service,
+			err,
+		)
+		utils.LogError(err, "", false, utils.ERROR)
+		creatorNamePath = resJson.User
+	} else {
+		creatorNamePath = fmt.Sprintf("%s [%s]", creatorName, resJson.User)
+	}
+
 	postFolderPath := utils.GetPostFolder(
 		filepath.Join(downloadPath, "Kemono-Party", resJson.Service),
-		resJson.User,
+		creatorNamePath,
 		resJson.Id,
 		resJson.Title,
 	)

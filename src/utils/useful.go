@@ -32,7 +32,7 @@ func GetReadableSiteStr(site string) string {
 		return PIXIV_FANBOX_TITLE
 	case PIXIV:
 		return PIXIV_TITLE
-	case KEMONO:
+	case KEMONO, KEMONO_BACKUP:
 		return KEMONO_TITLE
 	default:
 		// panic since this is a dev error
