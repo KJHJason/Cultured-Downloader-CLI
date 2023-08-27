@@ -22,7 +22,7 @@ func IsHttp3Supported(site string, isApi bool) bool {
 		return !isApi
 	case PIXIV_MOBILE:
 		return true
-	case KEMONO:
+	case KEMONO, KEMONO_BACKUP:
 		return false
 	default:
 		panic(
