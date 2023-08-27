@@ -120,7 +120,7 @@ func init() {
 				"",
 				utils.CombineStringsWithNewline(
 					"Google Drive API key to use for downloading gdrive files.",
-					"Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_key_guide.md",
+					"Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_setup_guide.md",
 				),
 			)
 		}
@@ -132,7 +132,7 @@ func init() {
 				utils.CombineStringsWithNewline(
 					"Path to the Google Drive service account JSON file to use for downloading gdrive files.",
 					"Generally, this is preferred over the API key as it is less likely to be flagged as bot traffic.",
-					"Guide: WIP",
+					"Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_setup_guide.md",
 				),
 			)
 		}

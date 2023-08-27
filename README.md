@@ -160,35 +160,38 @@ Usage:
   cultured-downloader-cli fantia [flags]
 
 Flags:
-  -r, --auto_solve_recaptcha    Whether to automatically solve the reCAPTCHA when it appears. If failed, the program will solve it automatically if this flag is false.
-                                Otherwise, if this flag is true and it fails to solve the reCAPTCHA, the program will ask you to solve it manually on your browser with
-                                the SAME supplied session by visiting https://fantia.jp/recaptcha (default true)
-  -c, --cookie_file string      Pass in a file path to your saved Netscape/Mozilla generated cookie file to use when downloading.
-                                You can generate a cookie file by using the "Get cookies.txt LOCALLY" extension for your browser.
-                                Chrome Extension URL: https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc
-  -a, --dl_attachments          Whether to download the attachments of a post on Fantia. (default true)
-  -g, --dl_gdrive               Whether to download the Google Drive links of a post on Fantia. (default true)
-  -i, --dl_images               Whether to download the images of a post on Fantia. (default true)
-  -t, --dl_thumbnails           Whether to download the thumbnail of a post on Fantia. (default true)
-      --fanclub_id strings      Fantia Fanclub ID(s) to download from.
-                                For multiple IDs, separate them with a comma.
-                                Example: "12345,67891" (without the quotes)
-      --gdrive_api_key string   Google Drive API key to use for downloading gdrive files.
-                                Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_key_guide.md
-  -h, --help                    help for fantia
-  -l, --log_urls                Log any detected URLs of the files that are being downloaded.
-                                Note that not all URLs are logged, only URLs to external file hosting providers like MEGA, Google Drive, etc. are logged.
-  -o, --overwrite               Overwrite any existing files if there is no Content-Length header in the response.
-                                Usually used for Pixiv Fanbox when there are incomplete downloads.
-      --page_num strings        Min and max page numbers to search for corresponding to the order of the supplied Fantia Fanclub ID(s).
-                                Format: "num", "minNum-maxNum", or "" to download all pages
-                                Leave blank to download all pages from each Fantia Fanclub.
-      --post_id strings         Fantia post ID(s) to download.
-                                For multiple IDs, separate them with a comma.
-                                Example: "12345,67891" (without the quotes)
-  -s, --session string          Your "_session_id" cookie value to use for the requests to Fantia.
-  -p, --txt_filepath string     Path to a text file containing Fanclub and/or post URL(s) to download from Fantia.
-  -u, --user_agent string       Set a custom User-Agent header to use when communicating with the API(s) or when downloading.
+  -r, --auto_solve_recaptcha             Whether to automatically solve the reCAPTCHA when it appears. If failed, the program will solve it automatically if this flag is false.
+                                         Otherwise, if this flag is true and it fails to solve the reCAPTCHA, the program will ask you to solve it manually on your browser with
+                                         the SAME supplied session by visiting https://fantia.jp/recaptcha (default true)
+  -c, --cookie_file string               Pass in a file path to your saved Netscape/Mozilla generated cookie file to use when downloading.
+                                         You can generate a cookie file by using the "Get cookies.txt LOCALLY" extension for your browser.
+                                         Chrome Extension URL: https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc
+  -a, --dl_attachments                   Whether to download the attachments of a post on Fantia. (default true)
+  -g, --dl_gdrive                        Whether to download the Google Drive links of a post on Fantia. (default true)
+  -i, --dl_images                        Whether to download the images of a post on Fantia. (default true)
+  -t, --dl_thumbnails                    Whether to download the thumbnail of a post on Fantia. (default true)
+      --fanclub_id strings               Fantia Fanclub ID(s) to download from.
+                                         For multiple IDs, separate them with a comma.
+                                         Example: "12345,67891" (without the quotes)
+      --gdrive_api_key string            Google Drive API key to use for downloading gdrive files.
+                                         Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_setup_guide.md
+      --gdrive_service_acc_path string   Path to the Google Drive service account JSON file to use for downloading gdrive files.
+                                         Generally, this is preferred over the API key as it is less likely to be flagged as bot traffic.
+                                         Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_setup_guide.md
+  -h, --help                             help for fantia
+  -l, --log_urls                         Log any detected URLs of the files that are being downloaded.
+                                         Note that not all URLs are logged, only URLs to external file hosting providers like MEGA, Google Drive, etc. are logged.
+  -o, --overwrite                        Overwrite any existing files if there is no Content-Length header in the response.
+                                         Usually used for Pixiv Fanbox when there are incomplete downloads.
+      --page_num strings                 Min and max page numbers to search for corresponding to the order of the supplied Fantia Fanclub ID(s).
+                                         Format: "num", "minNum-maxNum", or "" to download all pages
+                                         Leave blank to download all pages from each Fantia Fanclub.
+      --post_id strings                  Fantia post ID(s) to download.
+                                         For multiple IDs, separate them with a comma.
+                                         Example: "12345,67891" (without the quotes)
+  -s, --session string                   Your "_session_id" cookie value to use for the requests to Fantia.
+  -p, --txt_filepath string              Path to a text file containing Fanclub and/or post URL(s) to download from Fantia.
+  -u, --user_agent string                Set a custom User-Agent header to use when communicating with the API(s) or when downloading.
 ```
 
 ## Pixiv Fanbox Flags
@@ -200,32 +203,35 @@ Usage:
   cultured-downloader-cli pixiv_fanbox [flags]
 
 Flags:
-  -c, --cookie_file string      Pass in a file path to your saved Netscape/Mozilla generated cookie file to use when downloading.
-                                You can generate a cookie file by using the "Get cookies.txt LOCALLY" extension for your browser.
-                                Chrome Extension URL: https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc
-      --creator_id strings      Pixiv Fanbox Creator ID(s) to download from.
-                                For multiple IDs, separate them with a comma.
-                                Example: "12345,67891" (without the quotes)
-  -a, --dl_attachments          Whether to download the attachments of a Pixiv Fanbox post. (default true)
-  -g, --dl_gdrive               Whether to download the Google Drive links of a Pixiv Fanbox post. (default true)
-  -i, --dl_images               Whether to download the images of a Pixiv Fanbox post. (default true)
-  -t, --dl_thumbnails           Whether to download the thumbnail of a Pixiv Fanbox post. (default true)
-      --gdrive_api_key string   Google Drive API key to use for downloading gdrive files.
-                                Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_key_guide.md
-  -h, --help                    help for pixiv_fanbox
-  -l, --log_urls                Log any detected URLs of the files that are being downloaded.
-                                Note that not all URLs are logged, only URLs to external file hosting providers like MEGA, Google Drive, etc. are logged.
-  -o, --overwrite               Overwrite any existing files if there is no Content-Length header in the response.
-                                Usually used for Pixiv Fanbox when there are incomplete downloads.
-      --page_num strings        Min and max page numbers to search for corresponding to the order of the supplied Pixiv Fanbox creator ID(s).
-                                Format: "num", "minNum-maxNum", or "" to download all pages
-                                Leave blank to download all pages from each creator.
-      --post_id strings         Pixiv Fanbox post ID(s) to download.
-                                For multiple IDs, separate them with a comma.
-                                Example: "12345,67891" (without the quotes)
-  -s, --session string          Your "FANBOXSESSID" cookie value to use for the requests to Pixiv Fanbox.
-  -p, --txt_filepath string     Path to a text file containing creator and/or post URL(s) to download from Pixiv Fanbox.
-  -u, --user_agent string       Set a custom User-Agent header to use when communicating with the API(s) or when downloading.
+  -c, --cookie_file string               Pass in a file path to your saved Netscape/Mozilla generated cookie file to use when downloading.
+                                         You can generate a cookie file by using the "Get cookies.txt LOCALLY" extension for your browser.
+                                         Chrome Extension URL: https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc
+      --creator_id strings               Pixiv Fanbox Creator ID(s) to download from.
+                                         For multiple IDs, separate them with a comma.
+                                         Example: "12345,67891" (without the quotes)
+  -a, --dl_attachments                   Whether to download the attachments of a Pixiv Fanbox post. (default true)
+  -g, --dl_gdrive                        Whether to download the Google Drive links of a Pixiv Fanbox post. (default true)
+  -i, --dl_images                        Whether to download the images of a Pixiv Fanbox post. (default true)
+  -t, --dl_thumbnails                    Whether to download the thumbnail of a Pixiv Fanbox post. (default true)
+      --gdrive_api_key string            Google Drive API key to use for downloading gdrive files.
+                                         Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_setup_guide.md
+      --gdrive_service_acc_path string   Path to the Google Drive service account JSON file to use for downloading gdrive files.
+                                         Generally, this is preferred over the API key as it is less likely to be flagged as bot traffic.
+                                         Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_setup_guide.md
+  -h, --help                             help for pixiv_fanbox
+  -l, --log_urls                         Log any detected URLs of the files that are being downloaded.
+                                         Note that not all URLs are logged, only URLs to external file hosting providers like MEGA, Google Drive, etc. are logged.
+  -o, --overwrite                        Overwrite any existing files if there is no Content-Length header in the response.
+                                         Usually used for Pixiv Fanbox when there are incomplete downloads.
+      --page_num strings                 Min and max page numbers to search for corresponding to the order of the supplied Pixiv Fanbox creator ID(s).
+                                         Format: "num", "minNum-maxNum", or "" to download all pages
+                                         Leave blank to download all pages from each creator.
+      --post_id strings                  Pixiv Fanbox post ID(s) to download.
+                                         For multiple IDs, separate them with a comma.
+                                         Example: "12345,67891" (without the quotes)
+  -s, --session string                   Your "FANBOXSESSID" cookie value to use for the requests to Pixiv Fanbox.
+  -p, --txt_filepath string              Path to a text file containing creator and/or post URL(s) to download from Pixiv Fanbox.
+  -u, --user_agent string                Set a custom User-Agent header to use when communicating with the API(s) or when downloading.
 ```
 
 
@@ -317,29 +323,32 @@ Usage:
   cultured-downloader-cli kemono [flags]
 
 Flags:
-  -c, --cookie_file string      Pass in a file path to your saved Netscape/Mozilla generated cookie file to use when downloading.
-                                You can generate a cookie file by using the "Get cookies.txt LOCALLY" extension for your browser.
-                                Chrome Extension URL: https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc
-      --creator_url strings     Kemono Party creator URL(s) to download from.
-                                Multiple URLs can be supplied by separating them with a comma.
-                                Example: "https://kemono.party/service/user/123,https://kemono.party/service/user/456" (without the quotes)
-  -a, --dl_attachments          Whether to download the attachments (images, zipped files, etc.) of a post on Kemono Party. (default true)
-  -g, --dl_gdrive               Whether to download the Google Drive links of a post on Kemono Party. (default true)
-      --gdrive_api_key string   Google Drive API key to use for downloading gdrive files.
-                                Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_key_guide.md
-  -h, --help                    help for kemono
-  -l, --log_urls                Log any detected URLs of the files that are being downloaded.
-                                Note that not all URLs are logged, only URLs to external file hosting providers like MEGA, Google Drive, etc. are logged.
-  -o, --overwrite               Overwrite any existing files if there is no Content-Length header in the response.
-                                Usually used for Pixiv Fanbox when there are incomplete downloads.
-      --page_num strings        Min and max page numbers to search for corresponding to the order of the supplied Kemono Party creator URL(s).
-                                Format: "num", "minNum-maxNum", or "" to download all pages
-                                Leave blank to download all pages from each creator on Kemono Party.
-      --post_url strings        Kemono Party post URL(s) to download.
-                                Multiple URLs can be supplied by separating them with a comma.
-                                Example: "https://kemono.party/service/user/123,https://kemono.party/service/user/456" (without the quotes)
-  -s, --session string          Your Kemono Party "session" cookie value to use for the requests to Kemono Party.
-                                Required to get pass Kemono Party's DDOS protection and to download from your favourites.
-  -p, --txt_filepath string     Path to a text file containing creator and/or post URL(s) to download from Kemono Party.
-  -u, --user_agent string       Set a custom User-Agent header to use when communicating with the API(s) or when downloading.
+  -c, --cookie_file string               Pass in a file path to your saved Netscape/Mozilla generated cookie file to use when downloading.
+                                         You can generate a cookie file by using the "Get cookies.txt LOCALLY" extension for your browser.
+                                         Chrome Extension URL: https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc
+      --creator_url strings              Kemono Party creator URL(s) to download from.
+                                         Multiple URLs can be supplied by separating them with a comma.
+                                         Example: "https://kemono.party/service/user/123,https://kemono.party/service/user/456" (without the quotes)
+  -a, --dl_attachments                   Whether to download the attachments (images, zipped files, etc.) of a post on Kemono Party. (default true)
+  -g, --dl_gdrive                        Whether to download the Google Drive links of a post on Kemono Party. (default true)
+      --gdrive_api_key string            Google Drive API key to use for downloading gdrive files.
+                                         Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_setup_guide.md
+      --gdrive_service_acc_path string   Path to the Google Drive service account JSON file to use for downloading gdrive files.
+                                         Generally, this is preferred over the API key as it is less likely to be flagged as bot traffic.
+                                         Guide: https://github.com/KJHJason/Cultured-Downloader/blob/main/doc/google_api_setup_guide.md
+  -h, --help                             help for kemono
+  -l, --log_urls                         Log any detected URLs of the files that are being downloaded.
+                                         Note that not all URLs are logged, only URLs to external file hosting providers like MEGA, Google Drive, etc. are logged.
+  -o, --overwrite                        Overwrite any existing files if there is no Content-Length header in the response.
+                                         Usually used for Pixiv Fanbox when there are incomplete downloads.
+      --page_num strings                 Min and max page numbers to search for corresponding to the order of the supplied Kemono Party creator URL(s).
+                                         Format: "num", "minNum-maxNum", or "" to download all pages
+                                         Leave blank to download all pages from each creator on Kemono Party.
+      --post_url strings                 Kemono Party post URL(s) to download.
+                                         Multiple URLs can be supplied by separating them with a comma.
+                                         Example: "https://kemono.party/service/user/123,https://kemono.party/service/user/456" (without the quotes)
+  -s, --session string                   Your Kemono Party "session" cookie value to use for the requests to Kemono Party.
+                                         Required to get pass Kemono Party's DDOS protection and to download from your favourites.
+  -p, --txt_filepath string              Path to a text file containing creator and/or post URL(s) to download from Kemono Party.
+  -u, --user_agent string                Set a custom User-Agent header to use when communicating with the API(s) or when downloading.
 ```
