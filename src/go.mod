@@ -10,7 +10,7 @@ require (
 	github.com/gen2brain/beeep v0.0.0-20230907135156-1a38885a97fc
 	github.com/mholt/archiver/v4 v4.0.0-alpha.8
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
-	github.com/quic-go/quic-go v0.38.1
+	github.com/quic-go/quic-go v0.39.1
 	github.com/spf13/cobra v1.7.0
 	google.golang.org/api v0.141.0
 )
@@ -32,7 +32,6 @@ require (
 	github.com/gobwas/ws v1.3.0 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/pprof v0.0.0-20230912144702-c363fe2c2ed8 // indirect
@@ -60,6 +59,7 @@ require (
 	github.com/therootcompany/xz v1.0.1 // indirect
 	github.com/ulikunitz/xz v0.5.11 // indirect
 	go.opencensus.io v0.24.0 // indirect
+	go.uber.org/mock v0.3.0 // indirect
 	go4.org v0.0.0-20230225012048-214862532bf5 // indirect
 	golang.org/x/crypto v0.13.0 // indirect
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
