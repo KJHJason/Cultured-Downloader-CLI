@@ -12,7 +12,7 @@ require (
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/quic-go/quic-go v0.39.1
 	github.com/spf13/cobra v1.7.0
-	google.golang.org/api v0.147.0
+	google.golang.org/api v0.148.0
 )
 
 require (
@@ -70,7 +70,7 @@ require (
 	golang.org/x/text v0.13.0 // indirect
 	golang.org/x/tools v0.13.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20231009173412-8bfb1ae86b6c // indirect
-	google.golang.org/grpc v1.58.2 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20231012201019-e917dd12ba7a // indirect
+	google.golang.org/grpc v1.58.3 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 )
