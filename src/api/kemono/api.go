@@ -167,12 +167,13 @@ func getPostDetails(post *models.KemonoPostToDl, downloadPath string, dlOptions 
 		return nil, nil, err
 	}
 
-	var resJson models.KemonoJson
+	// Single post cannot unmarshal into a slice
+	var resJson models.MainKemonoJson
 	if err := utils.LoadJsonFromResponse(res, &resJson); err != nil {
 		return nil, nil, err
 	}
 
-	postsToDl, gdriveLinks := processMultipleJson(resJson, post.Tld, downloadPath, dlOptions)
+	postsToDl, gdriveLinks := processMultipleJson([]*models.MainKemonoJson{&resJson}, post.Tld, downloadPath, dlOptions)
 	return postsToDl, gdriveLinks, nil
 }
 
