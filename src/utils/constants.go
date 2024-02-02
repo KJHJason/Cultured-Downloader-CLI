@@ -83,9 +83,9 @@ const (
 	KEMONO_TLD                  = "party"
 	KEMONO_BACKUP_TLD           = "su"
 	KEMONO_URL                  = "https://kemono.party"
-	KEMONO_API_URL              = "https://kemono.party/api"
+	KEMONO_API_URL              = "https://kemono.party/api/v1"
 	BACKUP_KEMONO_URL           = "https://kemono.su"
-	BACKUP_KEMONO_API_URL       = "https://kemono.su/api"
+	BACKUP_KEMONO_API_URL       = "https://kemono.su/api/v1"
 
 	PASSWORD_FILENAME = "detected_passwords.txt"
 	ATTACHMENT_FOLDER = "attachments"
