@@ -55,6 +55,9 @@ func getHeaders(website, userAgent string) map[string]string {
 	case utils.KEMONO :
 		referer = utils.KEMONO_URL
 		origin = utils.KEMONO_URL
+	case utils.KEMONO_BACKUP :
+		referer = utils.BACKUP_KEMONO_URL
+		origin = utils.BACKUP_KEMONO_URL
 	default :
 		// Shouldn't happen but could happen during development
 		panic(
