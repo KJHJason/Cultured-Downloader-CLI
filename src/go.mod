@@ -4,8 +4,8 @@ go 1.21
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.1
-	github.com/chromedp/cdproto v0.0.0-20240102194822-c006b26f21c7
-	github.com/chromedp/chromedp v0.9.3
+	github.com/chromedp/cdproto v0.0.0-20240202021202-6d0b6a386732
+	github.com/chromedp/chromedp v0.9.5
 	github.com/fatih/color v1.16.0
 	github.com/gen2brain/beeep v0.0.0-20230907135156-1a38885a97fc
 	github.com/mholt/archiver/v4 v4.0.0-alpha.8
