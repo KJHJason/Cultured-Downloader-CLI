@@ -41,7 +41,7 @@ func getAppPath() string {
 
 const (
 	DEBUG_MODE                     = false // Will save a copy of all JSON response from the API
-	VERSION                        = "1.2.4"
+	VERSION                        = "1.2.3"
 	MAX_RETRY_DELAY                = 3
 	MIN_RETRY_DELAY                = 1
 	RETRY_COUNTER                  = 4
@@ -91,10 +91,10 @@ const (
 	ATTACHMENT_FOLDER = "attachments"
 	IMAGES_FOLDER     = "images"
 
-	KEMONO_EMBEDS_FOLDER   = "embeds"
-	KEMONO_CONTENT_FOLDER  = "post_content"
+	KEMONO_EMBEDS_FOLDER  = "embeds"
+	KEMONO_CONTENT_FOLDER = "post_content"
 
-	GDRIVE_URL 	         = "https://drive.google.com"
+	GDRIVE_URL           = "https://drive.google.com"
 	GDRIVE_FOLDER        = "gdrive"
 	GDRIVE_FILENAME      = "detected_gdrive_links.txt"
 	OTHER_LINKS_FILENAME = "detected_external_links.txt"
@@ -117,8 +117,8 @@ var (
 	PAGE_NUM_REGEX = regexp.MustCompile(
 		fmt.Sprintf(`^%s$`, PAGE_NUM_REGEX_STR),
 	)
-	NUMBER_REGEX             = regexp.MustCompile(`^\d+$`)
-	GDRIVE_URL_REGEX         = regexp.MustCompile(
+	NUMBER_REGEX     = regexp.MustCompile(`^\d+$`)
+	GDRIVE_URL_REGEX = regexp.MustCompile(
 		`https://drive\.google\.com/(?P<type>file/d|drive/(u/\d+/)?folders)/(?P<id>[\w-]+)`,
 	)
 	GDRIVE_REGEX_ID_INDEX   = GDRIVE_URL_REGEX.SubexpIndex("id")

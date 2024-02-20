@@ -5,3 +5,4 @@
 *.syso
 *.exe
 src/bin
+bin/hash.txt
