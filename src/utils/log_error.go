@@ -30,6 +30,7 @@ var (
 func init() {
 	// will be opened througout the program's runtime
 	// hence, there is no need to call f.Close() at the end of this function
+	os.MkdirAll(logFolder, 0755)
 	f, fileErr := os.OpenFile(
 		logFilePath, 
 		os.O_WRONLY|os.O_CREATE|os.O_APPEND, 
