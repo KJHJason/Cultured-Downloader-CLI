@@ -12,7 +12,7 @@ require (
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/quic-go/quic-go v0.41.0
 	github.com/spf13/cobra v1.8.0
-	google.golang.org/api v0.165.0
+	google.golang.org/api v0.167.0
 )
 
 require (
