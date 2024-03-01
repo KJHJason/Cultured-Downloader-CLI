@@ -3,7 +3,7 @@ module github.com/KJHJason/Cultured-Downloader-CLI
 go 1.22
 
 require (
-	github.com/PuerkitoBio/goquery v1.8.1
+	github.com/PuerkitoBio/goquery v1.9.1
 	github.com/chromedp/cdproto v0.0.0-20240214232516-ad4608604e9e
 	github.com/chromedp/chromedp v0.9.5
 	github.com/fatih/color v1.16.0
