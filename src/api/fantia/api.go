@@ -132,8 +132,8 @@ func autoSolveCaptcha(dlOptions *FantiaDlOptions) error {
 				utils.FANTIA_RECAPTCHA_URL,
 			)
 		} else {
-			fullErr := fmt.Errorf("fantia error %d: failed to solve reCAPTCHA for Fantia, more info => %v", utils.CAPTCHA_ERROR, err)
-			utils.LogError(fullErr, "", false, utils.ERROR)
+			fmtErr = fmt.Errorf("fantia error %d: failed to solve reCAPTCHA for Fantia, more info => %v", utils.CAPTCHA_ERROR, err)
+			utils.LogError(fmtErr, "", false, utils.ERROR)
 		}
 
 		progress.ErrMsg = fmtErr.Error() + "\n"
