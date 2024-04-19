@@ -1,6 +1,6 @@
 1 VERSIONINFO
-FILEVERSION     1,2,3,0
-PRODUCTVERSION  1,2,3,0
+FILEVERSION     1,2,5,0
+PRODUCTVERSION  1,2,5,0
 FILEFLAGSMASK   0X3FL
 FILEFLAGS       0L
 FILEOS          0X40004L
@@ -13,12 +13,12 @@ BEGIN
         BEGIN
 		    VALUE "CompanyName", ""
             VALUE "FileDescription", "CLI tool of Cultured Downloader"
-            VALUE "FileVersion", "1.2.3"
+            VALUE "FileVersion", "1.2.5"
             VALUE "InternalName", "Cultured Downloader CLI"
             VALUE "LegalCopyright", "KJHJason. GPL-3.0 license"
             VALUE "OriginalFilename", "cultured-downloader-cli.exe"
             VALUE "ProductName", "Cultured Downloader CLI"
-			VALUE "ProductVersion", "1.2.3"
+			VALUE "ProductVersion", "1.2.5"
         END
     END
     BLOCK "VarFileInfo"

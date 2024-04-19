@@ -20,10 +20,8 @@ type kemonoChanRes struct {
 	err            error
 }
 
-func getKemonoPartyHeaders(tld string) map[string]string {
-	return map[string]string{
-		"Host": getKemonoUrl(tld),
-	}
+func getKemonoPartyHeaders() map[string]string {
+	return map[string]string{}
 }
 
 func getKemonoUrl(tld string) string {
@@ -58,11 +56,11 @@ var errSessionCookieNotFound = errors.New("could not find session cookie")
 func getKemonoUrlFromCookie(cookie []*http.Cookie, isApi bool) (string, string, error) {
 	for _, c := range cookie {
 		if c.Name == utils.KEMONO_SESSION_COOKIE_NAME {
-			if c.Domain == utils.KEMONO_COOKIE_DOMAIN {
-				return getKemonoUrlFromConditions(false, isApi), utils.KEMONO_TLD ,nil
-			} else {
+			if c.Domain == utils.KEMONO_COOKIE_BACKUP_DOMAIN {
 				return getKemonoUrlFromConditions(true, isApi), utils.KEMONO_BACKUP_TLD, nil
-			}
+			} // else {
+				// return getKemonoUrlFromConditions(false, isApi), utils.KEMONO_TLD ,nil
+			// }
 		}
 	}
 	return "", "", errSessionCookieNotFound
@@ -106,7 +104,7 @@ func getCreatorName(service, userId string, dlOptions *KemonoDlOptions) (string,
 		return name, nil
 	}
 
-	apiUrl, tld, err := getKemonoUrlFromCookie(dlOptions.SessionCookies, false)
+	apiUrl, _, err := getKemonoUrlFromCookie(dlOptions.SessionCookies, false)
 	if err != nil {
 		return userId, err
 	}
@@ -122,7 +120,7 @@ func getCreatorName(service, userId string, dlOptions *KemonoDlOptions) (string,
 		&request.RequestArgs{
 			Url:         url,
 			Method:      "GET",
-			Headers:     getKemonoPartyHeaders(tld),
+			Headers:     getKemonoPartyHeaders(),
 			UserAgent:   dlOptions.Configs.UserAgent,
 			Cookies:     dlOptions.SessionCookies,
 			Http2:       !useHttp3,
@@ -155,7 +153,7 @@ func getPostDetails(post *models.KemonoPostToDl, downloadPath string, dlOptions 
 				post.PostId,
 			),
 			Method:      "GET",
-			Headers:     getKemonoPartyHeaders(post.Tld),
+			Headers:     getKemonoPartyHeaders(),
 			UserAgent:   dlOptions.Configs.UserAgent,
 			Cookies:     dlOptions.SessionCookies,
 			Http2:       !useHttp3,
@@ -275,7 +273,7 @@ func getCreatorPosts(creator *models.KemonoCreatorToDl, downloadPath string, dlO
 				),
 				Method:      "GET",
 				UserAgent:   dlOptions.Configs.UserAgent,
-				Headers:     getKemonoPartyHeaders(creator.Tld),
+				Headers:     getKemonoPartyHeaders(),
 				Cookies:     dlOptions.SessionCookies,
 				Params:      params,
 				Http2:       !useHttp3,
@@ -303,7 +301,7 @@ func getCreatorPosts(creator *models.KemonoCreatorToDl, downloadPath string, dlO
 		if (hasMax && curOffset >= maxOffset) {
 			break
 		}
-		curOffset += 25
+		curOffset += utils.KEMONO_PER_PAGE
 	}
 	return postsToDl, gdriveLinksToDl, nil
 }
@@ -380,7 +378,7 @@ func getFavourites(downloadPath string, dlOptions *KemonoDlOptions) ([]*request.
 		Method:      "GET",
 		Cookies:     dlOptions.SessionCookies,
 		Params:      params,
-		Headers:     getKemonoPartyHeaders(tld),
+		Headers:     getKemonoPartyHeaders(),
 		UserAgent:   dlOptions.Configs.UserAgent,
 		Http2:       !useHttp3,
 		Http3:       useHttp3,

@@ -57,6 +57,14 @@ type KemonoDl struct {
 	PostsToDl []*models.KemonoPostToDl
 }
 
+// HOTFIX: looks like kemono.party is no longer up and redirects to kemono.su
+func changeServiceToSu(service string) string {
+	if service == utils.KEMONO_TLD {
+		return utils.KEMONO_BACKUP_TLD
+	}
+	return service
+}
+
 func ProcessCreatorUrls(creatorUrls []string, pageNums []string) []*models.KemonoCreatorToDl {
 	creatorsToDl := make([]*models.KemonoCreatorToDl, len(creatorUrls))
 	for i, creatorUrl := range creatorUrls {
@@ -65,7 +73,7 @@ func ProcessCreatorUrls(creatorUrls []string, pageNums []string) []*models.Kemon
 			Service:   matched[CREATOR_URL_REGEX_SERVICE_INDEX],
 			CreatorId: matched[CREATOR_URL_REGEX_CREATOR_ID_INDEX],
 			PageNum:   pageNums[i],
-			Tld:       matched[CREATOR_URL_REGEX_TLD_INDEX],
+			Tld:       changeServiceToSu(matched[CREATOR_URL_REGEX_TLD_INDEX]),
 		}
 	}
 

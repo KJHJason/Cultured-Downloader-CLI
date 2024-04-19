@@ -86,8 +86,8 @@ func VerifyCookie(cookie *http.Cookie, website, userAgent string) (bool, error) 
 		websiteUrl = utils.PIXIV_FANBOX_URL + "/creators/supporting"
 	case utils.PIXIV:
 		websiteUrl = utils.PIXIV_URL + "/dashboard"
-	case utils.KEMONO:
-		websiteUrl = utils.KEMONO_URL + "/favorites"
+	// case utils.KEMONO: Since kemono.party is no longer up and redirects to kemono.su
+	// 	websiteUrl = utils.KEMONO_URL + "/favorites"
 	case utils.KEMONO_BACKUP:
 		websiteUrl = utils.BACKUP_KEMONO_URL + "/favorites"
 	default:
